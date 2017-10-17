@@ -109,4 +109,4 @@ ENV/
 .DS_Store
 
 # R
-.RHistory
+.Rhistory
