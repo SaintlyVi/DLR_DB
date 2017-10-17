@@ -1,6 +1,6 @@
 [submodule "src"]
 	path = src
-	url = git@github.com:ERC-data/DLR_DB.src.git
+	url = https://github.com/ERC-data/DLR_DB.src.git
 [submodule "libpgm"]
 	path = libpgm
-	url = git@github.com:SaintlyVi/DLR_DB.libpgm.git
+	url = https://github.com/SaintlyVi/DLR_DB.libpgm.git

@@ -5,7 +5,7 @@ This is the root directory for the South African Domestic Load Research Intellig
 
 To fetch the data from the submodules you must run `git submodule init` and `git submodule update` or alternatively pass `--recursive` to the `git clone` command. Learn more about [git submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
 
-To run the scripts without a MSSQL database installation of the DLR project, access to a protected data repository is required. You can request access to this repo from [@saintlyvi](wiebke.toussaint@uct.ac.za)
+To run the scripts without a MSSQL database installation of the DLR project, access to a protected data repository is required. You can request access to this repo from [@saintlyvi](wiebke.toussaint@uct.ac.za).
 
 ## Interacting with the DLR data
 
