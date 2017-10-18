@@ -3,4 +3,4 @@
 	url = https://github.com/ERC-data/DLR_DB.src.git
 [submodule "libpgm"]
 	path = class_model
-	url = https://github.com/SaintlyVi/DLR_DB.libpgm.git
+	url = https://github.com/SaintlyVi/DLR_DB.class_model.git
