@@ -4,3 +4,6 @@
 [submodule "libpgm"]
 	path = class_model
 	url = https://github.com/SaintlyVi/DLR_DB.class_model.git
+[submodule "expert_model"]
+	path = expert_model
+	url = https://github.com/SaintlyVi/DLR_DB.expert_model.git
