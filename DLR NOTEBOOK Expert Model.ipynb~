@@ -1,0 +1,4483 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Domestic Load Research Project Expert Model Extracted from DPET"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "This notebook requires access to a data directory with data extracted from the Demand Planning & Electrification Tool (DPET). The data files must be in the directory on the path `data/dpet/` .\n",
+    "\n",
+    "This expert model has been extracted from DPET according to Table 6 set out in the Geo-based Load Forecast Standard (p.47) using software released with 2013 data and the following user input settings:\n",
+    "* 2011 income values\n",
+    "* all default settings\n",
+    "\n",
+    "The following geographic locations were selected to obtain the hourly profile and summary datasets for each class:\n",
+    "\n",
+    "- **rural:** Westrand District Municipality (R1000 mean income)\n",
+    "- **village:** Westrand District Municipality (R1000 mean income)\n",
+    "- **informal settlement:** City of Johannesburg Metro (R2000 mean income)\n",
+    "- **township:** City of Johannesburg Metro (R5500 mean income)\n",
+    "- **urban residential (lsm7):** City of Johannesburg Metro (R10 000 mean income)\n",
+    "- **urban residential (lsm8-9):** City of Johannesburg Metro (R18 000 mean income)\n",
+    "- **urban townhouse (lsm7-8):** City of Johannesburg Metro (R15 500 mean income) \n",
+    "\n",
+    "DPET does not provide data for **urban townhouse (lsm9-10)** and **urban estate (lsm10+)** consumers (above R20k monthly income)."
+   ]
+  },
+  {
+   "cell_type": "code",
+<<<<<<< HEAD
+   "execution_count": 2,
+   "metadata": {},
+=======
+   "execution_count": 1,
+   "metadata": {
+    "collapsed": false
+   },
+>>>>>>> f9960e7122cc6f2036d44a49df2455da805d06ed
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<script>requirejs.config({paths: { 'plotly': ['https://cdn.plot.ly/plotly-latest.min']},});if(!window.Plotly) {{require(['plotly'],function(plotly) {window.Plotly=plotly;});}}</script>"
+      ],
+      "text/vnd.plotly.v1+html": [
+       "<script>requirejs.config({paths: { 'plotly': ['https://cdn.plot.ly/plotly-latest.min']},});if(!window.Plotly) {{require(['plotly'],function(plotly) {window.Plotly=plotly;});}}</script>"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "text/html": [
+       "<script>requirejs.config({paths: { 'plotly': ['https://cdn.plot.ly/plotly-latest.min']},});if(!window.Plotly) {{require(['plotly'],function(plotly) {window.Plotly=plotly;});}}</script>"
+      ],
+      "text/vnd.plotly.v1+html": [
+       "<script>requirejs.config({paths: { 'plotly': ['https://cdn.plot.ly/plotly-latest.min']},});if(!window.Plotly) {{require(['plotly'],function(plotly) {window.Plotly=plotly;});}}</script>"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "#Import statements\n",
+    "\n",
+    "import os\n",
+    "import expert_model.plotfxn as emp\n",
+    "from expert_model.dir_vars import data_dir\n",
+    "\n",
+    "import plotly.offline as offline\n",
+    "import plotly.graph_objs as go\n",
+    "from plotly import tools\n",
+    "offline.init_notebook_mode(connected=True) #set for plotly offline plotting\n",
+    "\n",
+    "dpet_dir = os.path.join(data_dir, 'dpet')\n",
+    "files = os.listdir(dpet_dir) #get data files containing expert model"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Interrogate Summary Class Data"
+   ]
+  },
+  {
+   "cell_type": "code",
+<<<<<<< HEAD
+   "execution_count": 11,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "informal_settlement\n",
+      "township\n",
+      "urban_res_7\n",
+      "urban_townhouse_7-8\n",
+      "urban_res_8-9\n",
+      "rural\n"
+     ]
+    },
+    {
+     "data": {
+      "text/plain": [
+       "[None, None, None, None, None, None]"
+      ]
+     },
+     "execution_count": 11,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "[print(c) for c in emp.demandsummary()['class'].unique()]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "metadata": {},
+=======
+   "execution_count": 2,
+   "metadata": {
+    "collapsed": false
+   },
+>>>>>>> f9960e7122cc6f2036d44a49df2455da805d06ed
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style>\n",
+       "    .dataframe thead tr:only-child th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: left;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>Year</th>\n",
+       "      <th>Energy [kWh]</th>\n",
+       "      <th>ADMD [kVA]</th>\n",
+       "      <th>Alpha</th>\n",
+       "      <th>Beta</th>\n",
+       "      <th>Circuit Breaker</th>\n",
+       "      <th>class</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>1</td>\n",
+       "      <td>151.123757</td>\n",
+       "      <td>0.659224</td>\n",
+       "      <td>0.216751</td>\n",
+       "      <td>1.295713</td>\n",
+       "      <td>20</td>\n",
+       "      <td>informal_settlement</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>2</td>\n",
+       "      <td>154.539101</td>\n",
+       "      <td>0.672016</td>\n",
+       "      <td>0.218622</td>\n",
+       "      <td>1.277860</td>\n",
+       "      <td>20</td>\n",
+       "      <td>informal_settlement</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>3</td>\n",
+       "      <td>158.168829</td>\n",
+       "      <td>0.685610</td>\n",
+       "      <td>0.220576</td>\n",
+       "      <td>1.259346</td>\n",
+       "      <td>20</td>\n",
+       "      <td>informal_settlement</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>4</td>\n",
+       "      <td>161.819533</td>\n",
+       "      <td>0.699283</td>\n",
+       "      <td>0.222505</td>\n",
+       "      <td>1.241173</td>\n",
+       "      <td>20</td>\n",
+       "      <td>informal_settlement</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>5</td>\n",
+       "      <td>165.297803</td>\n",
+       "      <td>0.712310</td>\n",
+       "      <td>0.224310</td>\n",
+       "      <td>1.224252</td>\n",
+       "      <td>20</td>\n",
+       "      <td>informal_settlement</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "   Year  Energy [kWh]  ADMD [kVA]     Alpha      Beta  Circuit Breaker  \\\n",
+       "0     1    151.123757    0.659224  0.216751  1.295713               20   \n",
+       "1     2    154.539101    0.672016  0.218622  1.277860               20   \n",
+       "2     3    158.168829    0.685610  0.220576  1.259346               20   \n",
+       "3     4    161.819533    0.699283  0.222505  1.241173               20   \n",
+       "4     5    165.297803    0.712310  0.224310  1.224252               20   \n",
+       "\n",
+       "                 class  \n",
+       "0  informal_settlement  \n",
+       "1  informal_settlement  \n",
+       "2  informal_settlement  \n",
+       "3  informal_settlement  \n",
+       "4  informal_settlement  "
+      ]
+     },
+     "execution_count": 3,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "emp.demandsummary().head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+<<<<<<< HEAD
+   "execution_count": 4,
+   "metadata": {},
+=======
+   "execution_count": 3,
+   "metadata": {
+    "collapsed": false
+   },
+>>>>>>> f9960e7122cc6f2036d44a49df2455da805d06ed
+   "outputs": [
+    {
+     "data": {
+      "application/vnd.plotly.v1+json": {
+       "data": [
+        {
+         "name": "township",
+         "type": "bar",
+         "x": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+         ],
+         "y": [
+          346.69324862009,
+          350.6338687703979,
+          355.09670555313227,
+          360.0431539333823,
+          365.43460887623746,
+          371.3720072062824,
+          377.9743549248354,
+          385.2301507620812,
+          393.12789344820817,
+          401.8428907945041,
+          411.50927855537935,
+          422.05379737569467,
+          433.40318790031614,
+          445.4841907741048,
+          458.223546641926
+         ]
+        }
+       ],
+       "layout": {
+        "title": "Annualised Monthly Energy Consumption for \"township\" Customer Class",
+        "xaxis": {
+         "tickfont": {
+          "color": "rgb(107, 107, 107)",
+          "size": 14
+         },
+         "title": "years since electrification"
+        },
+        "yaxis": {
+         "title": "average annual kWh/month",
+         "titlefont": {
+          "color": "rgb(107, 107, 107)",
+          "size": 16
+         }
+        }
+       }
+      },
+      "text/html": [
+<<<<<<< HEAD
+       "<div id=\"01618ff1-ee9d-4564-b76e-faca5051ea55\" style=\"height: 525px; width: 100%;\" class=\"plotly-graph-div\"></div><script type=\"text/javascript\">require([\"plotly\"], function(Plotly) { window.PLOTLYENV=window.PLOTLYENV || {};window.PLOTLYENV.BASE_URL=\"https://plot.ly\";Plotly.newPlot(\"01618ff1-ee9d-4564-b76e-faca5051ea55\", [{\"y\": [346.69324862009, 350.6338687703979, 355.09670555313227, 360.0431539333823, 365.43460887623746, 371.3720072062824, 377.9743549248354, 385.2301507620812, 393.12789344820817, 401.8428907945041, 411.50927855537935, 422.05379737569467, 433.40318790031614, 445.4841907741048, 458.223546641926], \"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"name\": \"township\", \"type\": \"bar\"}], {\"yaxis\": {\"title\": \"average annual kWh/month\", \"titlefont\": {\"color\": \"rgb(107, 107, 107)\", \"size\": 16}}, \"xaxis\": {\"tickfont\": {\"color\": \"rgb(107, 107, 107)\", \"size\": 14}, \"title\": \"years since electrification\"}, \"title\": \"Annualised Monthly Energy Consumption for \\\"township\\\" Customer Class\"}, {\"showLink\": true, \"linkText\": \"Export to plot.ly\"})});</script>"
+      ],
+      "text/vnd.plotly.v1+html": [
+       "<div id=\"01618ff1-ee9d-4564-b76e-faca5051ea55\" style=\"height: 525px; width: 100%;\" class=\"plotly-graph-div\"></div><script type=\"text/javascript\">require([\"plotly\"], function(Plotly) { window.PLOTLYENV=window.PLOTLYENV || {};window.PLOTLYENV.BASE_URL=\"https://plot.ly\";Plotly.newPlot(\"01618ff1-ee9d-4564-b76e-faca5051ea55\", [{\"y\": [346.69324862009, 350.6338687703979, 355.09670555313227, 360.0431539333823, 365.43460887623746, 371.3720072062824, 377.9743549248354, 385.2301507620812, 393.12789344820817, 401.8428907945041, 411.50927855537935, 422.05379737569467, 433.40318790031614, 445.4841907741048, 458.223546641926], \"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"name\": \"township\", \"type\": \"bar\"}], {\"yaxis\": {\"title\": \"average annual kWh/month\", \"titlefont\": {\"color\": \"rgb(107, 107, 107)\", \"size\": 16}}, \"xaxis\": {\"tickfont\": {\"color\": \"rgb(107, 107, 107)\", \"size\": 14}, \"title\": \"years since electrification\"}, \"title\": \"Annualised Monthly Energy Consumption for \\\"township\\\" Customer Class\"}, {\"showLink\": true, \"linkText\": \"Export to plot.ly\"})});</script>"
+=======
+       "<div id=\"e1db032b-c3ed-42aa-8208-4c1c7e6687b9\" style=\"height: 525px; width: 100%;\" class=\"plotly-graph-div\"></div><script type=\"text/javascript\">require([\"plotly\"], function(Plotly) { window.PLOTLYENV=window.PLOTLYENV || {};window.PLOTLYENV.BASE_URL=\"https://plot.ly\";Plotly.newPlot(\"e1db032b-c3ed-42aa-8208-4c1c7e6687b9\", [{\"y\": [346.69324862009, 350.6338687703979, 355.09670555313227, 360.0431539333823, 365.43460887623746, 371.3720072062824, 377.9743549248354, 385.2301507620812, 393.12789344820817, 401.8428907945041, 411.50927855537935, 422.05379737569467, 433.40318790031614, 445.4841907741048, 458.223546641926], \"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"type\": \"bar\", \"name\": \"township\"}], {\"yaxis\": {\"titlefont\": {\"color\": \"rgb(107, 107, 107)\", \"size\": 16}, \"title\": \"average annual kWh/month\"}, \"xaxis\": {\"tickfont\": {\"color\": \"rgb(107, 107, 107)\", \"size\": 14}, \"title\": \"years since electrification\"}, \"title\": \"Annualised Monthly Energy Consumption for \\\"township\\\" Customer Class\"}, {\"linkText\": \"Export to plot.ly\", \"showLink\": true})});</script>"
+      ],
+      "text/vnd.plotly.v1+html": [
+       "<div id=\"e1db032b-c3ed-42aa-8208-4c1c7e6687b9\" style=\"height: 525px; width: 100%;\" class=\"plotly-graph-div\"></div><script type=\"text/javascript\">require([\"plotly\"], function(Plotly) { window.PLOTLYENV=window.PLOTLYENV || {};window.PLOTLYENV.BASE_URL=\"https://plot.ly\";Plotly.newPlot(\"e1db032b-c3ed-42aa-8208-4c1c7e6687b9\", [{\"y\": [346.69324862009, 350.6338687703979, 355.09670555313227, 360.0431539333823, 365.43460887623746, 371.3720072062824, 377.9743549248354, 385.2301507620812, 393.12789344820817, 401.8428907945041, 411.50927855537935, 422.05379737569467, 433.40318790031614, 445.4841907741048, 458.223546641926], \"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"type\": \"bar\", \"name\": \"township\"}], {\"yaxis\": {\"titlefont\": {\"color\": \"rgb(107, 107, 107)\", \"size\": 16}, \"title\": \"average annual kWh/month\"}, \"xaxis\": {\"tickfont\": {\"color\": \"rgb(107, 107, 107)\", \"size\": 14}, \"title\": \"years since electrification\"}, \"title\": \"Annualised Monthly Energy Consumption for \\\"township\\\" Customer Class\"}, {\"linkText\": \"Export to plot.ly\", \"showLink\": true})});</script>"
+>>>>>>> f9960e7122cc6f2036d44a49df2455da805d06ed
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "application/vnd.plotly.v1+json": {
+       "data": [
+        {
+         "fill": "tonexty",
+         "mode": "lines",
+         "name": "rural",
+         "type": "scatter",
+         "x": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+         ],
+         "y": [
+          79.66273901968162,
+          82.2105003354792,
+          84.30732485850751,
+          86.5019026113042,
+          89.34292361640692,
+          92.19483029077335,
+          94.53647035665549,
+          97.08814179453304,
+          100.57014258488563,
+          104.0691316045438,
+          106.43177977432444,
+          108.01840314068671,
+          109.18931775008978,
+          110.30483964899321,
+          111.72528488385578
+         ]
+        },
+        {
+         "fill": "tonexty",
+         "mode": "lines",
+         "name": "informal_settlement",
+         "type": "scatter",
+         "x": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+         ],
+         "y": [
+          151.12375735804795,
+          154.5391006504308,
+          158.1688287576447,
+          161.81953266764032,
+          165.29780336836845,
+          168.7905198530858,
+          172.60747115378345,
+          176.73961331650392,
+          181.17790238729717,
+          186.0567355184976,
+          191.3253892731428,
+          196.69713881333382,
+          201.8852593011699,
+          206.60302589875354,
+          210.56371376818572
+         ]
+        },
+        {
+         "fill": "tonexty",
+         "mode": "lines",
+         "name": "township",
+         "type": "scatter",
+         "x": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+         ],
+         "y": [
+          346.69324862009,
+          350.6338687703979,
+          355.09670555313227,
+          360.0431539333823,
+          365.43460887623746,
+          371.3720072062824,
+          377.9743549248354,
+          385.2301507620812,
+          393.12789344820817,
+          401.8428907945041,
+          411.50927855537935,
+          422.05379737569467,
+          433.40318790031614,
+          445.4841907741048,
+          458.223546641926
+         ]
+        },
+        {
+         "fill": "tonexty",
+         "mode": "lines",
+         "name": "urban_res_7",
+         "type": "scatter",
+         "x": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+         ],
+         "y": [
+          530.8329007184772,
+          535.8405272622241,
+          541.5655003375358,
+          547.9718183781124,
+          555.0234798176525,
+          562.6844830898528,
+          570.9188266284153,
+          579.690508867037,
+          588.9635282394178,
+          598.7018831792564,
+          608.8695721202512,
+          619.4305934961026,
+          630.3489457405091,
+          641.5886272871691,
+          653.1136365697809
+         ]
+        },
+        {
+         "fill": "tonexty",
+         "mode": "lines",
+         "name": "urban_townhouse_7-8",
+         "type": "scatter",
+         "x": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+         ],
+         "y": [
+          649.3856808787348,
+          656.1625284834455,
+          663.0625508022688,
+          670.0704923253485,
+          677.171097542828,
+          684.3491109448526,
+          691.5892770215663,
+          698.8763402631105,
+          706.1950451596329,
+          713.5301362012718,
+          720.8663578781758,
+          728.1884546804868,
+          735.4811710983488,
+          742.7292516219055,
+          749.9174407413002
+         ]
+        },
+        {
+         "fill": "tonexty",
+         "mode": "lines",
+         "name": "urban_res_8-9",
+         "type": "scatter",
+         "x": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+         ],
+         "y": [
+          719.8894363753836,
+          726.8822966008038,
+          733.9577817692102,
+          741.1029061195038,
+          748.3046838905899,
+          755.5501293213672,
+          762.8262566507398,
+          770.1200801176095,
+          777.4186139608759,
+          784.708872419444,
+          791.9778697322126,
+          799.212620138086,
+          806.400137875966,
+          813.5274371847535,
+          820.5815323033502
+         ]
+        }
+       ],
+       "layout": {
+        "title": "Annualised Monthly Energy Consumption for Domestic Energy Consumers",
+        "xaxis": {
+         "tickfont": {
+          "color": "rgb(107, 107, 107)",
+          "size": 14
+         },
+         "title": "years since electrification"
+        },
+        "yaxis": {
+         "title": "average annual kWh/month",
+         "titlefont": {
+          "color": "rgb(107, 107, 107)",
+          "size": 16
+         }
+        }
+       }
+      },
+      "text/html": [
+<<<<<<< HEAD
+       "<div id=\"ee13a6c6-49e5-4911-86a3-a18335434bf1\" style=\"height: 525px; width: 100%;\" class=\"plotly-graph-div\"></div><script type=\"text/javascript\">require([\"plotly\"], function(Plotly) { window.PLOTLYENV=window.PLOTLYENV || {};window.PLOTLYENV.BASE_URL=\"https://plot.ly\";Plotly.newPlot(\"ee13a6c6-49e5-4911-86a3-a18335434bf1\", [{\"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"type\": \"scatter\", \"mode\": \"lines\", \"name\": \"rural\", \"y\": [79.66273901968162, 82.2105003354792, 84.30732485850751, 86.5019026113042, 89.34292361640692, 92.19483029077335, 94.53647035665549, 97.08814179453304, 100.57014258488563, 104.0691316045438, 106.43177977432444, 108.01840314068671, 109.18931775008978, 110.30483964899321, 111.72528488385578], \"fill\": \"tonexty\"}, {\"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"type\": \"scatter\", \"mode\": \"lines\", \"name\": \"informal_settlement\", \"y\": [151.12375735804795, 154.5391006504308, 158.1688287576447, 161.81953266764032, 165.29780336836845, 168.7905198530858, 172.60747115378345, 176.73961331650392, 181.17790238729717, 186.0567355184976, 191.3253892731428, 196.69713881333382, 201.8852593011699, 206.60302589875354, 210.56371376818572], \"fill\": \"tonexty\"}, {\"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"type\": \"scatter\", \"mode\": \"lines\", \"name\": \"township\", \"y\": [346.69324862009, 350.6338687703979, 355.09670555313227, 360.0431539333823, 365.43460887623746, 371.3720072062824, 377.9743549248354, 385.2301507620812, 393.12789344820817, 401.8428907945041, 411.50927855537935, 422.05379737569467, 433.40318790031614, 445.4841907741048, 458.223546641926], \"fill\": \"tonexty\"}, {\"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"type\": \"scatter\", \"mode\": \"lines\", \"name\": \"urban_res_7\", \"y\": [530.8329007184772, 535.8405272622241, 541.5655003375358, 547.9718183781124, 555.0234798176525, 562.6844830898528, 570.9188266284153, 579.690508867037, 588.9635282394178, 598.7018831792564, 608.8695721202512, 619.4305934961026, 630.3489457405091, 641.5886272871691, 653.1136365697809], \"fill\": \"tonexty\"}, {\"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"type\": \"scatter\", \"mode\": \"lines\", \"name\": \"urban_townhouse_7-8\", \"y\": [649.3856808787348, 656.1625284834455, 663.0625508022688, 670.0704923253485, 677.171097542828, 684.3491109448526, 691.5892770215663, 698.8763402631105, 706.1950451596329, 713.5301362012718, 720.8663578781758, 728.1884546804868, 735.4811710983488, 742.7292516219055, 749.9174407413002], \"fill\": \"tonexty\"}, {\"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"type\": \"scatter\", \"mode\": \"lines\", \"name\": \"urban_res_8-9\", \"y\": [719.8894363753836, 726.8822966008038, 733.9577817692102, 741.1029061195038, 748.3046838905899, 755.5501293213672, 762.8262566507398, 770.1200801176095, 777.4186139608759, 784.708872419444, 791.9778697322126, 799.212620138086, 806.400137875966, 813.5274371847535, 820.5815323033502], \"fill\": \"tonexty\"}], {\"yaxis\": {\"title\": \"average annual kWh/month\", \"titlefont\": {\"color\": \"rgb(107, 107, 107)\", \"size\": 16}}, \"xaxis\": {\"tickfont\": {\"color\": \"rgb(107, 107, 107)\", \"size\": 14}, \"title\": \"years since electrification\"}, \"title\": \"Annualised Monthly Energy Consumption for Domestic Energy Consumers\"}, {\"showLink\": true, \"linkText\": \"Export to plot.ly\"})});</script>"
+      ],
+      "text/vnd.plotly.v1+html": [
+       "<div id=\"ee13a6c6-49e5-4911-86a3-a18335434bf1\" style=\"height: 525px; width: 100%;\" class=\"plotly-graph-div\"></div><script type=\"text/javascript\">require([\"plotly\"], function(Plotly) { window.PLOTLYENV=window.PLOTLYENV || {};window.PLOTLYENV.BASE_URL=\"https://plot.ly\";Plotly.newPlot(\"ee13a6c6-49e5-4911-86a3-a18335434bf1\", [{\"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"type\": \"scatter\", \"mode\": \"lines\", \"name\": \"rural\", \"y\": [79.66273901968162, 82.2105003354792, 84.30732485850751, 86.5019026113042, 89.34292361640692, 92.19483029077335, 94.53647035665549, 97.08814179453304, 100.57014258488563, 104.0691316045438, 106.43177977432444, 108.01840314068671, 109.18931775008978, 110.30483964899321, 111.72528488385578], \"fill\": \"tonexty\"}, {\"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"type\": \"scatter\", \"mode\": \"lines\", \"name\": \"informal_settlement\", \"y\": [151.12375735804795, 154.5391006504308, 158.1688287576447, 161.81953266764032, 165.29780336836845, 168.7905198530858, 172.60747115378345, 176.73961331650392, 181.17790238729717, 186.0567355184976, 191.3253892731428, 196.69713881333382, 201.8852593011699, 206.60302589875354, 210.56371376818572], \"fill\": \"tonexty\"}, {\"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"type\": \"scatter\", \"mode\": \"lines\", \"name\": \"township\", \"y\": [346.69324862009, 350.6338687703979, 355.09670555313227, 360.0431539333823, 365.43460887623746, 371.3720072062824, 377.9743549248354, 385.2301507620812, 393.12789344820817, 401.8428907945041, 411.50927855537935, 422.05379737569467, 433.40318790031614, 445.4841907741048, 458.223546641926], \"fill\": \"tonexty\"}, {\"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"type\": \"scatter\", \"mode\": \"lines\", \"name\": \"urban_res_7\", \"y\": [530.8329007184772, 535.8405272622241, 541.5655003375358, 547.9718183781124, 555.0234798176525, 562.6844830898528, 570.9188266284153, 579.690508867037, 588.9635282394178, 598.7018831792564, 608.8695721202512, 619.4305934961026, 630.3489457405091, 641.5886272871691, 653.1136365697809], \"fill\": \"tonexty\"}, {\"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"type\": \"scatter\", \"mode\": \"lines\", \"name\": \"urban_townhouse_7-8\", \"y\": [649.3856808787348, 656.1625284834455, 663.0625508022688, 670.0704923253485, 677.171097542828, 684.3491109448526, 691.5892770215663, 698.8763402631105, 706.1950451596329, 713.5301362012718, 720.8663578781758, 728.1884546804868, 735.4811710983488, 742.7292516219055, 749.9174407413002], \"fill\": \"tonexty\"}, {\"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"type\": \"scatter\", \"mode\": \"lines\", \"name\": \"urban_res_8-9\", \"y\": [719.8894363753836, 726.8822966008038, 733.9577817692102, 741.1029061195038, 748.3046838905899, 755.5501293213672, 762.8262566507398, 770.1200801176095, 777.4186139608759, 784.708872419444, 791.9778697322126, 799.212620138086, 806.400137875966, 813.5274371847535, 820.5815323033502], \"fill\": \"tonexty\"}], {\"yaxis\": {\"title\": \"average annual kWh/month\", \"titlefont\": {\"color\": \"rgb(107, 107, 107)\", \"size\": 16}}, \"xaxis\": {\"tickfont\": {\"color\": \"rgb(107, 107, 107)\", \"size\": 14}, \"title\": \"years since electrification\"}, \"title\": \"Annualised Monthly Energy Consumption for Domestic Energy Consumers\"}, {\"showLink\": true, \"linkText\": \"Export to plot.ly\"})});</script>"
+=======
+       "<div id=\"4ccd39a9-9739-451f-98aa-20bc590f88b4\" style=\"height: 525px; width: 100%;\" class=\"plotly-graph-div\"></div><script type=\"text/javascript\">require([\"plotly\"], function(Plotly) { window.PLOTLYENV=window.PLOTLYENV || {};window.PLOTLYENV.BASE_URL=\"https://plot.ly\";Plotly.newPlot(\"4ccd39a9-9739-451f-98aa-20bc590f88b4\", [{\"y\": [79.66273901968162, 82.2105003354792, 84.30732485850751, 86.5019026113042, 89.34292361640692, 92.19483029077335, 94.53647035665549, 97.08814179453304, 100.57014258488563, 104.0691316045438, 106.43177977432444, 108.01840314068671, 109.18931775008978, 110.30483964899321, 111.72528488385578], \"fill\": \"tonexty\", \"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"mode\": \"lines\", \"type\": \"scatter\", \"name\": \"rural\"}, {\"y\": [151.12375735804795, 154.5391006504308, 158.1688287576447, 161.81953266764032, 165.29780336836845, 168.7905198530858, 172.60747115378345, 176.73961331650392, 181.17790238729717, 186.0567355184976, 191.3253892731428, 196.69713881333382, 201.8852593011699, 206.60302589875354, 210.56371376818572], \"fill\": \"tonexty\", \"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"mode\": \"lines\", \"type\": \"scatter\", \"name\": \"informal_settlement\"}, {\"y\": [346.69324862009, 350.6338687703979, 355.09670555313227, 360.0431539333823, 365.43460887623746, 371.3720072062824, 377.9743549248354, 385.2301507620812, 393.12789344820817, 401.8428907945041, 411.50927855537935, 422.05379737569467, 433.40318790031614, 445.4841907741048, 458.223546641926], \"fill\": \"tonexty\", \"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"mode\": \"lines\", \"type\": \"scatter\", \"name\": \"township\"}, {\"y\": [530.8329007184772, 535.8405272622241, 541.5655003375358, 547.9718183781124, 555.0234798176525, 562.6844830898528, 570.9188266284153, 579.690508867037, 588.9635282394178, 598.7018831792564, 608.8695721202512, 619.4305934961026, 630.3489457405091, 641.5886272871691, 653.1136365697809], \"fill\": \"tonexty\", \"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"mode\": \"lines\", \"type\": \"scatter\", \"name\": \"urban_res_7\"}, {\"y\": [649.3856808787348, 656.1625284834455, 663.0625508022688, 670.0704923253485, 677.171097542828, 684.3491109448526, 691.5892770215663, 698.8763402631105, 706.1950451596329, 713.5301362012718, 720.8663578781758, 728.1884546804868, 735.4811710983488, 742.7292516219055, 749.9174407413002], \"fill\": \"tonexty\", \"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"mode\": \"lines\", \"type\": \"scatter\", \"name\": \"urban_townhouse_7-8\"}, {\"y\": [719.8894363753836, 726.8822966008038, 733.9577817692102, 741.1029061195038, 748.3046838905899, 755.5501293213672, 762.8262566507398, 770.1200801176095, 777.4186139608759, 784.708872419444, 791.9778697322126, 799.212620138086, 806.400137875966, 813.5274371847535, 820.5815323033502], \"fill\": \"tonexty\", \"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"mode\": \"lines\", \"type\": \"scatter\", \"name\": \"urban_res_8-9\"}], {\"yaxis\": {\"titlefont\": {\"color\": \"rgb(107, 107, 107)\", \"size\": 16}, \"title\": \"average annual kWh/month\"}, \"xaxis\": {\"tickfont\": {\"color\": \"rgb(107, 107, 107)\", \"size\": 14}, \"title\": \"years since electrification\"}, \"title\": \"Annualised Monthly Energy Consumption for Domestic Energy Consumers\"}, {\"linkText\": \"Export to plot.ly\", \"showLink\": true})});</script>"
+      ],
+      "text/vnd.plotly.v1+html": [
+       "<div id=\"4ccd39a9-9739-451f-98aa-20bc590f88b4\" style=\"height: 525px; width: 100%;\" class=\"plotly-graph-div\"></div><script type=\"text/javascript\">require([\"plotly\"], function(Plotly) { window.PLOTLYENV=window.PLOTLYENV || {};window.PLOTLYENV.BASE_URL=\"https://plot.ly\";Plotly.newPlot(\"4ccd39a9-9739-451f-98aa-20bc590f88b4\", [{\"y\": [79.66273901968162, 82.2105003354792, 84.30732485850751, 86.5019026113042, 89.34292361640692, 92.19483029077335, 94.53647035665549, 97.08814179453304, 100.57014258488563, 104.0691316045438, 106.43177977432444, 108.01840314068671, 109.18931775008978, 110.30483964899321, 111.72528488385578], \"fill\": \"tonexty\", \"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"mode\": \"lines\", \"type\": \"scatter\", \"name\": \"rural\"}, {\"y\": [151.12375735804795, 154.5391006504308, 158.1688287576447, 161.81953266764032, 165.29780336836845, 168.7905198530858, 172.60747115378345, 176.73961331650392, 181.17790238729717, 186.0567355184976, 191.3253892731428, 196.69713881333382, 201.8852593011699, 206.60302589875354, 210.56371376818572], \"fill\": \"tonexty\", \"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"mode\": \"lines\", \"type\": \"scatter\", \"name\": \"informal_settlement\"}, {\"y\": [346.69324862009, 350.6338687703979, 355.09670555313227, 360.0431539333823, 365.43460887623746, 371.3720072062824, 377.9743549248354, 385.2301507620812, 393.12789344820817, 401.8428907945041, 411.50927855537935, 422.05379737569467, 433.40318790031614, 445.4841907741048, 458.223546641926], \"fill\": \"tonexty\", \"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"mode\": \"lines\", \"type\": \"scatter\", \"name\": \"township\"}, {\"y\": [530.8329007184772, 535.8405272622241, 541.5655003375358, 547.9718183781124, 555.0234798176525, 562.6844830898528, 570.9188266284153, 579.690508867037, 588.9635282394178, 598.7018831792564, 608.8695721202512, 619.4305934961026, 630.3489457405091, 641.5886272871691, 653.1136365697809], \"fill\": \"tonexty\", \"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"mode\": \"lines\", \"type\": \"scatter\", \"name\": \"urban_res_7\"}, {\"y\": [649.3856808787348, 656.1625284834455, 663.0625508022688, 670.0704923253485, 677.171097542828, 684.3491109448526, 691.5892770215663, 698.8763402631105, 706.1950451596329, 713.5301362012718, 720.8663578781758, 728.1884546804868, 735.4811710983488, 742.7292516219055, 749.9174407413002], \"fill\": \"tonexty\", \"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"mode\": \"lines\", \"type\": \"scatter\", \"name\": \"urban_townhouse_7-8\"}, {\"y\": [719.8894363753836, 726.8822966008038, 733.9577817692102, 741.1029061195038, 748.3046838905899, 755.5501293213672, 762.8262566507398, 770.1200801176095, 777.4186139608759, 784.708872419444, 791.9778697322126, 799.212620138086, 806.400137875966, 813.5274371847535, 820.5815323033502], \"fill\": \"tonexty\", \"x\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], \"mode\": \"lines\", \"type\": \"scatter\", \"name\": \"urban_res_8-9\"}], {\"yaxis\": {\"titlefont\": {\"color\": \"rgb(107, 107, 107)\", \"size\": 16}, \"title\": \"average annual kWh/month\"}, \"xaxis\": {\"tickfont\": {\"color\": \"rgb(107, 107, 107)\", \"size\": 14}, \"title\": \"years since electrification\"}, \"title\": \"Annualised Monthly Energy Consumption for Domestic Energy Consumers\"}, {\"linkText\": \"Export to plot.ly\", \"showLink\": true})});</script>"
+>>>>>>> f9960e7122cc6f2036d44a49df2455da805d06ed
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "emp.plotClassSummary('township')\n",
+    "emp.plotAllSummaries()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Interrogate Hourly Profile Data"
+   ]
+  },
+  {
+   "cell_type": "code",
+<<<<<<< HEAD
+   "execution_count": 5,
+   "metadata": {},
+=======
+   "execution_count": 4,
+   "metadata": {
+    "collapsed": false
+   },
+>>>>>>> f9960e7122cc6f2036d44a49df2455da805d06ed
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style>\n",
+       "    .dataframe thead tr:only-child th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: left;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>Year</th>\n",
+       "      <th>Energy [kWh]</th>\n",
+       "      <th>Month</th>\n",
+       "      <th>Day Type</th>\n",
+       "      <th>Time of day [hour]</th>\n",
+       "      <th>Mean [kVA]</th>\n",
+       "      <th>Stdev [kVA]</th>\n",
+       "      <th>class</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>1</td>\n",
+       "      <td>151.124</td>\n",
+       "      <td>January</td>\n",
+       "      <td>Weekday</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0.118</td>\n",
+       "      <td>0.041</td>\n",
+       "      <td>informal_settlement</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>1</td>\n",
+       "      <td>151.124</td>\n",
+       "      <td>January</td>\n",
+       "      <td>Weekday</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0.113</td>\n",
+       "      <td>0.042</td>\n",
+       "      <td>informal_settlement</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>1</td>\n",
+       "      <td>151.124</td>\n",
+       "      <td>January</td>\n",
+       "      <td>Weekday</td>\n",
+       "      <td>2</td>\n",
+       "      <td>0.112</td>\n",
+       "      <td>0.040</td>\n",
+       "      <td>informal_settlement</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>1</td>\n",
+       "      <td>151.124</td>\n",
+       "      <td>January</td>\n",
+       "      <td>Weekday</td>\n",
+       "      <td>3</td>\n",
+       "      <td>0.116</td>\n",
+       "      <td>0.041</td>\n",
+       "      <td>informal_settlement</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>1</td>\n",
+       "      <td>151.124</td>\n",
+       "      <td>January</td>\n",
+       "      <td>Weekday</td>\n",
+       "      <td>4</td>\n",
+       "      <td>0.141</td>\n",
+       "      <td>0.051</td>\n",
+       "      <td>informal_settlement</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "   Year  Energy [kWh]    Month Day Type  Time of day [hour]  Mean [kVA]  \\\n",
+       "0     1       151.124  January  Weekday                   0       0.118   \n",
+       "1     1       151.124  January  Weekday                   1       0.113   \n",
+       "2     1       151.124  January  Weekday                   2       0.112   \n",
+       "3     1       151.124  January  Weekday                   3       0.116   \n",
+       "4     1       151.124  January  Weekday                   4       0.141   \n",
+       "\n",
+       "   Stdev [kVA]                class  \n",
+       "0        0.041  informal_settlement  \n",
+       "1        0.042  informal_settlement  \n",
+       "2        0.040  informal_settlement  \n",
+       "3        0.041  informal_settlement  \n",
+       "4        0.051  informal_settlement  "
+      ]
+     },
+     "execution_count": 5,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "emp.hourlyprofiles().head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+<<<<<<< HEAD
+   "execution_count": 17,
+   "metadata": {},
+=======
+   "execution_count": 5,
+   "metadata": {
+    "collapsed": false
+   },
+>>>>>>> f9960e7122cc6f2036d44a49df2455da805d06ed
+   "outputs": [
+    {
+     "data": {
+      "application/vnd.plotly.v1+json": {
+       "data": [
+        {
+         "name": "December",
+         "showscale": false,
+         "type": "surface",
+         "x": [
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ],
+          [
+           0,
+           1
+          ]
+         ],
+         "y": [
+          [
+           0,
+           0
+          ],
+          [
+           1,
+           1
+          ],
+          [
+           2,
+           2
+          ],
+          [
+           3,
+           3
+          ],
+          [
+           4,
+           4
+          ],
+          [
+           5,
+           5
+          ],
+          [
+           6,
+           6
+          ],
+          [
+           7,
+           7
+          ],
+          [
+           8,
+           8
+          ],
+          [
+           9,
+           9
+          ],
+          [
+           10,
+           10
+          ],
+          [
+           11,
+           11
+          ],
+          [
+           12,
+           12
+          ],
+          [
+           13,
+           13
+          ],
+          [
+           14,
+           14
+          ],
+          [
+           15,
+           15
+          ],
+          [
+           16,
+           16
+          ],
+          [
+           17,
+           17
+          ],
+          [
+           18,
+           18
+          ],
+          [
+           19,
+           19
+          ],
+          [
+           20,
+           20
+          ],
+          [
+           21,
+           21
+          ],
+          [
+           22,
+           22
+          ],
+          [
+           23,
+           23
+          ]
+         ],
+         "z": [
+          [
+           0.203,
+           0.203
+          ],
+          [
+           0.191,
+           0.191
+          ],
+          [
+           0.184,
+           0.184
+          ],
+          [
+           0.182,
+           0.182
+          ],
+          [
+           0.195,
+           0.195
+          ],
+          [
+           0.235,
+           0.235
+          ],
+          [
+           0.271,
+           0.271
+          ],
+          [
+           0.294,
+           0.294
+          ],
+          [
+           0.302,
+           0.302
+          ],
+          [
+           0.298,
+           0.298
+          ],
+          [
+           0.294,
+           0.294
+          ],
+          [
+           0.29100000000000004,
+           0.29100000000000004
+          ],
+          [
+           0.289,
+           0.289
+          ],
+          [
+           0.287,
+           0.287
+          ],
+          [
+           0.28800000000000003,
+           0.28800000000000003
+          ],
+          [
+           0.29600000000000004,
+           0.29600000000000004
+          ],
+          [
+           0.319,
+           0.319
+          ],
+          [
+           0.35700000000000004,
+           0.35700000000000004
+          ],
+          [
+           0.409,
+           0.409
+          ],
+          [
+           0.49700000000000005,
+           0.49700000000000005
+          ],
+          [
+           0.47,
+           0.47
+          ],
+          [
+           0.371,
+           0.371
+          ],
+          [
+           0.282,
+           0.282
+          ],
+          [
+           0.228,
+           0.228
+          ]
+         ]
+        },
+        {
+         "name": "November",
+         "showscale": false,
+         "type": "surface",
+         "x": [
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ],
+          [
+           1,
+           2
+          ]
+         ],
+         "y": [
+          [
+           0,
+           0
+          ],
+          [
+           1,
+           1
+          ],
+          [
+           2,
+           2
+          ],
+          [
+           3,
+           3
+          ],
+          [
+           4,
+           4
+          ],
+          [
+           5,
+           5
+          ],
+          [
+           6,
+           6
+          ],
+          [
+           7,
+           7
+          ],
+          [
+           8,
+           8
+          ],
+          [
+           9,
+           9
+          ],
+          [
+           10,
+           10
+          ],
+          [
+           11,
+           11
+          ],
+          [
+           12,
+           12
+          ],
+          [
+           13,
+           13
+          ],
+          [
+           14,
+           14
+          ],
+          [
+           15,
+           15
+          ],
+          [
+           16,
+           16
+          ],
+          [
+           17,
+           17
+          ],
+          [
+           18,
+           18
+          ],
+          [
+           19,
+           19
+          ],
+          [
+           20,
+           20
+          ],
+          [
+           21,
+           21
+          ],
+          [
+           22,
+           22
+          ],
+          [
+           23,
+           23
+          ]
+         ],
+         "z": [
+          [
+           0.188,
+           0.188
+          ],
+          [
+           0.175,
+           0.175
+          ],
+          [
+           0.168,
+           0.168
+          ],
+          [
+           0.168,
+           0.168
+          ],
+          [
+           0.18100000000000002,
+           0.18100000000000002
+          ],
+          [
+           0.217,
+           0.217
+          ],
+          [
+           0.267,
+           0.267
+          ],
+          [
+           0.305,
+           0.305
+          ],
+          [
+           0.32299999999999995,
+           0.32299999999999995
+          ],
+          [
+           0.314,
+           0.314
+          ],
+          [
+           0.3,
+           0.3
+          ],
+          [
+           0.293,
+           0.293
+          ],
+          [
+           0.29100000000000004,
+           0.29100000000000004
+          ],
+          [
+           0.29100000000000004,
+           0.29100000000000004
+          ],
+          [
+           0.29,
+           0.29
+          ],
+          [
+           0.302,
+           0.302
+          ],
+          [
+           0.33399999999999996,
+           0.33399999999999996
+          ],
+          [
+           0.405,
+           0.405
+          ],
+          [
+           0.507,
+           0.507
+          ],
+          [
+           0.524,
+           0.524
+          ],
+          [
+           0.446,
+           0.446
+          ],
+          [
+           0.345,
+           0.345
+          ],
+          [
+           0.262,
+           0.262
+          ],
+          [
+           0.212,
+           0.212
+          ]
+         ]
+        },
+        {
+         "name": "October",
+         "showscale": false,
+         "type": "surface",
+         "x": [
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ],
+          [
+           2,
+           3
+          ]
+         ],
+         "y": [
+          [
+           0,
+           0
+          ],
+          [
+           1,
+           1
+          ],
+          [
+           2,
+           2
+          ],
+          [
+           3,
+           3
+          ],
+          [
+           4,
+           4
+          ],
+          [
+           5,
+           5
+          ],
+          [
+           6,
+           6
+          ],
+          [
+           7,
+           7
+          ],
+          [
+           8,
+           8
+          ],
+          [
+           9,
+           9
+          ],
+          [
+           10,
+           10
+          ],
+          [
+           11,
+           11
+          ],
+          [
+           12,
+           12
+          ],
+          [
+           13,
+           13
+          ],
+          [
+           14,
+           14
+          ],
+          [
+           15,
+           15
+          ],
+          [
+           16,
+           16
+          ],
+          [
+           17,
+           17
+          ],
+          [
+           18,
+           18
+          ],
+          [
+           19,
+           19
+          ],
+          [
+           20,
+           20
+          ],
+          [
+           21,
+           21
+          ],
+          [
+           22,
+           22
+          ],
+          [
+           23,
+           23
+          ]
+         ],
+         "z": [
+          [
+           0.188,
+           0.188
+          ],
+          [
+           0.175,
+           0.175
+          ],
+          [
+           0.168,
+           0.168
+          ],
+          [
+           0.168,
+           0.168
+          ],
+          [
+           0.18100000000000002,
+           0.18100000000000002
+          ],
+          [
+           0.217,
+           0.217
+          ],
+          [
+           0.267,
+           0.267
+          ],
+          [
+           0.305,
+           0.305
+          ],
+          [
+           0.32299999999999995,
+           0.32299999999999995
+          ],
+          [
+           0.314,
+           0.314
+          ],
+          [
+           0.3,
+           0.3
+          ],
+          [
+           0.293,
+           0.293
+          ],
+          [
+           0.29100000000000004,
+           0.29100000000000004
+          ],
+          [
+           0.29100000000000004,
+           0.29100000000000004
+          ],
+          [
+           0.29,
+           0.29
+          ],
+          [
+           0.302,
+           0.302
+          ],
+          [
+           0.33399999999999996,
+           0.33399999999999996
+          ],
+          [
+           0.405,
+           0.405
+          ],
+          [
+           0.507,
+           0.507
+          ],
+          [
+           0.524,
+           0.524
+          ],
+          [
+           0.446,
+           0.446
+          ],
+          [
+           0.345,
+           0.345
+          ],
+          [
+           0.262,
+           0.262
+          ],
+          [
+           0.212,
+           0.212
+          ]
+         ]
+        },
+        {
+         "name": "September",
+         "showscale": false,
+         "type": "surface",
+         "x": [
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ],
+          [
+           3,
+           4
+          ]
+         ],
+         "y": [
+          [
+           0,
+           0
+          ],
+          [
+           1,
+           1
+          ],
+          [
+           2,
+           2
+          ],
+          [
+           3,
+           3
+          ],
+          [
+           4,
+           4
+          ],
+          [
+           5,
+           5
+          ],
+          [
+           6,
+           6
+          ],
+          [
+           7,
+           7
+          ],
+          [
+           8,
+           8
+          ],
+          [
+           9,
+           9
+          ],
+          [
+           10,
+           10
+          ],
+          [
+           11,
+           11
+          ],
+          [
+           12,
+           12
+          ],
+          [
+           13,
+           13
+          ],
+          [
+           14,
+           14
+          ],
+          [
+           15,
+           15
+          ],
+          [
+           16,
+           16
+          ],
+          [
+           17,
+           17
+          ],
+          [
+           18,
+           18
+          ],
+          [
+           19,
+           19
+          ],
+          [
+           20,
+           20
+          ],
+          [
+           21,
+           21
+          ],
+          [
+           22,
+           22
+          ],
+          [
+           23,
+           23
+          ]
+         ],
+         "z": [
+          [
+           0.188,
+           0.188
+          ],
+          [
+           0.175,
+           0.175
+          ],
+          [
+           0.168,
+           0.168
+          ],
+          [
+           0.168,
+           0.168
+          ],
+          [
+           0.18100000000000002,
+           0.18100000000000002
+          ],
+          [
+           0.217,
+           0.217
+          ],
+          [
+           0.267,
+           0.267
+          ],
+          [
+           0.305,
+           0.305
+          ],
+          [
+           0.32299999999999995,
+           0.32299999999999995
+          ],
+          [
+           0.314,
+           0.314
+          ],
+          [
+           0.3,
+           0.3
+          ],
+          [
+           0.293,
+           0.293
+          ],
+          [
+           0.29100000000000004,
+           0.29100000000000004
+          ],
+          [
+           0.29100000000000004,
+           0.29100000000000004
+          ],
+          [
+           0.29,
+           0.29
+          ],
+          [
+           0.302,
+           0.302
+          ],
+          [
+           0.33399999999999996,
+           0.33399999999999996
+          ],
+          [
+           0.405,
+           0.405
+          ],
+          [
+           0.507,
+           0.507
+          ],
+          [
+           0.524,
+           0.524
+          ],
+          [
+           0.446,
+           0.446
+          ],
+          [
+           0.345,
+           0.345
+          ],
+          [
+           0.262,
+           0.262
+          ],
+          [
+           0.212,
+           0.212
+          ]
+         ]
+        },
+        {
+         "name": "August",
+         "showscale": false,
+         "type": "surface",
+         "x": [
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ],
+          [
+           4,
+           5
+          ]
+         ],
+         "y": [
+          [
+           0,
+           0
+          ],
+          [
+           1,
+           1
+          ],
+          [
+           2,
+           2
+          ],
+          [
+           3,
+           3
+          ],
+          [
+           4,
+           4
+          ],
+          [
+           5,
+           5
+          ],
+          [
+           6,
+           6
+          ],
+          [
+           7,
+           7
+          ],
+          [
+           8,
+           8
+          ],
+          [
+           9,
+           9
+          ],
+          [
+           10,
+           10
+          ],
+          [
+           11,
+           11
+          ],
+          [
+           12,
+           12
+          ],
+          [
+           13,
+           13
+          ],
+          [
+           14,
+           14
+          ],
+          [
+           15,
+           15
+          ],
+          [
+           16,
+           16
+          ],
+          [
+           17,
+           17
+          ],
+          [
+           18,
+           18
+          ],
+          [
+           19,
+           19
+          ],
+          [
+           20,
+           20
+          ],
+          [
+           21,
+           21
+          ],
+          [
+           22,
+           22
+          ],
+          [
+           23,
+           23
+          ]
+         ],
+         "z": [
+          [
+           0.188,
+           0.188
+          ],
+          [
+           0.17300000000000001,
+           0.17300000000000001
+          ],
+          [
+           0.166,
+           0.166
+          ],
+          [
+           0.166,
+           0.166
+          ],
+          [
+           0.17800000000000002,
+           0.17800000000000002
+          ],
+          [
+           0.218,
+           0.218
+          ],
+          [
+           0.265,
+           0.265
+          ],
+          [
+           0.3,
+           0.3
+          ],
+          [
+           0.319,
+           0.319
+          ],
+          [
+           0.314,
+           0.314
+          ],
+          [
+           0.301,
+           0.301
+          ],
+          [
+           0.294,
+           0.294
+          ],
+          [
+           0.293,
+           0.293
+          ],
+          [
+           0.293,
+           0.293
+          ],
+          [
+           0.292,
+           0.292
+          ],
+          [
+           0.304,
+           0.304
+          ],
+          [
+           0.336,
+           0.336
+          ],
+          [
+           0.415,
+           0.415
+          ],
+          [
+           0.5329999999999999,
+           0.5329999999999999
+          ],
+          [
+           0.529,
+           0.529
+          ],
+          [
+           0.449,
+           0.449
+          ],
+          [
+           0.34700000000000003,
+           0.34700000000000003
+          ],
+          [
+           0.263,
+           0.263
+          ],
+          [
+           0.212,
+           0.212
+          ]
+         ]
+        },
+        {
+         "name": "July",
+         "showscale": false,
+         "type": "surface",
+         "x": [
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ],
+          [
+           5,
+           6
+          ]
+         ],
+         "y": [
+          [
+           0,
+           0
+          ],
+          [
+           1,
+           1
+          ],
+          [
+           2,
+           2
+          ],
+          [
+           3,
+           3
+          ],
+          [
+           4,
+           4
+          ],
+          [
+           5,
+           5
+          ],
+          [
+           6,
+           6
+          ],
+          [
+           7,
+           7
+          ],
+          [
+           8,
+           8
+          ],
+          [
+           9,
+           9
+          ],
+          [
+           10,
+           10
+          ],
+          [
+           11,
+           11
+          ],
+          [
+           12,
+           12
+          ],
+          [
+           13,
+           13
+          ],
+          [
+           14,
+           14
+          ],
+          [
+           15,
+           15
+          ],
+          [
+           16,
+           16
+          ],
+          [
+           17,
+           17
+          ],
+          [
+           18,
+           18
+          ],
+          [
+           19,
+           19
+          ],
+          [
+           20,
+           20
+          ],
+          [
+           21,
+           21
+          ],
+          [
+           22,
+           22
+          ],
+          [
+           23,
+           23
+          ]
+         ],
+         "z": [
+          [
+           0.18899999999999997,
+           0.18899999999999997
+          ],
+          [
+           0.17300000000000001,
+           0.17300000000000001
+          ],
+          [
+           0.165,
+           0.165
+          ],
+          [
+           0.165,
+           0.165
+          ],
+          [
+           0.17600000000000002,
+           0.17600000000000002
+          ],
+          [
+           0.218,
+           0.218
+          ],
+          [
+           0.26,
+           0.26
+          ],
+          [
+           0.293,
+           0.293
+          ],
+          [
+           0.315,
+           0.315
+          ],
+          [
+           0.314,
+           0.314
+          ],
+          [
+           0.303,
+           0.303
+          ],
+          [
+           0.295,
+           0.295
+          ],
+          [
+           0.294,
+           0.294
+          ],
+          [
+           0.294,
+           0.294
+          ],
+          [
+           0.293,
+           0.293
+          ],
+          [
+           0.304,
+           0.304
+          ],
+          [
+           0.337,
+           0.337
+          ],
+          [
+           0.457,
+           0.457
+          ],
+          [
+           0.562,
+           0.562
+          ],
+          [
+           0.5379999999999999,
+           0.5379999999999999
+          ],
+          [
+           0.455,
+           0.455
+          ],
+          [
+           0.353,
+           0.353
+          ],
+          [
+           0.267,
+           0.267
+          ],
+          [
+           0.215,
+           0.215
+          ]
+         ]
+        },
+        {
+         "name": "June",
+         "showscale": false,
+         "type": "surface",
+         "x": [
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ],
+          [
+           6,
+           7
+          ]
+         ],
+         "y": [
+          [
+           0,
+           0
+          ],
+          [
+           1,
+           1
+          ],
+          [
+           2,
+           2
+          ],
+          [
+           3,
+           3
+          ],
+          [
+           4,
+           4
+          ],
+          [
+           5,
+           5
+          ],
+          [
+           6,
+           6
+          ],
+          [
+           7,
+           7
+          ],
+          [
+           8,
+           8
+          ],
+          [
+           9,
+           9
+          ],
+          [
+           10,
+           10
+          ],
+          [
+           11,
+           11
+          ],
+          [
+           12,
+           12
+          ],
+          [
+           13,
+           13
+          ],
+          [
+           14,
+           14
+          ],
+          [
+           15,
+           15
+          ],
+          [
+           16,
+           16
+          ],
+          [
+           17,
+           17
+          ],
+          [
+           18,
+           18
+          ],
+          [
+           19,
+           19
+          ],
+          [
+           20,
+           20
+          ],
+          [
+           21,
+           21
+          ],
+          [
+           22,
+           22
+          ],
+          [
+           23,
+           23
+          ]
+         ],
+         "z": [
+          [
+           0.18899999999999997,
+           0.18899999999999997
+          ],
+          [
+           0.17300000000000001,
+           0.17300000000000001
+          ],
+          [
+           0.165,
+           0.165
+          ],
+          [
+           0.165,
+           0.165
+          ],
+          [
+           0.17600000000000002,
+           0.17600000000000002
+          ],
+          [
+           0.218,
+           0.218
+          ],
+          [
+           0.26,
+           0.26
+          ],
+          [
+           0.293,
+           0.293
+          ],
+          [
+           0.315,
+           0.315
+          ],
+          [
+           0.314,
+           0.314
+          ],
+          [
+           0.303,
+           0.303
+          ],
+          [
+           0.295,
+           0.295
+          ],
+          [
+           0.294,
+           0.294
+          ],
+          [
+           0.294,
+           0.294
+          ],
+          [
+           0.293,
+           0.293
+          ],
+          [
+           0.304,
+           0.304
+          ],
+          [
+           0.337,
+           0.337
+          ],
+          [
+           0.474,
+           0.474
+          ],
+          [
+           0.562,
+           0.562
+          ],
+          [
+           0.5379999999999999,
+           0.5379999999999999
+          ],
+          [
+           0.455,
+           0.455
+          ],
+          [
+           0.35200000000000004,
+           0.35200000000000004
+          ],
+          [
+           0.267,
+           0.267
+          ],
+          [
+           0.214,
+           0.214
+          ]
+         ]
+        },
+        {
+         "name": "May",
+         "showscale": false,
+         "type": "surface",
+         "x": [
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ],
+          [
+           7,
+           8
+          ]
+         ],
+         "y": [
+          [
+           0,
+           0
+          ],
+          [
+           1,
+           1
+          ],
+          [
+           2,
+           2
+          ],
+          [
+           3,
+           3
+          ],
+          [
+           4,
+           4
+          ],
+          [
+           5,
+           5
+          ],
+          [
+           6,
+           6
+          ],
+          [
+           7,
+           7
+          ],
+          [
+           8,
+           8
+          ],
+          [
+           9,
+           9
+          ],
+          [
+           10,
+           10
+          ],
+          [
+           11,
+           11
+          ],
+          [
+           12,
+           12
+          ],
+          [
+           13,
+           13
+          ],
+          [
+           14,
+           14
+          ],
+          [
+           15,
+           15
+          ],
+          [
+           16,
+           16
+          ],
+          [
+           17,
+           17
+          ],
+          [
+           18,
+           18
+          ],
+          [
+           19,
+           19
+          ],
+          [
+           20,
+           20
+          ],
+          [
+           21,
+           21
+          ],
+          [
+           22,
+           22
+          ],
+          [
+           23,
+           23
+          ]
+         ],
+         "z": [
+          [
+           0.188,
+           0.188
+          ],
+          [
+           0.17300000000000001,
+           0.17300000000000001
+          ],
+          [
+           0.166,
+           0.166
+          ],
+          [
+           0.166,
+           0.166
+          ],
+          [
+           0.17800000000000002,
+           0.17800000000000002
+          ],
+          [
+           0.218,
+           0.218
+          ],
+          [
+           0.265,
+           0.265
+          ],
+          [
+           0.3,
+           0.3
+          ],
+          [
+           0.32,
+           0.32
+          ],
+          [
+           0.314,
+           0.314
+          ],
+          [
+           0.301,
+           0.301
+          ],
+          [
+           0.294,
+           0.294
+          ],
+          [
+           0.293,
+           0.293
+          ],
+          [
+           0.293,
+           0.293
+          ],
+          [
+           0.292,
+           0.292
+          ],
+          [
+           0.304,
+           0.304
+          ],
+          [
+           0.336,
+           0.336
+          ],
+          [
+           0.434,
+           0.434
+          ],
+          [
+           0.5329999999999999,
+           0.5329999999999999
+          ],
+          [
+           0.529,
+           0.529
+          ],
+          [
+           0.44799999999999995,
+           0.44799999999999995
+          ],
+          [
+           0.34700000000000003,
+           0.34700000000000003
+          ],
+          [
+           0.263,
+           0.263
+          ],
+          [
+           0.21100000000000002,
+           0.21100000000000002
+          ]
+         ]
+        },
+        {
+         "name": "April",
+         "showscale": false,
+         "type": "surface",
+         "x": [
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ],
+          [
+           8,
+           9
+          ]
+         ],
+         "y": [
+          [
+           0,
+           0
+          ],
+          [
+           1,
+           1
+          ],
+          [
+           2,
+           2
+          ],
+          [
+           3,
+           3
+          ],
+          [
+           4,
+           4
+          ],
+          [
+           5,
+           5
+          ],
+          [
+           6,
+           6
+          ],
+          [
+           7,
+           7
+          ],
+          [
+           8,
+           8
+          ],
+          [
+           9,
+           9
+          ],
+          [
+           10,
+           10
+          ],
+          [
+           11,
+           11
+          ],
+          [
+           12,
+           12
+          ],
+          [
+           13,
+           13
+          ],
+          [
+           14,
+           14
+          ],
+          [
+           15,
+           15
+          ],
+          [
+           16,
+           16
+          ],
+          [
+           17,
+           17
+          ],
+          [
+           18,
+           18
+          ],
+          [
+           19,
+           19
+          ],
+          [
+           20,
+           20
+          ],
+          [
+           21,
+           21
+          ],
+          [
+           22,
+           22
+          ],
+          [
+           23,
+           23
+          ]
+         ],
+         "z": [
+          [
+           0.188,
+           0.188
+          ],
+          [
+           0.175,
+           0.175
+          ],
+          [
+           0.168,
+           0.168
+          ],
+          [
+           0.168,
+           0.168
+          ],
+          [
+           0.18100000000000002,
+           0.18100000000000002
+          ],
+          [
+           0.217,
+           0.217
+          ],
+          [
+           0.267,
+           0.267
+          ],
+          [
+           0.305,
+           0.305
+          ],
+          [
+           0.32299999999999995,
+           0.32299999999999995
+          ],
+          [
+           0.314,
+           0.314
+          ],
+          [
+           0.3,
+           0.3
+          ],
+          [
+           0.293,
+           0.293
+          ],
+          [
+           0.29100000000000004,
+           0.29100000000000004
+          ],
+          [
+           0.29100000000000004,
+           0.29100000000000004
+          ],
+          [
+           0.29,
+           0.29
+          ],
+          [
+           0.302,
+           0.302
+          ],
+          [
+           0.33399999999999996,
+           0.33399999999999996
+          ],
+          [
+           0.405,
+           0.405
+          ],
+          [
+           0.507,
+           0.507
+          ],
+          [
+           0.524,
+           0.524
+          ],
+          [
+           0.446,
+           0.446
+          ],
+          [
+           0.345,
+           0.345
+          ],
+          [
+           0.262,
+           0.262
+          ],
+          [
+           0.212,
+           0.212
+          ]
+         ]
+        },
+        {
+         "name": "March",
+         "showscale": false,
+         "type": "surface",
+         "x": [
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ],
+          [
+           9,
+           10
+          ]
+         ],
+         "y": [
+          [
+           0,
+           0
+          ],
+          [
+           1,
+           1
+          ],
+          [
+           2,
+           2
+          ],
+          [
+           3,
+           3
+          ],
+          [
+           4,
+           4
+          ],
+          [
+           5,
+           5
+          ],
+          [
+           6,
+           6
+          ],
+          [
+           7,
+           7
+          ],
+          [
+           8,
+           8
+          ],
+          [
+           9,
+           9
+          ],
+          [
+           10,
+           10
+          ],
+          [
+           11,
+           11
+          ],
+          [
+           12,
+           12
+          ],
+          [
+           13,
+           13
+          ],
+          [
+           14,
+           14
+          ],
+          [
+           15,
+           15
+          ],
+          [
+           16,
+           16
+          ],
+          [
+           17,
+           17
+          ],
+          [
+           18,
+           18
+          ],
+          [
+           19,
+           19
+          ],
+          [
+           20,
+           20
+          ],
+          [
+           21,
+           21
+          ],
+          [
+           22,
+           22
+          ],
+          [
+           23,
+           23
+          ]
+         ],
+         "z": [
+          [
+           0.188,
+           0.188
+          ],
+          [
+           0.175,
+           0.175
+          ],
+          [
+           0.168,
+           0.168
+          ],
+          [
+           0.168,
+           0.168
+          ],
+          [
+           0.18100000000000002,
+           0.18100000000000002
+          ],
+          [
+           0.217,
+           0.217
+          ],
+          [
+           0.267,
+           0.267
+          ],
+          [
+           0.305,
+           0.305
+          ],
+          [
+           0.32299999999999995,
+           0.32299999999999995
+          ],
+          [
+           0.314,
+           0.314
+          ],
+          [
+           0.3,
+           0.3
+          ],
+          [
+           0.293,
+           0.293
+          ],
+          [
+           0.29100000000000004,
+           0.29100000000000004
+          ],
+          [
+           0.29100000000000004,
+           0.29100000000000004
+          ],
+          [
+           0.29,
+           0.29
+          ],
+          [
+           0.302,
+           0.302
+          ],
+          [
+           0.33399999999999996,
+           0.33399999999999996
+          ],
+          [
+           0.405,
+           0.405
+          ],
+          [
+           0.507,
+           0.507
+          ],
+          [
+           0.524,
+           0.524
+          ],
+          [
+           0.446,
+           0.446
+          ],
+          [
+           0.345,
+           0.345
+          ],
+          [
+           0.262,
+           0.262
+          ],
+          [
+           0.212,
+           0.212
+          ]
+         ]
+        },
+        {
+         "name": "February",
+         "showscale": false,
+         "type": "surface",
+         "x": [
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ],
+          [
+           10,
+           11
+          ]
+         ],
+         "y": [
+          [
+           0,
+           0
+          ],
+          [
+           1,
+           1
+          ],
+          [
+           2,
+           2
+          ],
+          [
+           3,
+           3
+          ],
+          [
+           4,
+           4
+          ],
+          [
+           5,
+           5
+          ],
+          [
+           6,
+           6
+          ],
+          [
+           7,
+           7
+          ],
+          [
+           8,
+           8
+          ],
+          [
+           9,
+           9
+          ],
+          [
+           10,
+           10
+          ],
+          [
+           11,
+           11
+          ],
+          [
+           12,
+           12
+          ],
+          [
+           13,
+           13
+          ],
+          [
+           14,
+           14
+          ],
+          [
+           15,
+           15
+          ],
+          [
+           16,
+           16
+          ],
+          [
+           17,
+           17
+          ],
+          [
+           18,
+           18
+          ],
+          [
+           19,
+           19
+          ],
+          [
+           20,
+           20
+          ],
+          [
+           21,
+           21
+          ],
+          [
+           22,
+           22
+          ],
+          [
+           23,
+           23
+          ]
+         ],
+         "z": [
+          [
+           0.188,
+           0.188
+          ],
+          [
+           0.175,
+           0.175
+          ],
+          [
+           0.168,
+           0.168
+          ],
+          [
+           0.168,
+           0.168
+          ],
+          [
+           0.18100000000000002,
+           0.18100000000000002
+          ],
+          [
+           0.217,
+           0.217
+          ],
+          [
+           0.267,
+           0.267
+          ],
+          [
+           0.305,
+           0.305
+          ],
+          [
+           0.32299999999999995,
+           0.32299999999999995
+          ],
+          [
+           0.314,
+           0.314
+          ],
+          [
+           0.3,
+           0.3
+          ],
+          [
+           0.293,
+           0.293
+          ],
+          [
+           0.29100000000000004,
+           0.29100000000000004
+          ],
+          [
+           0.29100000000000004,
+           0.29100000000000004
+          ],
+          [
+           0.29,
+           0.29
+          ],
+          [
+           0.302,
+           0.302
+          ],
+          [
+           0.33399999999999996,
+           0.33399999999999996
+          ],
+          [
+           0.405,
+           0.405
+          ],
+          [
+           0.507,
+           0.507
+          ],
+          [
+           0.524,
+           0.524
+          ],
+          [
+           0.446,
+           0.446
+          ],
+          [
+           0.345,
+           0.345
+          ],
+          [
+           0.262,
+           0.262
+          ],
+          [
+           0.212,
+           0.212
+          ]
+         ]
+        },
+        {
+         "name": "January",
+         "showscale": false,
+         "type": "surface",
+         "x": [
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ],
+          [
+           11,
+           12
+          ]
+         ],
+         "y": [
+          [
+           0,
+           0
+          ],
+          [
+           1,
+           1
+          ],
+          [
+           2,
+           2
+          ],
+          [
+           3,
+           3
+          ],
+          [
+           4,
+           4
+          ],
+          [
+           5,
+           5
+          ],
+          [
+           6,
+           6
+          ],
+          [
+           7,
+           7
+          ],
+          [
+           8,
+           8
+          ],
+          [
+           9,
+           9
+          ],
+          [
+           10,
+           10
+          ],
+          [
+           11,
+           11
+          ],
+          [
+           12,
+           12
+          ],
+          [
+           13,
+           13
+          ],
+          [
+           14,
+           14
+          ],
+          [
+           15,
+           15
+          ],
+          [
+           16,
+           16
+          ],
+          [
+           17,
+           17
+          ],
+          [
+           18,
+           18
+          ],
+          [
+           19,
+           19
+          ],
+          [
+           20,
+           20
+          ],
+          [
+           21,
+           21
+          ],
+          [
+           22,
+           22
+          ],
+          [
+           23,
+           23
+          ]
+         ],
+         "z": [
+          [
+           0.203,
+           0.203
+          ],
+          [
+           0.191,
+           0.191
+          ],
+          [
+           0.184,
+           0.184
+          ],
+          [
+           0.182,
+           0.182
+          ],
+          [
+           0.195,
+           0.195
+          ],
+          [
+           0.235,
+           0.235
+          ],
+          [
+           0.271,
+           0.271
+          ],
+          [
+           0.294,
+           0.294
+          ],
+          [
+           0.302,
+           0.302
+          ],
+          [
+           0.298,
+           0.298
+          ],
+          [
+           0.294,
+           0.294
+          ],
+          [
+           0.29100000000000004,
+           0.29100000000000004
+          ],
+          [
+           0.289,
+           0.289
+          ],
+          [
+           0.287,
+           0.287
+          ],
+          [
+           0.28800000000000003,
+           0.28800000000000003
+          ],
+          [
+           0.29600000000000004,
+           0.29600000000000004
+          ],
+          [
+           0.319,
+           0.319
+          ],
+          [
+           0.35700000000000004,
+           0.35700000000000004
+          ],
+          [
+           0.409,
+           0.409
+          ],
+          [
+           0.49700000000000005,
+           0.49700000000000005
+          ],
+          [
+           0.47,
+           0.47
+          ],
+          [
+           0.371,
+           0.371
+          ],
+          [
+           0.282,
+           0.282
+          ],
+          [
+           0.228,
+           0.228
+          ]
+         ]
+        }
+       ],
+       "layout": {
+        "margin": {
+         "b": 10,
+         "l": 10,
+         "r": 20,
+         "t": 10
+        },
+        "scene": {
+         "xaxis": {
+          "ticktext": [
+           "December",
+           "November",
+           "October",
+           "September",
+           "August",
+           "July",
+           "June",
+           "May",
+           "April",
+           "March",
+           "February",
+           "January"
+          ],
+          "tickvals": [
+           0.5,
+           1.5,
+           2.5,
+           3.5,
+           4.5,
+           5.5,
+           6.5,
+           7.5,
+           8.5,
+           9.5,
+           10.5,
+           11.5
+          ],
+          "tickwidth": 1.5,
+          "title": "Month",
+          "type": "category"
+         },
+         "yaxis": {
+          "tickvals": [
+           0,
+           2,
+           4,
+           6,
+           8,
+           10,
+           12,
+           14,
+           16,
+           18,
+           20,
+           22
+          ],
+          "title": "Time of day (hours)"
+         },
+         "zaxis": {
+          "title": "Demand (kVA)"
+         }
+        },
+        "title": "Saturday hourly load profile for \"informal_settlement\" customers 15 years after electrification",
+        "width": 1000
+       }
+      },
+      "text/html": [
+<<<<<<< HEAD
+       "<div id=\"29213642-23fe-41ea-8ccb-4da645339a17\" style=\"height: 525px; width: 1000px;\" class=\"plotly-graph-div\"></div><script type=\"text/javascript\">require([\"plotly\"], function(Plotly) { window.PLOTLYENV=window.PLOTLYENV || {};window.PLOTLYENV.BASE_URL=\"https://plot.ly\";Plotly.newPlot(\"29213642-23fe-41ea-8ccb-4da645339a17\", [{\"showscale\": false, \"x\": [[0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1]], \"type\": \"surface\", \"z\": [[0.203, 0.203], [0.191, 0.191], [0.184, 0.184], [0.182, 0.182], [0.195, 0.195], [0.235, 0.235], [0.271, 0.271], [0.294, 0.294], [0.302, 0.302], [0.298, 0.298], [0.294, 0.294], [0.29100000000000004, 0.29100000000000004], [0.289, 0.289], [0.287, 0.287], [0.28800000000000003, 0.28800000000000003], [0.29600000000000004, 0.29600000000000004], [0.319, 0.319], [0.35700000000000004, 0.35700000000000004], [0.409, 0.409], [0.49700000000000005, 0.49700000000000005], [0.47, 0.47], [0.371, 0.371], [0.282, 0.282], [0.228, 0.228]], \"name\": \"December\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}, {\"showscale\": false, \"x\": [[1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2]], \"type\": \"surface\", \"z\": [[0.188, 0.188], [0.175, 0.175], [0.168, 0.168], [0.168, 0.168], [0.18100000000000002, 0.18100000000000002], [0.217, 0.217], [0.267, 0.267], [0.305, 0.305], [0.32299999999999995, 0.32299999999999995], [0.314, 0.314], [0.3, 0.3], [0.293, 0.293], [0.29100000000000004, 0.29100000000000004], [0.29100000000000004, 0.29100000000000004], [0.29, 0.29], [0.302, 0.302], [0.33399999999999996, 0.33399999999999996], [0.405, 0.405], [0.507, 0.507], [0.524, 0.524], [0.446, 0.446], [0.345, 0.345], [0.262, 0.262], [0.212, 0.212]], \"name\": \"November\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}, {\"showscale\": false, \"x\": [[2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3]], \"type\": \"surface\", \"z\": [[0.188, 0.188], [0.175, 0.175], [0.168, 0.168], [0.168, 0.168], [0.18100000000000002, 0.18100000000000002], [0.217, 0.217], [0.267, 0.267], [0.305, 0.305], [0.32299999999999995, 0.32299999999999995], [0.314, 0.314], [0.3, 0.3], [0.293, 0.293], [0.29100000000000004, 0.29100000000000004], [0.29100000000000004, 0.29100000000000004], [0.29, 0.29], [0.302, 0.302], [0.33399999999999996, 0.33399999999999996], [0.405, 0.405], [0.507, 0.507], [0.524, 0.524], [0.446, 0.446], [0.345, 0.345], [0.262, 0.262], [0.212, 0.212]], \"name\": \"October\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}, {\"showscale\": false, \"x\": [[3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4]], \"type\": \"surface\", \"z\": [[0.188, 0.188], [0.175, 0.175], [0.168, 0.168], [0.168, 0.168], [0.18100000000000002, 0.18100000000000002], [0.217, 0.217], [0.267, 0.267], [0.305, 0.305], [0.32299999999999995, 0.32299999999999995], [0.314, 0.314], [0.3, 0.3], [0.293, 0.293], [0.29100000000000004, 0.29100000000000004], [0.29100000000000004, 0.29100000000000004], [0.29, 0.29], [0.302, 0.302], [0.33399999999999996, 0.33399999999999996], [0.405, 0.405], [0.507, 0.507], [0.524, 0.524], [0.446, 0.446], [0.345, 0.345], [0.262, 0.262], [0.212, 0.212]], \"name\": \"September\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}, {\"showscale\": false, \"x\": [[4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5]], \"type\": \"surface\", \"z\": [[0.188, 0.188], [0.17300000000000001, 0.17300000000000001], [0.166, 0.166], [0.166, 0.166], [0.17800000000000002, 0.17800000000000002], [0.218, 0.218], [0.265, 0.265], [0.3, 0.3], [0.319, 0.319], [0.314, 0.314], [0.301, 0.301], [0.294, 0.294], [0.293, 0.293], [0.293, 0.293], [0.292, 0.292], [0.304, 0.304], [0.336, 0.336], [0.415, 0.415], [0.5329999999999999, 0.5329999999999999], [0.529, 0.529], [0.449, 0.449], [0.34700000000000003, 0.34700000000000003], [0.263, 0.263], [0.212, 0.212]], \"name\": \"August\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}, {\"showscale\": false, \"x\": [[5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6]], \"type\": \"surface\", \"z\": [[0.18899999999999997, 0.18899999999999997], [0.17300000000000001, 0.17300000000000001], [0.165, 0.165], [0.165, 0.165], [0.17600000000000002, 0.17600000000000002], [0.218, 0.218], [0.26, 0.26], [0.293, 0.293], [0.315, 0.315], [0.314, 0.314], [0.303, 0.303], [0.295, 0.295], [0.294, 0.294], [0.294, 0.294], [0.293, 0.293], [0.304, 0.304], [0.337, 0.337], [0.457, 0.457], [0.562, 0.562], [0.5379999999999999, 0.5379999999999999], [0.455, 0.455], [0.353, 0.353], [0.267, 0.267], [0.215, 0.215]], \"name\": \"July\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}, {\"showscale\": false, \"x\": [[6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7]], \"type\": \"surface\", \"z\": [[0.18899999999999997, 0.18899999999999997], [0.17300000000000001, 0.17300000000000001], [0.165, 0.165], [0.165, 0.165], [0.17600000000000002, 0.17600000000000002], [0.218, 0.218], [0.26, 0.26], [0.293, 0.293], [0.315, 0.315], [0.314, 0.314], [0.303, 0.303], [0.295, 0.295], [0.294, 0.294], [0.294, 0.294], [0.293, 0.293], [0.304, 0.304], [0.337, 0.337], [0.474, 0.474], [0.562, 0.562], [0.5379999999999999, 0.5379999999999999], [0.455, 0.455], [0.35200000000000004, 0.35200000000000004], [0.267, 0.267], [0.214, 0.214]], \"name\": \"June\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}, {\"showscale\": false, \"x\": [[7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8]], \"type\": \"surface\", \"z\": [[0.188, 0.188], [0.17300000000000001, 0.17300000000000001], [0.166, 0.166], [0.166, 0.166], [0.17800000000000002, 0.17800000000000002], [0.218, 0.218], [0.265, 0.265], [0.3, 0.3], [0.32, 0.32], [0.314, 0.314], [0.301, 0.301], [0.294, 0.294], [0.293, 0.293], [0.293, 0.293], [0.292, 0.292], [0.304, 0.304], [0.336, 0.336], [0.434, 0.434], [0.5329999999999999, 0.5329999999999999], [0.529, 0.529], [0.44799999999999995, 0.44799999999999995], [0.34700000000000003, 0.34700000000000003], [0.263, 0.263], [0.21100000000000002, 0.21100000000000002]], \"name\": \"May\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}, {\"showscale\": false, \"x\": [[8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9]], \"type\": \"surface\", \"z\": [[0.188, 0.188], [0.175, 0.175], [0.168, 0.168], [0.168, 0.168], [0.18100000000000002, 0.18100000000000002], [0.217, 0.217], [0.267, 0.267], [0.305, 0.305], [0.32299999999999995, 0.32299999999999995], [0.314, 0.314], [0.3, 0.3], [0.293, 0.293], [0.29100000000000004, 0.29100000000000004], [0.29100000000000004, 0.29100000000000004], [0.29, 0.29], [0.302, 0.302], [0.33399999999999996, 0.33399999999999996], [0.405, 0.405], [0.507, 0.507], [0.524, 0.524], [0.446, 0.446], [0.345, 0.345], [0.262, 0.262], [0.212, 0.212]], \"name\": \"April\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}, {\"showscale\": false, \"x\": [[9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10]], \"type\": \"surface\", \"z\": [[0.188, 0.188], [0.175, 0.175], [0.168, 0.168], [0.168, 0.168], [0.18100000000000002, 0.18100000000000002], [0.217, 0.217], [0.267, 0.267], [0.305, 0.305], [0.32299999999999995, 0.32299999999999995], [0.314, 0.314], [0.3, 0.3], [0.293, 0.293], [0.29100000000000004, 0.29100000000000004], [0.29100000000000004, 0.29100000000000004], [0.29, 0.29], [0.302, 0.302], [0.33399999999999996, 0.33399999999999996], [0.405, 0.405], [0.507, 0.507], [0.524, 0.524], [0.446, 0.446], [0.345, 0.345], [0.262, 0.262], [0.212, 0.212]], \"name\": \"March\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}, {\"showscale\": false, \"x\": [[10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11]], \"type\": \"surface\", \"z\": [[0.188, 0.188], [0.175, 0.175], [0.168, 0.168], [0.168, 0.168], [0.18100000000000002, 0.18100000000000002], [0.217, 0.217], [0.267, 0.267], [0.305, 0.305], [0.32299999999999995, 0.32299999999999995], [0.314, 0.314], [0.3, 0.3], [0.293, 0.293], [0.29100000000000004, 0.29100000000000004], [0.29100000000000004, 0.29100000000000004], [0.29, 0.29], [0.302, 0.302], [0.33399999999999996, 0.33399999999999996], [0.405, 0.405], [0.507, 0.507], [0.524, 0.524], [0.446, 0.446], [0.345, 0.345], [0.262, 0.262], [0.212, 0.212]], \"name\": \"February\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}, {\"showscale\": false, \"x\": [[11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12]], \"type\": \"surface\", \"z\": [[0.203, 0.203], [0.191, 0.191], [0.184, 0.184], [0.182, 0.182], [0.195, 0.195], [0.235, 0.235], [0.271, 0.271], [0.294, 0.294], [0.302, 0.302], [0.298, 0.298], [0.294, 0.294], [0.29100000000000004, 0.29100000000000004], [0.289, 0.289], [0.287, 0.287], [0.28800000000000003, 0.28800000000000003], [0.29600000000000004, 0.29600000000000004], [0.319, 0.319], [0.35700000000000004, 0.35700000000000004], [0.409, 0.409], [0.49700000000000005, 0.49700000000000005], [0.47, 0.47], [0.371, 0.371], [0.282, 0.282], [0.228, 0.228]], \"name\": \"January\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}], {\"scene\": {\"yaxis\": {\"tickvals\": [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22], \"title\": \"Time of day (hours)\"}, \"xaxis\": {\"ticktext\": [\"December\", \"November\", \"October\", \"September\", \"August\", \"July\", \"June\", \"May\", \"April\", \"March\", \"February\", \"January\"], \"tickvals\": [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5, 11.5], \"tickwidth\": 1.5, \"type\": \"category\", \"title\": \"Month\"}, \"zaxis\": {\"title\": \"Demand (kVA)\"}}, \"title\": \"Saturday hourly load profile for \\\"informal_settlement\\\" customers 15 years after electrification\", \"margin\": {\"l\": 10, \"b\": 10, \"t\": 10, \"r\": 20}, \"width\": 1000}, {\"showLink\": true, \"linkText\": \"Export to plot.ly\"})});</script>"
+      ],
+      "text/vnd.plotly.v1+html": [
+       "<div id=\"29213642-23fe-41ea-8ccb-4da645339a17\" style=\"height: 525px; width: 1000px;\" class=\"plotly-graph-div\"></div><script type=\"text/javascript\">require([\"plotly\"], function(Plotly) { window.PLOTLYENV=window.PLOTLYENV || {};window.PLOTLYENV.BASE_URL=\"https://plot.ly\";Plotly.newPlot(\"29213642-23fe-41ea-8ccb-4da645339a17\", [{\"showscale\": false, \"x\": [[0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1]], \"type\": \"surface\", \"z\": [[0.203, 0.203], [0.191, 0.191], [0.184, 0.184], [0.182, 0.182], [0.195, 0.195], [0.235, 0.235], [0.271, 0.271], [0.294, 0.294], [0.302, 0.302], [0.298, 0.298], [0.294, 0.294], [0.29100000000000004, 0.29100000000000004], [0.289, 0.289], [0.287, 0.287], [0.28800000000000003, 0.28800000000000003], [0.29600000000000004, 0.29600000000000004], [0.319, 0.319], [0.35700000000000004, 0.35700000000000004], [0.409, 0.409], [0.49700000000000005, 0.49700000000000005], [0.47, 0.47], [0.371, 0.371], [0.282, 0.282], [0.228, 0.228]], \"name\": \"December\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}, {\"showscale\": false, \"x\": [[1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2]], \"type\": \"surface\", \"z\": [[0.188, 0.188], [0.175, 0.175], [0.168, 0.168], [0.168, 0.168], [0.18100000000000002, 0.18100000000000002], [0.217, 0.217], [0.267, 0.267], [0.305, 0.305], [0.32299999999999995, 0.32299999999999995], [0.314, 0.314], [0.3, 0.3], [0.293, 0.293], [0.29100000000000004, 0.29100000000000004], [0.29100000000000004, 0.29100000000000004], [0.29, 0.29], [0.302, 0.302], [0.33399999999999996, 0.33399999999999996], [0.405, 0.405], [0.507, 0.507], [0.524, 0.524], [0.446, 0.446], [0.345, 0.345], [0.262, 0.262], [0.212, 0.212]], \"name\": \"November\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}, {\"showscale\": false, \"x\": [[2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3]], \"type\": \"surface\", \"z\": [[0.188, 0.188], [0.175, 0.175], [0.168, 0.168], [0.168, 0.168], [0.18100000000000002, 0.18100000000000002], [0.217, 0.217], [0.267, 0.267], [0.305, 0.305], [0.32299999999999995, 0.32299999999999995], [0.314, 0.314], [0.3, 0.3], [0.293, 0.293], [0.29100000000000004, 0.29100000000000004], [0.29100000000000004, 0.29100000000000004], [0.29, 0.29], [0.302, 0.302], [0.33399999999999996, 0.33399999999999996], [0.405, 0.405], [0.507, 0.507], [0.524, 0.524], [0.446, 0.446], [0.345, 0.345], [0.262, 0.262], [0.212, 0.212]], \"name\": \"October\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}, {\"showscale\": false, \"x\": [[3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4]], \"type\": \"surface\", \"z\": [[0.188, 0.188], [0.175, 0.175], [0.168, 0.168], [0.168, 0.168], [0.18100000000000002, 0.18100000000000002], [0.217, 0.217], [0.267, 0.267], [0.305, 0.305], [0.32299999999999995, 0.32299999999999995], [0.314, 0.314], [0.3, 0.3], [0.293, 0.293], [0.29100000000000004, 0.29100000000000004], [0.29100000000000004, 0.29100000000000004], [0.29, 0.29], [0.302, 0.302], [0.33399999999999996, 0.33399999999999996], [0.405, 0.405], [0.507, 0.507], [0.524, 0.524], [0.446, 0.446], [0.345, 0.345], [0.262, 0.262], [0.212, 0.212]], \"name\": \"September\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}, {\"showscale\": false, \"x\": [[4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5]], \"type\": \"surface\", \"z\": [[0.188, 0.188], [0.17300000000000001, 0.17300000000000001], [0.166, 0.166], [0.166, 0.166], [0.17800000000000002, 0.17800000000000002], [0.218, 0.218], [0.265, 0.265], [0.3, 0.3], [0.319, 0.319], [0.314, 0.314], [0.301, 0.301], [0.294, 0.294], [0.293, 0.293], [0.293, 0.293], [0.292, 0.292], [0.304, 0.304], [0.336, 0.336], [0.415, 0.415], [0.5329999999999999, 0.5329999999999999], [0.529, 0.529], [0.449, 0.449], [0.34700000000000003, 0.34700000000000003], [0.263, 0.263], [0.212, 0.212]], \"name\": \"August\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}, {\"showscale\": false, \"x\": [[5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6]], \"type\": \"surface\", \"z\": [[0.18899999999999997, 0.18899999999999997], [0.17300000000000001, 0.17300000000000001], [0.165, 0.165], [0.165, 0.165], [0.17600000000000002, 0.17600000000000002], [0.218, 0.218], [0.26, 0.26], [0.293, 0.293], [0.315, 0.315], [0.314, 0.314], [0.303, 0.303], [0.295, 0.295], [0.294, 0.294], [0.294, 0.294], [0.293, 0.293], [0.304, 0.304], [0.337, 0.337], [0.457, 0.457], [0.562, 0.562], [0.5379999999999999, 0.5379999999999999], [0.455, 0.455], [0.353, 0.353], [0.267, 0.267], [0.215, 0.215]], \"name\": \"July\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}, {\"showscale\": false, \"x\": [[6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7]], \"type\": \"surface\", \"z\": [[0.18899999999999997, 0.18899999999999997], [0.17300000000000001, 0.17300000000000001], [0.165, 0.165], [0.165, 0.165], [0.17600000000000002, 0.17600000000000002], [0.218, 0.218], [0.26, 0.26], [0.293, 0.293], [0.315, 0.315], [0.314, 0.314], [0.303, 0.303], [0.295, 0.295], [0.294, 0.294], [0.294, 0.294], [0.293, 0.293], [0.304, 0.304], [0.337, 0.337], [0.474, 0.474], [0.562, 0.562], [0.5379999999999999, 0.5379999999999999], [0.455, 0.455], [0.35200000000000004, 0.35200000000000004], [0.267, 0.267], [0.214, 0.214]], \"name\": \"June\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}, {\"showscale\": false, \"x\": [[7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8]], \"type\": \"surface\", \"z\": [[0.188, 0.188], [0.17300000000000001, 0.17300000000000001], [0.166, 0.166], [0.166, 0.166], [0.17800000000000002, 0.17800000000000002], [0.218, 0.218], [0.265, 0.265], [0.3, 0.3], [0.32, 0.32], [0.314, 0.314], [0.301, 0.301], [0.294, 0.294], [0.293, 0.293], [0.293, 0.293], [0.292, 0.292], [0.304, 0.304], [0.336, 0.336], [0.434, 0.434], [0.5329999999999999, 0.5329999999999999], [0.529, 0.529], [0.44799999999999995, 0.44799999999999995], [0.34700000000000003, 0.34700000000000003], [0.263, 0.263], [0.21100000000000002, 0.21100000000000002]], \"name\": \"May\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}, {\"showscale\": false, \"x\": [[8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9]], \"type\": \"surface\", \"z\": [[0.188, 0.188], [0.175, 0.175], [0.168, 0.168], [0.168, 0.168], [0.18100000000000002, 0.18100000000000002], [0.217, 0.217], [0.267, 0.267], [0.305, 0.305], [0.32299999999999995, 0.32299999999999995], [0.314, 0.314], [0.3, 0.3], [0.293, 0.293], [0.29100000000000004, 0.29100000000000004], [0.29100000000000004, 0.29100000000000004], [0.29, 0.29], [0.302, 0.302], [0.33399999999999996, 0.33399999999999996], [0.405, 0.405], [0.507, 0.507], [0.524, 0.524], [0.446, 0.446], [0.345, 0.345], [0.262, 0.262], [0.212, 0.212]], \"name\": \"April\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}, {\"showscale\": false, \"x\": [[9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10]], \"type\": \"surface\", \"z\": [[0.188, 0.188], [0.175, 0.175], [0.168, 0.168], [0.168, 0.168], [0.18100000000000002, 0.18100000000000002], [0.217, 0.217], [0.267, 0.267], [0.305, 0.305], [0.32299999999999995, 0.32299999999999995], [0.314, 0.314], [0.3, 0.3], [0.293, 0.293], [0.29100000000000004, 0.29100000000000004], [0.29100000000000004, 0.29100000000000004], [0.29, 0.29], [0.302, 0.302], [0.33399999999999996, 0.33399999999999996], [0.405, 0.405], [0.507, 0.507], [0.524, 0.524], [0.446, 0.446], [0.345, 0.345], [0.262, 0.262], [0.212, 0.212]], \"name\": \"March\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}, {\"showscale\": false, \"x\": [[10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11]], \"type\": \"surface\", \"z\": [[0.188, 0.188], [0.175, 0.175], [0.168, 0.168], [0.168, 0.168], [0.18100000000000002, 0.18100000000000002], [0.217, 0.217], [0.267, 0.267], [0.305, 0.305], [0.32299999999999995, 0.32299999999999995], [0.314, 0.314], [0.3, 0.3], [0.293, 0.293], [0.29100000000000004, 0.29100000000000004], [0.29100000000000004, 0.29100000000000004], [0.29, 0.29], [0.302, 0.302], [0.33399999999999996, 0.33399999999999996], [0.405, 0.405], [0.507, 0.507], [0.524, 0.524], [0.446, 0.446], [0.345, 0.345], [0.262, 0.262], [0.212, 0.212]], \"name\": \"February\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}, {\"showscale\": false, \"x\": [[11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12]], \"type\": \"surface\", \"z\": [[0.203, 0.203], [0.191, 0.191], [0.184, 0.184], [0.182, 0.182], [0.195, 0.195], [0.235, 0.235], [0.271, 0.271], [0.294, 0.294], [0.302, 0.302], [0.298, 0.298], [0.294, 0.294], [0.29100000000000004, 0.29100000000000004], [0.289, 0.289], [0.287, 0.287], [0.28800000000000003, 0.28800000000000003], [0.29600000000000004, 0.29600000000000004], [0.319, 0.319], [0.35700000000000004, 0.35700000000000004], [0.409, 0.409], [0.49700000000000005, 0.49700000000000005], [0.47, 0.47], [0.371, 0.371], [0.282, 0.282], [0.228, 0.228]], \"name\": \"January\", \"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]]}], {\"scene\": {\"yaxis\": {\"tickvals\": [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22], \"title\": \"Time of day (hours)\"}, \"xaxis\": {\"ticktext\": [\"December\", \"November\", \"October\", \"September\", \"August\", \"July\", \"June\", \"May\", \"April\", \"March\", \"February\", \"January\"], \"tickvals\": [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5, 11.5], \"tickwidth\": 1.5, \"type\": \"category\", \"title\": \"Month\"}, \"zaxis\": {\"title\": \"Demand (kVA)\"}}, \"title\": \"Saturday hourly load profile for \\\"informal_settlement\\\" customers 15 years after electrification\", \"margin\": {\"l\": 10, \"b\": 10, \"t\": 10, \"r\": 20}, \"width\": 1000}, {\"showLink\": true, \"linkText\": \"Export to plot.ly\"})});</script>"
+=======
+       "<div id=\"e44c0b6a-a792-4fef-aa67-254020dff7d4\" style=\"height: 525px; width: 1000px;\" class=\"plotly-graph-div\"></div><script type=\"text/javascript\">require([\"plotly\"], function(Plotly) { window.PLOTLYENV=window.PLOTLYENV || {};window.PLOTLYENV.BASE_URL=\"https://plot.ly\";Plotly.newPlot(\"e44c0b6a-a792-4fef-aa67-254020dff7d4\", [{\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1]], \"z\": [[0.322, 0.322], [0.3, 0.3], [0.292, 0.292], [0.298, 0.298], [0.349, 0.349], [0.5, 0.5], [0.58, 0.58], [0.523, 0.523], [0.47700000000000004, 0.47700000000000004], [0.467, 0.467], [0.46, 0.46], [0.45799999999999996, 0.45799999999999996], [0.455, 0.455], [0.455, 0.455], [0.46799999999999997, 0.46799999999999997], [0.506, 0.506], [0.563, 0.563], [0.64, 0.64], [0.7290000000000001, 0.7290000000000001], [0.8170000000000001, 0.8170000000000001], [0.784, 0.784], [0.6459999999999999, 0.6459999999999999], [0.48700000000000004, 0.48700000000000004], [0.382, 0.382]], \"type\": \"surface\", \"name\": \"December\"}, {\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2]], \"z\": [[0.294, 0.294], [0.27399999999999997, 0.27399999999999997], [0.268, 0.268], [0.275, 0.275], [0.33, 0.33], [0.49200000000000005, 0.49200000000000005], [0.6659999999999999, 0.6659999999999999], [0.604, 0.604], [0.536, 0.536], [0.503, 0.503], [0.489, 0.489], [0.474, 0.474], [0.466, 0.466], [0.46, 0.46], [0.473, 0.473], [0.515, 0.515], [0.586, 0.586], [0.7070000000000001, 0.7070000000000001], [0.866, 0.866], [0.887, 0.887], [0.78, 0.78], [0.617, 0.617], [0.45, 0.45], [0.349, 0.349]], \"type\": \"surface\", \"name\": \"November\"}, {\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3]], \"z\": [[0.294, 0.294], [0.27399999999999997, 0.27399999999999997], [0.268, 0.268], [0.275, 0.275], [0.33, 0.33], [0.49200000000000005, 0.49200000000000005], [0.6659999999999999, 0.6659999999999999], [0.604, 0.604], [0.536, 0.536], [0.503, 0.503], [0.489, 0.489], [0.474, 0.474], [0.466, 0.466], [0.46, 0.46], [0.473, 0.473], [0.515, 0.515], [0.586, 0.586], [0.7070000000000001, 0.7070000000000001], [0.866, 0.866], [0.887, 0.887], [0.78, 0.78], [0.617, 0.617], [0.45, 0.45], [0.349, 0.349]], \"type\": \"surface\", \"name\": \"October\"}, {\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4]], \"z\": [[0.294, 0.294], [0.27399999999999997, 0.27399999999999997], [0.268, 0.268], [0.275, 0.275], [0.33, 0.33], [0.49200000000000005, 0.49200000000000005], [0.6659999999999999, 0.6659999999999999], [0.604, 0.604], [0.536, 0.536], [0.503, 0.503], [0.489, 0.489], [0.474, 0.474], [0.466, 0.466], [0.46, 0.46], [0.473, 0.473], [0.515, 0.515], [0.586, 0.586], [0.7070000000000001, 0.7070000000000001], [0.866, 0.866], [0.887, 0.887], [0.78, 0.78], [0.617, 0.617], [0.45, 0.45], [0.349, 0.349]], \"type\": \"surface\", \"name\": \"September\"}, {\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5]], \"z\": [[0.295, 0.295], [0.271, 0.271], [0.264, 0.264], [0.27, 0.27], [0.32899999999999996, 0.32899999999999996], [0.5329999999999999, 0.5329999999999999], [0.7, 0.7], [0.61, 0.61], [0.5379999999999999, 0.5379999999999999], [0.507, 0.507], [0.5, 0.5], [0.486, 0.486], [0.479, 0.479], [0.47700000000000004, 0.47700000000000004], [0.493, 0.493], [0.5379999999999999, 0.5379999999999999], [0.619, 0.619], [0.7559999999999999, 0.7559999999999999], [0.958, 0.958], [0.948, 0.948], [0.825, 0.825], [0.657, 0.657], [0.475, 0.475], [0.359, 0.359]], \"type\": \"surface\", \"name\": \"August\"}, {\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6]], \"z\": [[0.316, 0.316], [0.27899999999999997, 0.27899999999999997], [0.268, 0.268], [0.271, 0.271], [0.32299999999999995, 0.32299999999999995], [0.521, 0.521], [0.669, 0.669], [0.622, 0.622], [0.5589999999999999, 0.5589999999999999], [0.531, 0.531], [0.531, 0.531], [0.512, 0.512], [0.506, 0.506], [0.505, 0.505], [0.52, 0.52], [0.56, 0.56], [0.654, 0.654], [0.8859999999999999, 0.8859999999999999], [1.077, 1.077], [1.067, 1.067], [0.9309999999999999, 0.9309999999999999], [0.762, 0.762], [0.5529999999999999, 0.5529999999999999], [0.402, 0.402]], \"type\": \"surface\", \"name\": \"July\"}, {\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7]], \"z\": [[0.313, 0.313], [0.278, 0.278], [0.267, 0.267], [0.27, 0.27], [0.32299999999999995, 0.32299999999999995], [0.534, 0.534], [0.684, 0.684], [0.621, 0.621], [0.557, 0.557], [0.529, 0.529], [0.529, 0.529], [0.511, 0.511], [0.505, 0.505], [0.504, 0.504], [0.519, 0.519], [0.56, 0.56], [0.654, 0.654], [0.9179999999999999, 0.9179999999999999], [1.074, 1.074], [1.06, 1.06], [0.9229999999999999, 0.9229999999999999], [0.754, 0.754], [0.547, 0.547], [0.39799999999999996, 0.39799999999999996]], \"type\": \"surface\", \"name\": \"June\"}, {\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8]], \"z\": [[0.294, 0.294], [0.27, 0.27], [0.263, 0.263], [0.27, 0.27], [0.32899999999999996, 0.32899999999999996], [0.539, 0.539], [0.708, 0.708], [0.609, 0.609], [0.5379999999999999, 0.5379999999999999], [0.506, 0.506], [0.499, 0.499], [0.486, 0.486], [0.479, 0.479], [0.47600000000000003, 0.47600000000000003], [0.493, 0.493], [0.5379999999999999, 0.5379999999999999], [0.619, 0.619], [0.794, 0.794], [0.956, 0.956], [0.946, 0.946], [0.8220000000000001, 0.8220000000000001], [0.655, 0.655], [0.473, 0.473], [0.358, 0.358]], \"type\": \"surface\", \"name\": \"May\"}, {\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9]], \"z\": [[0.294, 0.294], [0.27399999999999997, 0.27399999999999997], [0.268, 0.268], [0.275, 0.275], [0.33, 0.33], [0.49200000000000005, 0.49200000000000005], [0.6659999999999999, 0.6659999999999999], [0.604, 0.604], [0.536, 0.536], [0.503, 0.503], [0.489, 0.489], [0.474, 0.474], [0.466, 0.466], [0.46, 0.46], [0.473, 0.473], [0.515, 0.515], [0.586, 0.586], [0.7070000000000001, 0.7070000000000001], [0.866, 0.866], [0.887, 0.887], [0.78, 0.78], [0.617, 0.617], [0.45, 0.45], [0.349, 0.349]], \"type\": \"surface\", \"name\": \"April\"}, {\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10]], \"z\": [[0.294, 0.294], [0.27399999999999997, 0.27399999999999997], [0.268, 0.268], [0.275, 0.275], [0.33, 0.33], [0.49200000000000005, 0.49200000000000005], [0.6659999999999999, 0.6659999999999999], [0.604, 0.604], [0.536, 0.536], [0.503, 0.503], [0.489, 0.489], [0.474, 0.474], [0.466, 0.466], [0.46, 0.46], [0.473, 0.473], [0.515, 0.515], [0.586, 0.586], [0.7070000000000001, 0.7070000000000001], [0.866, 0.866], [0.887, 0.887], [0.78, 0.78], [0.617, 0.617], [0.45, 0.45], [0.349, 0.349]], \"type\": \"surface\", \"name\": \"March\"}, {\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11]], \"z\": [[0.294, 0.294], [0.27399999999999997, 0.27399999999999997], [0.268, 0.268], [0.275, 0.275], [0.33, 0.33], [0.49200000000000005, 0.49200000000000005], [0.6659999999999999, 0.6659999999999999], [0.604, 0.604], [0.536, 0.536], [0.503, 0.503], [0.489, 0.489], [0.474, 0.474], [0.466, 0.466], [0.46, 0.46], [0.473, 0.473], [0.515, 0.515], [0.586, 0.586], [0.7070000000000001, 0.7070000000000001], [0.866, 0.866], [0.887, 0.887], [0.78, 0.78], [0.617, 0.617], [0.45, 0.45], [0.349, 0.349]], \"type\": \"surface\", \"name\": \"February\"}, {\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12]], \"z\": [[0.322, 0.322], [0.3, 0.3], [0.292, 0.292], [0.298, 0.298], [0.349, 0.349], [0.5, 0.5], [0.58, 0.58], [0.523, 0.523], [0.47700000000000004, 0.47700000000000004], [0.467, 0.467], [0.46, 0.46], [0.45799999999999996, 0.45799999999999996], [0.455, 0.455], [0.455, 0.455], [0.46799999999999997, 0.46799999999999997], [0.506, 0.506], [0.563, 0.563], [0.64, 0.64], [0.7290000000000001, 0.7290000000000001], [0.8170000000000001, 0.8170000000000001], [0.784, 0.784], [0.6459999999999999, 0.6459999999999999], [0.48700000000000004, 0.48700000000000004], [0.382, 0.382]], \"type\": \"surface\", \"name\": \"January\"}], {\"scene\": {\"yaxis\": {\"tickvals\": [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22], \"title\": \"Time of day (hours)\"}, \"xaxis\": {\"tickwidth\": 1.5, \"ticktext\": [\"December\", \"November\", \"October\", \"September\", \"August\", \"July\", \"June\", \"May\", \"April\", \"March\", \"February\", \"January\"], \"tickvals\": [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5, 11.5], \"type\": \"category\", \"title\": \"Month\"}, \"zaxis\": {\"title\": \"Demand (kVA)\"}}, \"width\": 1000, \"margin\": {\"r\": 20, \"l\": 10, \"b\": 10, \"t\": 10}, \"title\": \"Weekday hourly load profile for \\\"township\\\" customers 7 years after electrification\"}, {\"linkText\": \"Export to plot.ly\", \"showLink\": true})});</script>"
+      ],
+      "text/vnd.plotly.v1+html": [
+       "<div id=\"e44c0b6a-a792-4fef-aa67-254020dff7d4\" style=\"height: 525px; width: 1000px;\" class=\"plotly-graph-div\"></div><script type=\"text/javascript\">require([\"plotly\"], function(Plotly) { window.PLOTLYENV=window.PLOTLYENV || {};window.PLOTLYENV.BASE_URL=\"https://plot.ly\";Plotly.newPlot(\"e44c0b6a-a792-4fef-aa67-254020dff7d4\", [{\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1]], \"z\": [[0.322, 0.322], [0.3, 0.3], [0.292, 0.292], [0.298, 0.298], [0.349, 0.349], [0.5, 0.5], [0.58, 0.58], [0.523, 0.523], [0.47700000000000004, 0.47700000000000004], [0.467, 0.467], [0.46, 0.46], [0.45799999999999996, 0.45799999999999996], [0.455, 0.455], [0.455, 0.455], [0.46799999999999997, 0.46799999999999997], [0.506, 0.506], [0.563, 0.563], [0.64, 0.64], [0.7290000000000001, 0.7290000000000001], [0.8170000000000001, 0.8170000000000001], [0.784, 0.784], [0.6459999999999999, 0.6459999999999999], [0.48700000000000004, 0.48700000000000004], [0.382, 0.382]], \"type\": \"surface\", \"name\": \"December\"}, {\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2]], \"z\": [[0.294, 0.294], [0.27399999999999997, 0.27399999999999997], [0.268, 0.268], [0.275, 0.275], [0.33, 0.33], [0.49200000000000005, 0.49200000000000005], [0.6659999999999999, 0.6659999999999999], [0.604, 0.604], [0.536, 0.536], [0.503, 0.503], [0.489, 0.489], [0.474, 0.474], [0.466, 0.466], [0.46, 0.46], [0.473, 0.473], [0.515, 0.515], [0.586, 0.586], [0.7070000000000001, 0.7070000000000001], [0.866, 0.866], [0.887, 0.887], [0.78, 0.78], [0.617, 0.617], [0.45, 0.45], [0.349, 0.349]], \"type\": \"surface\", \"name\": \"November\"}, {\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3]], \"z\": [[0.294, 0.294], [0.27399999999999997, 0.27399999999999997], [0.268, 0.268], [0.275, 0.275], [0.33, 0.33], [0.49200000000000005, 0.49200000000000005], [0.6659999999999999, 0.6659999999999999], [0.604, 0.604], [0.536, 0.536], [0.503, 0.503], [0.489, 0.489], [0.474, 0.474], [0.466, 0.466], [0.46, 0.46], [0.473, 0.473], [0.515, 0.515], [0.586, 0.586], [0.7070000000000001, 0.7070000000000001], [0.866, 0.866], [0.887, 0.887], [0.78, 0.78], [0.617, 0.617], [0.45, 0.45], [0.349, 0.349]], \"type\": \"surface\", \"name\": \"October\"}, {\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4], [3, 4]], \"z\": [[0.294, 0.294], [0.27399999999999997, 0.27399999999999997], [0.268, 0.268], [0.275, 0.275], [0.33, 0.33], [0.49200000000000005, 0.49200000000000005], [0.6659999999999999, 0.6659999999999999], [0.604, 0.604], [0.536, 0.536], [0.503, 0.503], [0.489, 0.489], [0.474, 0.474], [0.466, 0.466], [0.46, 0.46], [0.473, 0.473], [0.515, 0.515], [0.586, 0.586], [0.7070000000000001, 0.7070000000000001], [0.866, 0.866], [0.887, 0.887], [0.78, 0.78], [0.617, 0.617], [0.45, 0.45], [0.349, 0.349]], \"type\": \"surface\", \"name\": \"September\"}, {\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5], [4, 5]], \"z\": [[0.295, 0.295], [0.271, 0.271], [0.264, 0.264], [0.27, 0.27], [0.32899999999999996, 0.32899999999999996], [0.5329999999999999, 0.5329999999999999], [0.7, 0.7], [0.61, 0.61], [0.5379999999999999, 0.5379999999999999], [0.507, 0.507], [0.5, 0.5], [0.486, 0.486], [0.479, 0.479], [0.47700000000000004, 0.47700000000000004], [0.493, 0.493], [0.5379999999999999, 0.5379999999999999], [0.619, 0.619], [0.7559999999999999, 0.7559999999999999], [0.958, 0.958], [0.948, 0.948], [0.825, 0.825], [0.657, 0.657], [0.475, 0.475], [0.359, 0.359]], \"type\": \"surface\", \"name\": \"August\"}, {\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6], [5, 6]], \"z\": [[0.316, 0.316], [0.27899999999999997, 0.27899999999999997], [0.268, 0.268], [0.271, 0.271], [0.32299999999999995, 0.32299999999999995], [0.521, 0.521], [0.669, 0.669], [0.622, 0.622], [0.5589999999999999, 0.5589999999999999], [0.531, 0.531], [0.531, 0.531], [0.512, 0.512], [0.506, 0.506], [0.505, 0.505], [0.52, 0.52], [0.56, 0.56], [0.654, 0.654], [0.8859999999999999, 0.8859999999999999], [1.077, 1.077], [1.067, 1.067], [0.9309999999999999, 0.9309999999999999], [0.762, 0.762], [0.5529999999999999, 0.5529999999999999], [0.402, 0.402]], \"type\": \"surface\", \"name\": \"July\"}, {\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7], [6, 7]], \"z\": [[0.313, 0.313], [0.278, 0.278], [0.267, 0.267], [0.27, 0.27], [0.32299999999999995, 0.32299999999999995], [0.534, 0.534], [0.684, 0.684], [0.621, 0.621], [0.557, 0.557], [0.529, 0.529], [0.529, 0.529], [0.511, 0.511], [0.505, 0.505], [0.504, 0.504], [0.519, 0.519], [0.56, 0.56], [0.654, 0.654], [0.9179999999999999, 0.9179999999999999], [1.074, 1.074], [1.06, 1.06], [0.9229999999999999, 0.9229999999999999], [0.754, 0.754], [0.547, 0.547], [0.39799999999999996, 0.39799999999999996]], \"type\": \"surface\", \"name\": \"June\"}, {\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8], [7, 8]], \"z\": [[0.294, 0.294], [0.27, 0.27], [0.263, 0.263], [0.27, 0.27], [0.32899999999999996, 0.32899999999999996], [0.539, 0.539], [0.708, 0.708], [0.609, 0.609], [0.5379999999999999, 0.5379999999999999], [0.506, 0.506], [0.499, 0.499], [0.486, 0.486], [0.479, 0.479], [0.47600000000000003, 0.47600000000000003], [0.493, 0.493], [0.5379999999999999, 0.5379999999999999], [0.619, 0.619], [0.794, 0.794], [0.956, 0.956], [0.946, 0.946], [0.8220000000000001, 0.8220000000000001], [0.655, 0.655], [0.473, 0.473], [0.358, 0.358]], \"type\": \"surface\", \"name\": \"May\"}, {\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9], [8, 9]], \"z\": [[0.294, 0.294], [0.27399999999999997, 0.27399999999999997], [0.268, 0.268], [0.275, 0.275], [0.33, 0.33], [0.49200000000000005, 0.49200000000000005], [0.6659999999999999, 0.6659999999999999], [0.604, 0.604], [0.536, 0.536], [0.503, 0.503], [0.489, 0.489], [0.474, 0.474], [0.466, 0.466], [0.46, 0.46], [0.473, 0.473], [0.515, 0.515], [0.586, 0.586], [0.7070000000000001, 0.7070000000000001], [0.866, 0.866], [0.887, 0.887], [0.78, 0.78], [0.617, 0.617], [0.45, 0.45], [0.349, 0.349]], \"type\": \"surface\", \"name\": \"April\"}, {\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10], [9, 10]], \"z\": [[0.294, 0.294], [0.27399999999999997, 0.27399999999999997], [0.268, 0.268], [0.275, 0.275], [0.33, 0.33], [0.49200000000000005, 0.49200000000000005], [0.6659999999999999, 0.6659999999999999], [0.604, 0.604], [0.536, 0.536], [0.503, 0.503], [0.489, 0.489], [0.474, 0.474], [0.466, 0.466], [0.46, 0.46], [0.473, 0.473], [0.515, 0.515], [0.586, 0.586], [0.7070000000000001, 0.7070000000000001], [0.866, 0.866], [0.887, 0.887], [0.78, 0.78], [0.617, 0.617], [0.45, 0.45], [0.349, 0.349]], \"type\": \"surface\", \"name\": \"March\"}, {\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11], [10, 11]], \"z\": [[0.294, 0.294], [0.27399999999999997, 0.27399999999999997], [0.268, 0.268], [0.275, 0.275], [0.33, 0.33], [0.49200000000000005, 0.49200000000000005], [0.6659999999999999, 0.6659999999999999], [0.604, 0.604], [0.536, 0.536], [0.503, 0.503], [0.489, 0.489], [0.474, 0.474], [0.466, 0.466], [0.46, 0.46], [0.473, 0.473], [0.515, 0.515], [0.586, 0.586], [0.7070000000000001, 0.7070000000000001], [0.866, 0.866], [0.887, 0.887], [0.78, 0.78], [0.617, 0.617], [0.45, 0.45], [0.349, 0.349]], \"type\": \"surface\", \"name\": \"February\"}, {\"y\": [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15], [16, 16], [17, 17], [18, 18], [19, 19], [20, 20], [21, 21], [22, 22], [23, 23]], \"showscale\": false, \"x\": [[11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12], [11, 12]], \"z\": [[0.322, 0.322], [0.3, 0.3], [0.292, 0.292], [0.298, 0.298], [0.349, 0.349], [0.5, 0.5], [0.58, 0.58], [0.523, 0.523], [0.47700000000000004, 0.47700000000000004], [0.467, 0.467], [0.46, 0.46], [0.45799999999999996, 0.45799999999999996], [0.455, 0.455], [0.455, 0.455], [0.46799999999999997, 0.46799999999999997], [0.506, 0.506], [0.563, 0.563], [0.64, 0.64], [0.7290000000000001, 0.7290000000000001], [0.8170000000000001, 0.8170000000000001], [0.784, 0.784], [0.6459999999999999, 0.6459999999999999], [0.48700000000000004, 0.48700000000000004], [0.382, 0.382]], \"type\": \"surface\", \"name\": \"January\"}], {\"scene\": {\"yaxis\": {\"tickvals\": [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22], \"title\": \"Time of day (hours)\"}, \"xaxis\": {\"tickwidth\": 1.5, \"ticktext\": [\"December\", \"November\", \"October\", \"September\", \"August\", \"July\", \"June\", \"May\", \"April\", \"March\", \"February\", \"January\"], \"tickvals\": [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5, 11.5], \"type\": \"category\", \"title\": \"Month\"}, \"zaxis\": {\"title\": \"Demand (kVA)\"}}, \"width\": 1000, \"margin\": {\"r\": 20, \"l\": 10, \"b\": 10, \"t\": 10}, \"title\": \"Weekday hourly load profile for \\\"township\\\" customers 7 years after electrification\"}, {\"linkText\": \"Export to plot.ly\", \"showLink\": true})});</script>"
+>>>>>>> f9960e7122cc6f2036d44a49df2455da805d06ed
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "emp.plotHourlyClass('informal_settlement', daytype='Saturday', year=15)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "anaconda-cloud": {},
+  "kernelspec": {
+   "display_name": "Python [conda root]",
+   "language": "python",
+   "name": "conda-root-py"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.5.2"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}
