@@ -107,6 +107,7 @@ ENV/
 
 # other
 .DS_Store
+temp-plot.html
 
 # R
 .Rhistory
