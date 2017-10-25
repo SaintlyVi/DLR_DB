@@ -4,6 +4,6 @@
 [submodule "exmod"]
 	path = exmod
 	url = https://github.com/SaintlyVi/DLR_DB.exmod.git
-[submodule "src"]
-	path = src
+[submodule "observations"]
+	path = observations
 	url = https://github.com/ERC-data/DLR_DB.src.git
