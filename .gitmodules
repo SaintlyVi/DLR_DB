@@ -1,0 +1,9 @@
+[submodule "clmod"]
+	path = clmod
+	url = https://github.com/SaintlyVi/DLR_DB.clmod.git
+[submodule "exmod"]
+	path = exmod
+	url = https://github.com/SaintlyVi/DLR_DB.exmod.git
+[submodule "src"]
+	path = src
+	url = https://github.com/ERC-data/DLR_DB.src.git
