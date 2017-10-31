@@ -43,7 +43,7 @@ def csvTables(savepath):
     for name, path in zip(list(tables.keys()), filenames):
         df = tables[name]
         df.to_csv(path, index=False)
-        print('Successfully saved to' + path)        
+        print('Successfully saved to ' + path)        
     return        
 
 def loadID(year = None, id_name = 'AnswerID'):
@@ -88,7 +88,7 @@ def loadAnswers(dtype = None):
     elif dtype == 'char':
         ans = loadTables().get('answers_char_anon').drop(labels='lock', axis=1)
     elif dtype == 'num':
-        ans = loadTables().get('answers_num').drop(labels='lock', axis=1)
+        ans = loadTables().get('answers_number_anon').drop(labels='lock', axis=1)
     return ans
 
 def searchQuestions(searchterm = '', qnairid = None, dtype = None):
