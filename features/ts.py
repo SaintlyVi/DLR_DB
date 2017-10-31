@@ -54,7 +54,7 @@ def shapeProfiles(annualunitprofile):
     annualunitprofile variable should be a pandas data frame constructed with the loadProfiles() function.
     Rows with Valid=0 are removed.
     
-    The function returns a shaped dataframe indexed by hour with aggregated unit values for all profiles, the year and unit concerned.
+    The function returns [shaped_profile_df, year, unit]; a tuple containing the shaped dataframe indexed by hour with aggregated unit values for all profiles, the year and unit concerned.
     
     """
     data = annualunitprofile[0]
@@ -74,7 +74,7 @@ def nanAnalysis(year, unit, threshold = 0.95):
     threshold 
     
     The function returns:
-        * two graphs with summary statistics of all profiles
+        * two plots with summary statistics of all profiles
         * the percentage of profiles and measurement days with full observational data above the threshold value.
     """
     
@@ -94,7 +94,7 @@ def nanAnalysis(year, unit, threshold = 0.95):
                     y=fullcols.values)
 #    thresh = go.Scatter(x=fullrows.index, y=threshold, mode = 'lines', name = 'threshold', line = dict(color = 'red'))
     
-    fig = py.tools.make_subplots(rows=2, cols=1, subplot_titles=['Percentage of ProfileIDs with Valid Observations for each Hour','Percentage of Valid Observational Hours for each ProfileID'])
+    fig = py.tools.make_subplots(rows=2, cols=1, subplot_titles=['Percentage of ProfileIDs with Valid Observations for each Hour','Percentage of Valid Observational Hours for each ProfileID'], print_grid=False)
     
     fig.append_trace(trace1, 1, 1)
     fig.append_trace(trace2, 2, 1)
@@ -103,14 +103,14 @@ def nanAnalysis(year, unit, threshold = 0.95):
     fig['layout']['yaxis'].update(domain=[0.55,1])
     fig['layout']['yaxis2'].update(domain=[0, 0.375])
     fig['layout'].update(title = "Visual analysis of valid DLR load profile data for " + str(year) + " readings (units: " + unit + ")", height=850)
-    
-    offline.iplot(fig)
-    
+      
     goodhours = len(fullcols[fullcols > threshold]) / len(fullcols) * 100
     goodprofiles = len(fullrows[fullrows > threshold]) / len(fullrows) * 100
     
     print('{:.2f}% of hours have over {:.0f}% fully observed profiles.'.format(goodhours, threshold * 100))
     print('{:.2f}% of profiles have been observed over {:.0f}% of time.'.format(goodprofiles, threshold * 100))
+    
+    offline.iplot(fig)
     
     return 
     
@@ -175,9 +175,13 @@ def getProfilePower(year):
         power = iprofile.merge(vprofile, left_on=['matchcol', 'Datefield'], right_on=['ProfileID','Datefield'], suffixes=['_i', '_v'])
 
     elif 2009 <= year <= 2014: #recorder type is set up so that each current profile has its own voltage profile
-
         vprofile['matchcol'] = vprofile['ProfileID'] + 1
-        power = vprofile.merge(iprofile, left_on=['matchcol', 'Datefield'], right_on=['ProfileID','Datefield'], suffixes=['_v', '_i'])
+        power_temp = vprofile.merge(iprofile, left_on=['matchcol', 'Datefield'], right_on=['ProfileID','Datefield'], suffixes=['_v', '_i'])
+        power_temp.drop(['RecorderID_v','RecorderID_i', 'matchcol', 'Valid_i', 'Valid_v'], axis=1, inplace=True)
+        
+        pprofile = loadProfiles(year, 'kW')[0] #get kW readings
+        pprofile['matchcol'] = pprofile['ProfileID'] - 3 #UoM = 5, ChannelNo = 5, 9 or 13
+        power = power_temp.merge(pprofile, right_on=['matchcol', 'Datefield'], left_on=['ProfileID_v','Datefield'])
                 
     else:
         return print('Year is out of range. Please select a year between 1994 and 2014')
@@ -191,7 +195,7 @@ def getProfilePower(year):
 
 def classProfilePower(year, experiment_dir = 'exp'):
     """
-    This function gets the inferred class for each AnswerID from 'DLR_DB/class_model/out/experiment_dir' and aggregates the profiles by month, day type and hour of the day.
+    This function gets the inferred class for each AnswerID from 'DLR_DB/classmod/out/experiment_dir' and aggregates the profiles by month, day type and hour of the day.
     """
     
     dirpath = os.path.join(classout_dir, experiment_dir)
