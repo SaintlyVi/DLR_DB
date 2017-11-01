@@ -30,90 +30,12 @@ process
 
 import pandas as pd
 import numpy as np
-import feather
 import os
 
-import plotly as py
-from plotly.offline import offline
-import plotly.graph_objs as go
-
 import features.socios as socios
-from features.support import hourlyprofiles_dir, classout_dir   
+from features.support import classout_dir   
+from processing.procore import loadProfiles, loadTables
 
-def loadProfiles(year, unit):
-    """
-    This function loads a year's hourly unit profiles into a dataframe and returns it together with the year and unit concerned.
-    
-    """
-    data = feather.read_dataframe(os.path.join(hourlyprofiles_dir, unit, str(year) + '_' + unit + '.feather')) #load data
-    return data, year, unit
-
-def shapeProfiles(annualunitprofile):
-    """
-    This function reshapes a year's unit profiles into a dataframe indexed by date, with profile IDs as columns and units read as values.
-    annualunitprofile variable should be a pandas data frame constructed with the loadProfiles() function.
-    Rows with Valid=0 are removed.
-    
-    The function returns [shaped_profile_df, year, unit]; a tuple containing the shaped dataframe indexed by hour with aggregated unit values for all profiles, the year and unit concerned.
-    
-    """
-    data = annualunitprofile[0]
-    year = annualunitprofile[1]
-    unit = annualunitprofile[2]
-    
-    valid_data = data[data.Valid > 0] #remove invalid data - valid for 10min readings = 6, valid for 5min readings = 12
-    sorted_data = valid_data.sort_values(by='Datefield') #sort by date
-    sorted_data.ProfileID = sorted_data.ProfileID.apply(lambda x: str(x))
-    pretty_data = sorted_data.set_index(['Datefield','ProfileID']).unstack()['Unitsread'] #reshape dataframe
-    return pretty_data, year, unit
-
-def nanAnalysis(year, unit, threshold = 0.95):
-    """
-    This function displays information about the missing values for all customers in a load profile unit year.
-    shapedprofile is a dataframe that has been created with shapeProfiles.
-    threshold 
-    
-    The function returns:
-        * two plots with summary statistics of all profiles
-        * the percentage of profiles and measurement days with full observational data above the threshold value.
-    """
-    
-    data = shapeProfiles(loadProfiles(year, unit))[0]
-    year = shapeProfiles(loadProfiles(year, unit))[1]
-    unit = shapeProfiles(loadProfiles(year, unit))[2]
-
-    #prep data
-    fullrows = data.count(axis=1)/data.shape[1]
-    fullcols = data.count(axis=0)/data.shape[0]
-    
-    trace1 = go.Scatter(name='% valid profiles',
-                        x=fullrows.index, 
-                        y=fullrows.values)
-    trace2 = go.Bar(name='% valid hours',
-                    x=fullcols.index, 
-                    y=fullcols.values)
-#    thresh = go.Scatter(x=fullrows.index, y=threshold, mode = 'lines', name = 'threshold', line = dict(color = 'red'))
-    
-    fig = py.tools.make_subplots(rows=2, cols=1, subplot_titles=['Percentage of ProfileIDs with Valid Observations for each Hour','Percentage of Valid Observational Hours for each ProfileID'], print_grid=False)
-    
-    fig.append_trace(trace1, 1, 1)
-    fig.append_trace(trace2, 2, 1)
-#    fig.append_trace(thresh, 2, 1)
-    fig['layout']['xaxis2'].update(title='ProfileIDs', type='category', exponentformat="none")
-    fig['layout']['yaxis'].update(domain=[0.55,1])
-    fig['layout']['yaxis2'].update(domain=[0, 0.375])
-    fig['layout'].update(title = "Visual analysis of valid DLR load profile data for " + str(year) + " readings (units: " + unit + ")", height=850)
-      
-    goodhours = len(fullcols[fullcols > threshold]) / len(fullcols) * 100
-    goodprofiles = len(fullrows[fullrows > threshold]) / len(fullrows) * 100
-    
-    print('{:.2f}% of hours have over {:.0f}% fully observed profiles.'.format(goodhours, threshold * 100))
-    print('{:.2f}% of profiles have been observed over {:.0f}% of time.'.format(goodprofiles, threshold * 100))
-    
-    offline.iplot(fig)
-    
-    return 
-    
 #investigating one location
 def tsAgg(year, unit, interval, locstring=None):
     """
@@ -150,12 +72,12 @@ def getProfilePower(year):
     a_id = socios.loadID(year, id_name = 'AnswerID')
     
     #get dataframe of linkages between AnswerIDs and ProfileIDs
-    links = socios.loadTables().get('links')
+    links = loadTables().get('links')
     year_links = links[links.AnswerID.isin(a_id)]
     year_links = year_links.loc[year_links.ProfileID != 0, ['AnswerID','ProfileID']]    
     
     #get profile metadata (recorder ID, recording channel, recorder type, units of measurement)
-    profiles = socios.loadTables().get('profiles')
+    profiles = loadTables().get('profiles')
     #add AnswerID information to profiles metadata
     profile_meta = year_links.merge(profiles, left_on='ProfileID', right_on='ProfileId').drop('ProfileId', axis=1)        
     VI_profile_meta = profile_meta.loc[(profile_meta['Unit of measurement'] == 2), :] #select current profiles only
@@ -193,6 +115,8 @@ def getProfilePower(year):
     
     return output
 
+
+#TO DO: Everything after this point should be in the evaluation module
 def classProfilePower(year, experiment_dir = 'exp'):
     """
     This function gets the inferred class for each AnswerID from 'DLR_DB/classmod/out/experiment_dir' and aggregates the profiles by month, day type and hour of the day.
@@ -261,8 +185,8 @@ def annualPower(year, experiment_dir = 'exp'):
 #plotdata = data.pivot(columns='Month', index='Hour', values='mean_kWh_norm')
 #plotdata.plot()
 
-links = socios.loadTables().get('links')
-p = socios.loadTables().get('profiles')
+links = loadTables().get('links')
+p = loadTables().get('profiles')
 activeprofiles = p[(p.ProfileId.isin(links.ProfileID[(links.ProfileID.isin(p.ProfileId[(p['Unit of measurement'] == 2)])) & (links.GroupID == 1000105)])) & (p.Active == True)]
 len(links[(links.GroupID == 1000105) & (links.AnswerID != 0)])
 len(links[(links.GroupID == 1000105) & (links.ProfileID != 0)])
