@@ -30,14 +30,14 @@ process
 
 import pandas as pd
 import numpy as np
-import os
 
 import features.socios as socios
-from features.support import classout_dir   
 from processing.procore import loadProfiles, loadTables
 
+tables = loadTables()
+
 #investigating one location
-def tsAgg(year, unit, interval, locstring=None):
+def aggTs(year, unit, interval, locstring=None):
     """
     This function returns the aggregated mean or total load profile for all ProfileIDs for a year in a given location.
     Use socios.recorderLocations() to get locstrings for locations of interest. 
@@ -72,12 +72,12 @@ def getProfilePower(year):
     a_id = socios.loadID(year, id_name = 'AnswerID')
     
     #get dataframe of linkages between AnswerIDs and ProfileIDs
-    links = loadTables().get('links')
+    links = tables.get('links')
     year_links = links[links.AnswerID.isin(a_id)]
     year_links = year_links.loc[year_links.ProfileID != 0, ['AnswerID','ProfileID']]    
     
     #get profile metadata (recorder ID, recording channel, recorder type, units of measurement)
-    profiles = loadTables().get('profiles')
+    profiles = tables.get('profiles')
     #add AnswerID information to profiles metadata
     profile_meta = year_links.merge(profiles, left_on='ProfileID', right_on='ProfileId').drop('ProfileId', axis=1)        
     VI_profile_meta = profile_meta.loc[(profile_meta['Unit of measurement'] == 2), :] #select current profiles only
@@ -86,7 +86,7 @@ def getProfilePower(year):
     iprofile = loadProfiles(year, 'A')[0]    
     vprofile = loadProfiles(year, 'V')[0]
     
-    if year < 2009: #pre-2009 recorder type is set up so that up to 12 current profiles share one voltage profile
+    if year <= 2009: #pre-2009 recorder type is set up so that up to 12 current profiles share one voltage profile
         #get list of ProfileIDs in variable year
         p_id = socios.loadID(year, id_name = 'ProfileID')
         year_profiles = profiles[profiles.ProfileId.isin(p_id)]        
@@ -95,98 +95,90 @@ def getProfilePower(year):
         iprofile = iprofile.merge(vchan, on='RecorderID', suffixes=('_i','_v'))
         iprofile.rename(columns={"ProfileId": "matchcol"}, inplace=True)        
         power = iprofile.merge(vprofile, left_on=['matchcol', 'Datefield'], right_on=['ProfileID','Datefield'], suffixes=['_i', '_v'])
+        power.drop(['RecorderID_i', 'matchcol', 'Valid_i', 'Valid_v'], axis=1, inplace=True)
 
-    elif 2009 <= year <= 2014: #recorder type is set up so that each current profile has its own voltage profile
+    elif 2009 < year <= 2014: #recorder type is set up so that each current profile has its own voltage profile
         vprofile['matchcol'] = vprofile['ProfileID'] + 1
         power_temp = vprofile.merge(iprofile, left_on=['matchcol', 'Datefield'], right_on=['ProfileID','Datefield'], suffixes=['_v', '_i'])
         power_temp.drop(['RecorderID_v','RecorderID_i', 'matchcol', 'Valid_i', 'Valid_v'], axis=1, inplace=True)
         
-        pprofile = loadProfiles(year, 'kW')[0] #get kW readings
-        pprofile['matchcol'] = pprofile['ProfileID'] - 3 #UoM = 5, ChannelNo = 5, 9 or 13
+        pprofile = loadProfiles(year, 'kVA')[0] #get kW readings
+        pprofile['matchcol'] = pprofile['ProfileID'] - 2 #UoM = 4, ChannelNo = 4, 8 or 12
         power = power_temp.merge(pprofile, right_on=['matchcol', 'Datefield'], left_on=['ProfileID_v','Datefield'])
-                
+        power.rename(columns={'ProfileID':'ProfileID_kva', 'Unitsread':'Unitsread_kva'}, inplace=True)
+        power.drop(['matchcol', 'Valid'], axis=1, inplace=True)
+        
     else:
         return print('Year is out of range. Please select a year between 1994 and 2014')
     
-    power = power.loc[:,['RecorderID_v', 'ProfileID_v', 'Datefield', 'Unitsread_v', 'ProfileID_i', 'Unitsread_i']]
-    power.columns = ['RecorderID','V_ProfileID','Datefield','V_Unitsread','I_ProfileID','I_Unitsread']
-    power['kWh_calculated'] = power.V_Unitsread*power.I_Unitsread*0.001
-    output = power.merge(VI_profile_meta.loc[:,['AnswerID','ProfileID']], left_on='I_ProfileID', right_on='ProfileID').drop('ProfileID', axis=1)
+    power['kVAh_calculated'] = power.Unitsread_v*power.Unitsread_i*0.001
+    output = power.merge(VI_profile_meta.loc[:,['AnswerID','ProfileID']], left_on='ProfileID_i', right_on='ProfileID').drop('ProfileID', axis=1)
+    output = output[output.columns.sort_values()]
     
     return output
 
-
-#TO DO: Everything after this point should be in the evaluation module
-def classProfilePower(year, experiment_dir = 'exp'):
+def aggProfilePower(year, interval):
     """
-    This function gets the inferred class for each AnswerID from 'DLR_DB/classmod/out/experiment_dir' and aggregates the profiles by month, day type and hour of the day.
+    This function returns the aggregated mean or total load profile for all AnswerIDs for a year.
+    Interval should be 'D' for calendar day frequency, 'M' for month end frequency or 'A' for annual frequency. Other interval options are described here: http://pandas.pydata.org/pandas-docs/stable/timeseries.html#offset-aliases
+    
+    The aggregate function for kVA and kVA_calculated is sum().
+    The aggregate function for A, V is mean().
     """
-    
-    dirpath = os.path.join(classout_dir, experiment_dir)
-    filename = 'classes_' + str(year) + '.csv'
-    
-    #get data
-    classes = pd.read_csv(os.path.join(dirpath, filename), header=None, names=['AnswerID','class'])
-    profiles = getProfilePower(year)
-    
-    #add class label to profile IDs
-    df = classes.merge(profiles, on='AnswerID')
-    #select subset of columns that is of interest
-    classpower = df.loc[:, ['AnswerID','class','Datefield','kWh_calculated']]
-    
-    return classpower
 
-def annualPower(year, experiment_dir = 'exp'):
+    data = getProfilePower(year)
+    data.set_index('Datefield', inplace=True)
+    try:
+        aggregated = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({'Unitsread_i': np.mean, 'Unitsread_v': np.mean, 'Unitsread_kva': np.sum, 'kVAh_calculated': np.sum})
+        aggregated = aggregated[['kVAh_calculated', 'Unitsread_kva', 'Unitsread_i', 'Unitsread_v']]
     
-    df = classProfilePower(year, experiment_dir)
-    mean_hourly_id = df.groupby('AnswerID')['kWh_calculated'].mean().reset_index() #get mean annual hourly kWh value for each AnswerID
+    except:
+        aggregated = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({'Unitsread_i': np.mean, 'Unitsread_v': np.mean, 'kVAh_calculated': np.sum})
+        aggregated = aggregated[['kVAh_calculated', 'Unitsread_i', 'Unitsread_v']]
     
-    #daily power profiles
-    sum_daily_id = df.groupby(['class','AnswerID',df['Datefield'].dt.year,df['Datefield'].dt.month,df['Datefield'].dt.day]).sum()
-    sum_daily_id.index.names = ['class','AnswerID','Year','Month','Day']
-    sum_daily_id.reset_index(inplace=True)
-    mean_daily_id = sum_daily_id.groupby(['class','AnswerID'])['kWh_calculated'].mean().reset_index()
-    
-    #monthly power profiles
-    sum_monthly_id = df.groupby(['class','AnswerID',df['Datefield'].dt.year,df['Datefield'].dt.month]).sum()
-    sum_monthly_id.index.names = ['class','AnswerID','Year','Month']
-    sum_monthly_id.reset_index(inplace=True)
-    mean_monthly_id = sum_monthly_id.groupby(['class','AnswerID'])['kWh_calculated'].mean().reset_index()
-    
-    mean_id0 = mean_daily_id.merge(mean_hourly_id, on='AnswerID', suffixes=['_d','_h'])
-    mean_id = mean_id0.merge(mean_monthly_id, on=['AnswerID','class'])
-    mean_id.columns = ['class','AnswerID','kWh_daily_mean','kWh_hourly_mean','kWh_monthly_mean']
-    
-    #manipulate dataframe to match DPET hourly summary output
-    dfnorm = df.merge(mean_hourly_id, how='outer', on='AnswerID', suffixes=['','_mean'])
-    dfnorm['kWh_norm'] = dfnorm.kWh_calculated / dfnorm.kWh_calculated_mean
-    dfnorm = dfnorm.loc[:, ['AnswerID','class','Datefield','kWh_norm']]
-    
-    dfnorm['Month'] = dfnorm['Datefield'].dt.month
-    daytypebins = [0, 5, 6, 7]
-    daytypelabels = ['Weekday', 'Saturday', 'Sunday']
-    dfnorm['DayType'] = pd.cut(dfnorm.Datefield.dt.weekday, bins = daytypebins, labels = daytypelabels, right=False, include_lowest=True)
-    dfnorm['Hour'] = dfnorm['Datefield'].dt.hour
-    
-    #group and normalise dataframe to get mean and std of power profiles by customer class, 
-    grouped = dfnorm.groupby(['class','Month','DayType','Hour'])
-    class_norm = grouped['kWh_norm'].agg([np.mean, np.std]).rename(columns={'mean': 'mean_kWh_norm','std': 'std_kWh_norm'}).reset_index()
-    
-    grouped_id = dfnorm.groupby(['class','AnswerID','Month','DayType','Hour'])
-    id_norm = grouped_id['kWh_norm'].agg([np.mean, np.std]).rename(columns={'mean': 'mean_kWh_norm','std': 'std_kWh_norm'}).reset_index()
-    #load factor
-    
-    return sum_daily_id, sum_monthly_id, mean_id, id_norm, class_norm
+    return aggregated
 
-#plotting
-#ap = annualPower(2012, class_dir = 'exp1')
-#idprofile = ap[3]
-#data = idprofile.loc[(idprofile['AnswerID'] == 1004031) & (idprofile['DayType'] == 'Weekday'), :]
-#plotdata = data.pivot(columns='Month', index='Hour', values='mean_kWh_norm')
-#plotdata.plot()
+## TODO
+def maxDemand(year):
+    
+    data = getProfilePower(year)
+    maxdemand = data.iloc[data.reset_index().groupby(['AnswerID'])['Unitsread_i'].idxmax()].reset_index(drop=True)
+    
+    maxdemand['month'] = maxdemand['Datefield'].apply(lambda x: x.month)
+    maxdemand['daytype'] = maxdemand['Datefield'].apply(lambda x: x.dayofweek)
+    maxdemand['hour'] = maxdemand['Datefield'].apply(lambda x: x.hour)
+                             
+    return maxdemand[['AnswerID','RecorderID','Unitsread_i','month','daytype','hour']]
 
-links = loadTables().get('links')
-p = loadTables().get('profiles')
-activeprofiles = p[(p.ProfileId.isin(links.ProfileID[(links.ProfileID.isin(p.ProfileId[(p['Unit of measurement'] == 2)])) & (links.GroupID == 1000105)])) & (p.Active == True)]
-len(links[(links.GroupID == 1000105) & (links.AnswerID != 0)])
-len(links[(links.GroupID == 1000105) & (links.ProfileID != 0)])
+def avgDailyDemand(year):
+    
+    data = getProfilePower(year)
+    data.set_index('Datefield', inplace=True)
+    
+    return
+
+def avgMonthlyDemand(year):
+    
+    data = aggProfilePower(year, 'M')
+    try:
+        avgmonthlydemand = data.groupby(['RecorderID','AnswerID'])['Unitsread_kva'].mean()
+    except:
+        avgmonthlydemand = data.groupby(['RecorderID','AnswerID'])['kVAh_calculated'].mean()
+    
+    return avgmonthlydemand
+
+def avgDaytypeDemand(year):
+    
+    data = getProfilePower(year)
+    data['month'] = data['Datefield'].dt.month
+    data['dayix'] = data['Datefield'].dt.dayofweek
+    data['hour'] = data['Datefield'].dt.hour
+    cats = pd.cut(data.dayix, bins = [0, 5, 6, 7], right=False, labels= ['weekday','Saturday','Sunday'], include_lowest=True)
+    data['daytype'] = cats
+    
+    try:
+        daytypedemand = data.groupby(['AnswerID', 'month', 'daytype', 'hour'])['Unitsread_kva'].agg(['mean', 'std'])
+    except:
+        daytypedemand = data.groupby(['AnswerID', 'month', 'daytype', 'hour'])['kVAh_calculated'].agg(['mean', 'std'])
+
+    return daytypedemand.reset_index()

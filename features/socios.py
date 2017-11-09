@@ -11,8 +11,11 @@ Answer query script: This script contains functions to query and manipulate DLR 
 
 import numpy as np
 import pandas as pd
+from processing.procore import loadTables
 
-def loadID(tables, year = None, id_name = 'AnswerID'):
+tables = loadTables()
+
+def loadID(year = None, id_name = 'AnswerID'):
     """
     This function subsets Answer or Profile IDs by year. Tables variable can be constructred with loadTables() function. Year input can be number or string. id_name is AnswerID or ProfileID.
     """
@@ -27,7 +30,7 @@ def loadID(tables, year = None, id_name = 'AnswerID'):
         ids = pd.Series(all_ids.loc[all_ids.GroupID.isin(id_select), id_name].unique())
     return ids
 
-def loadQuestions(tables, dtype = None):
+def loadQuestions(dtype = None):
     """
     This function gets all questions.
     
@@ -41,7 +44,7 @@ def loadQuestions(tables, dtype = None):
         qu = qu[qu.Datatype == dtype]
     return qu
 
-def loadAnswers(tables, dtype = None):
+def loadAnswers(dtype = None):
     """
     This function returns all answer IDs and their question responses for a selected data type. If dtype is None, answer IDs and their corresponding questionaire IDs are returned instead.
     
@@ -57,7 +60,7 @@ def loadAnswers(tables, dtype = None):
         ans = tables.get('answers_number_anon').drop(labels='lock', axis=1)
     return ans
 
-def searchQuestions(tables, searchterm = '', qnairid = None, dtype = None):
+def searchQuestions(searchterm = '', qnairid = None, dtype = None):
     """
     Searches questions for a search term, taking questionaire ID and question data type (num, blob, char) as input. 
     A single search term can be specified as a string, or a list of search terms as list.
@@ -69,7 +72,7 @@ def searchQuestions(tables, searchterm = '', qnairid = None, dtype = None):
         searchterm = [searchterm]
     searchterm = [s.lower() for s in searchterm]
     qcons = tables.get('qconstraints').drop(labels='lock', axis=1)
-    qu = loadQuestions(tables, dtype)
+    qu = loadQuestions(dtype)
     qdf = qu.join(qcons, 'QuestionID', rsuffix='_c') #join question constraints to questions table
     qnairids = list(tables.get('questionaires')['QuestionaireID']) #get list of valid questionaire IDs
     if qnairid is None: #gets all relevant queries
@@ -81,39 +84,39 @@ def searchQuestions(tables, searchterm = '', qnairid = None, dtype = None):
     result = qdf.loc[qdf.Question.str.lower().str.contains('|'.join(searchterm)), ['Question', 'Datatype','QuestionaireID', 'ColumnNo', 'Lower', 'Upper']]
     return result
 
-def typeSplitQuestions(tables, qnid = 3):
+def typeSplitQuestions(qnid = 3):
     """
     Creates a dict with items containing questions by type (num, blob, char).
     
     """
-    d = {i : searchQuestions(tables, qnairid = qnid, dtype=i) for i in ['num','blob','char']}
+    d = {i : searchQuestions(qnairid = qnid, dtype=i) for i in ['num','blob','char']}
     return d
 
-def searchAnswers(tables, searchterm = '', qnairid = 3, dtype = 'num'):
+def searchAnswers(searchterm = '', qnairid = 3, dtype = 'num'):
     """
     This function returns the answers IDs and responses for a list of search terms
     
     """
-    allans = loadAnswers(tables) #get answer IDs for questionaire IDs
-    ans = loadAnswers(tables, dtype) #retrieve all responses for data type
-    questions = searchQuestions(tables, searchterm, qnairid, dtype) #get column numbers for query
+    allans = loadAnswers() #get answer IDs for questionaire IDs
+    ans = loadAnswers(dtype) #retrieve all responses for data type
+    questions = searchQuestions(searchterm, qnairid, dtype) #get column numbers for query
     result = ans[ans.AnswerID.isin(allans[allans.QuestionaireID == qnairid]['AnswerID'])] #subset responses by answer IDs
     result = result.iloc[:, [0] +  list(questions['ColumnNo'])]
     return [result, questions[['ColumnNo','Question']]]
 
-def buildFeatureFrame(tables, searchlist, year):
+def buildFeatureFrame(searchlist, year):
     """
     This function creates a dataframe containing the data for a set of selected features for a given year.
     
     """
-    data = pd.DataFrame(data = loadID(tables, year), columns=['AnswerID']) #get AnswerIDs for year
+    data = pd.DataFrame(data = loadID(year), columns=['AnswerID']) #get AnswerIDs for year
     questions = pd.DataFrame() #construct dataframe with feature questions
     
     for s in searchlist:
         if year <= 1999:
-            ans = searchAnswers(tables, s, qnairid = 6, dtype = 'num')
+            ans = searchAnswers(s, qnairid = 6, dtype = 'num')
         else:
-            ans = searchAnswers(tables, s, qnairid = 3, dtype = 'num')
+            ans = searchAnswers(s, qnairid = 3, dtype = 'num')
         d = ans[0]
         q = ans[1]
         q['searchterm'] = s
@@ -124,7 +127,7 @@ def buildFeatureFrame(tables, searchlist, year):
         
     return [data, questions]
 
-def checkAnswer(tables, answerid, features):
+def checkAnswer(answerid, features):
     """
     This function returns the survey responses for an individuals answer ID and list of search terms.
     
@@ -134,44 +137,48 @@ def checkAnswer(tables, answerid, features):
     groups = tables.get('groups')
     year = int(groups.loc[groups.GroupID == groupid, 'Year'].reset_index(drop=True)[0])
     
-    ans = buildFeatureFrame(tables, features, year)[0].loc[buildFeatureFrame(tables, features, year)[0]['AnswerID']==answerid]
+    ans = buildFeatureFrame(features, year)[0].loc[buildFeatureFrame(features, year)[0]['AnswerID']==answerid]
     return ans
 
-def recorderLocations(tables, year = 2014):
+def recorderLocations(year = 2014):
     """
     This function returns all survey locations and recorder abbreviations for a given year. Only valid from 2009 onwards.
     
     """
-    stryear = str(year)
-    groups = tables.get('groups')
-    groups['loc'] = groups['Location'].apply(lambda x:x.partition(' ')[2])
-    recorderids = tables.get('recorderinstall')
+    if year > 2009:
+        stryear = str(year)
+        groups = tables.get('groups')
+        groups['loc'] = groups['Location'].apply(lambda x:x.partition(' ')[2])
+        recorderids = tables.get('recorderinstall')
+        
+        reclocs = groups.merge(recorderids, left_on='GroupID', right_on='GROUP_ID')
+        reclocs['recorder_abrv'] = reclocs['RECORDER_ID'].apply(lambda x:x[:3])
+        yearlocs = reclocs.loc[reclocs['Year']== stryear,['GroupID','loc','recorder_abrv']].drop_duplicates()
+        
+        locations = yearlocs.sort_values('loc')
+        return locations 
     
-    reclocs = groups.merge(recorderids, left_on='GroupID', right_on='GROUP_ID')
-    reclocs['recorder_abrv'] = reclocs['RECORDER_ID'].apply(lambda x:x[:3])
-    yearlocs = reclocs.loc[reclocs['Year']== stryear,['GroupID','loc','recorder_abrv']].drop_duplicates()
-    
-    locations = yearlocs.sort_values('loc')
-    return locations 
+    else:
+        print('Recorder locations can only be returned for years after 2009.')
 
-def lang(tables, code = None):
+def lang(code = None):
     """
     This function returns the language categories.
     
     """
-    language = dict(zip(searchAnswers(tables, qnairid=5)[0].iloc[:,1], searchAnswers(tables, qnairid=5,dtype='char')[0].iloc[:,1]))
+    language = dict(zip(searchAnswers(qnairid=5)[0].iloc[:,1], searchAnswers(qnairid=5,dtype='char')[0].iloc[:,1]))
     if code is None:
         pass
     else:
         language = language[code]
     return language
 
-def altE(tables, code = None):
+def altE(code = None):
     """
     This function returns the alternative fuel categories.
     
     """
-    altenergy = dict(zip(searchAnswers(tables, qnairid=8)[0].iloc[:,1], searchAnswers(tables, qnairid=8,dtype='char')[0].iloc[:,1]))
+    altenergy = dict(zip(searchAnswers(qnairid=8)[0].iloc[:,1], searchAnswers(qnairid=8,dtype='char')[0].iloc[:,1]))
     if code is None:
         pass
     else:

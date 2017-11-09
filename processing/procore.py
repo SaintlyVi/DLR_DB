@@ -76,6 +76,7 @@ def loadTables(filepath = table_dir):
         try:
             tables[n] = feather.read_dataframe(f)
         except:
+            # get data from energydata.uct.ac.za
             pass
     return tables
 
@@ -97,13 +98,5 @@ def data2ckan(csvpath):
     """
     This function uploads csv tables to the energydata.uct.ac.za data portal for online access. 
     """
-    return
-
-def loadckan():
-    """
-    This function retrieves tables from the energydata.uct.ac.za data portal using the CKAN API.
-    """
-    data = [tables, profiles, dpet]
-    
     return
         
