@@ -96,6 +96,7 @@ def getProfilePower(year):
         iprofile.rename(columns={"ProfileId": "matchcol"}, inplace=True)        
         power = iprofile.merge(vprofile, left_on=['matchcol', 'Datefield'], right_on=['ProfileID','Datefield'], suffixes=['_i', '_v'])
         power.drop(['RecorderID_i', 'matchcol', 'Valid_i', 'Valid_v'], axis=1, inplace=True)
+        power.rename(columns={'RecorderID_v':'RecorderID'}, inplace=True)
 
     elif 2009 < year <= 2014: #recorder type is set up so that each current profile has its own voltage profile
         vprofile['matchcol'] = vprofile['ProfileID'] + 1
@@ -144,9 +145,9 @@ def maxDemand(year):
     data = getProfilePower(year)
     maxdemand = data.iloc[data.reset_index().groupby(['AnswerID'])['Unitsread_i'].idxmax()].reset_index(drop=True)
     
-    maxdemand['month'] = maxdemand['Datefield'].apply(lambda x: x.month)
-    maxdemand['daytype'] = maxdemand['Datefield'].apply(lambda x: x.dayofweek)
-    maxdemand['hour'] = maxdemand['Datefield'].apply(lambda x: x.hour)
+    maxdemand['month'] = maxdemand['Datefield'].dt.month
+    maxdemand['daytype'] = maxdemand['Datefield'].dt.dayofweek
+    maxdemand['hour'] = maxdemand['Datefield'].dt.hour
                              
     return maxdemand[['AnswerID','RecorderID','Unitsread_i','month','daytype','hour']]
 
@@ -165,7 +166,7 @@ def avgMonthlyDemand(year):
     except:
         avgmonthlydemand = data.groupby(['RecorderID','AnswerID'])['kVAh_calculated'].mean()
     
-    return avgmonthlydemand
+    return avgmonthlydemand.reset_index()
 
 def avgDaytypeDemand(year):
     
@@ -173,7 +174,7 @@ def avgDaytypeDemand(year):
     data['month'] = data['Datefield'].dt.month
     data['dayix'] = data['Datefield'].dt.dayofweek
     data['hour'] = data['Datefield'].dt.hour
-    cats = pd.cut(data.dayix, bins = [0, 5, 6, 7], right=False, labels= ['weekday','Saturday','Sunday'], include_lowest=True)
+    cats = pd.cut(data.dayix, bins = [0, 5, 6, 7], right=False, labels= ['Weekday','Saturday','Sunday'], include_lowest=True)
     data['daytype'] = cats
     
     try:

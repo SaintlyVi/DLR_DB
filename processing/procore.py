@@ -13,7 +13,7 @@ from glob import glob
 import os
 from pathlib import Path
 
-from processing.support import rawprofiles_dir, hourlyprofiles_dir, table_dir
+from support import rawprofiles_dir, hourlyprofiles_dir, table_dir
 
 def reduceRawProfiles(year):
     """
@@ -69,15 +69,17 @@ def loadTables(filepath = table_dir):
     This function loads all feather tables in filepath into workspace.
     
     """
-    files = glob(os.path.join(filepath, '*.feather'))
-    names = [f.rpartition('.')[0] for f in os.listdir(filepath)]
-    tables = {}
-    for n, f in zip(names, files):
-        try:
+    try:
+        files = glob(os.path.join(filepath, '*.feather'))
+        names = [f.rpartition('.')[0] for f in os.listdir(filepath)]
+        tables = {}
+        for n, f in zip(names, files):
             tables[n] = feather.read_dataframe(f)
-        except:
-            # get data from energydata.uct.ac.za
-            pass
+            
+    except:
+## TODO: get data from energydata.uct.ac.za
+        pass
+    
     return tables
 
 def csvTables(savepath):
