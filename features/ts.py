@@ -30,7 +30,6 @@ process
 
 import pandas as pd
 import numpy as np
-from pandas.tseries.frequencies import to_offset
 
 import features.socios as socios
 from processing.procore import loadProfiles, loadTables
@@ -52,22 +51,26 @@ def aggTs(year, unit, interval, locstring=None):
         data = loadProfiles(year, unit)[0]
         data['ProfileID'] = data['ProfileID'].astype('category')
         data.set_index('Datefield', inplace=True)
+        data.fillna({'Valid':0}, inplace=True)
+        
     except:
         return print("Invalid unit")
     
     #subset dataframe by location & remove invalid readings
     if locstring is None:
-        loc = data[(data.Valid==1)]
+        loc = data
     else:
-        loc = data[(data.RecorderID.str.contains(locstring.upper())) & (data.Valid==1)]
+        loc = data[data.RecorderID.str.contains(locstring.upper())]
         
     #specify aggregation function for different units    
     if unit in ['kW','kVA']:
-        aggregated = loc.groupby(['RecorderID','ProfileID']).resample(interval, on='Datefield').sum()
+        aggregated = loc.groupby(['RecorderID','ProfileID']).resample(interval).sum()
     elif unit in ['A', 'V', 'Hz']:
         aggregated = loc.groupby(['RecorderID','ProfileID']).resample(interval).agg({'Unitsread':'mean','Valid':'sum'})
-        
-    validhours = pd.to_timedelta(to_offset(interval)) / np.timedelta64(1, 'h')
+    
+    aggregated.reset_index(inplace=True)    
+    
+    validhours = aggregated['Datefield'].apply(lambda x: (x - pd.date_range(end=x, periods=2, freq = interval)[0]) / np.timedelta64(1, 'h'))
     aggregated['Valid'] = aggregated['Valid']/validhours
     
     return aggregated
@@ -121,6 +124,7 @@ def getProfilePower(year):
     power['valid_calculated'] = power.Valid_i * power.Valid_v
     output = power.merge(VI_profile_meta.loc[:,['AnswerID','ProfileID']], left_on='ProfileID_i', right_on='ProfileID').drop(['ProfileID','Valid_i','Valid_v'], axis=1)
     output = output[output.columns.sort_values()]
+    output.fillna({'Valid':0, 'valid_calculated':0}, inplace=True)
     
     return output
 
@@ -135,15 +139,19 @@ def aggProfilePower(year, interval):
 
     data = getProfilePower(year)
     data.set_index('Datefield', inplace=True)
-    data.dropna(subset=['Valid','valid_calculated'], inplace=True)
     
     try:
-        aggregated = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({'Unitsread_i': np.mean, 'Unitsread_v': np.mean, 'Unitsread_kva': np.sum, 'kVAh_calculated': np.sum})
-        aggregated = aggregated[['kVAh_calculated', 'Unitsread_kva', 'Unitsread_i', 'Unitsread_v']]
+        aggregated = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({'Unitsread_i': np.mean, 'Unitsread_v': np.mean, 'Unitsread_kva': np.sum, 'kVAh_calculated': np.sum, 'Valid': np.sum})
+        aggregated = aggregated[['kVAh_calculated', 'Unitsread_kva', 'Unitsread_i', 'Unitsread_v', 'Valid']]
     
     except:
-        aggregated = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({'Unitsread_i': np.mean, 'Unitsread_v': np.mean, 'kVAh_calculated': np.sum})
-        aggregated = aggregated[['kVAh_calculated', 'Unitsread_i', 'Unitsread_v']]
+        aggregated = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({'Unitsread_i': np.mean, 'Unitsread_v': np.mean, 'kVAh_calculated': np.sum,  'Valid': np.sum})
+        aggregated = aggregated[['kVAh_calculated', 'Unitsread_i', 'Unitsread_v', 'Valid']]
+        
+    aggregated.reset_index(inplace=True)    
+    
+    validhours = aggregated['Datefield'].apply(lambda x: (x - pd.date_range(end=x, periods=2, freq = interval)[0]) / np.timedelta64(1, 'h'))
+    aggregated['Valid'] = aggregated['Valid']/validhours
     
     return aggregated
 
@@ -161,18 +169,25 @@ def maxDemand(year):
 
 def avgDailyDemand(year):
     
-    data = getProfilePower(year)
-    data.set_index('Datefield', inplace=True)
+    data = aggProfilePower(year, 'D')
+    try:
+        avgdailydemand = data.groupby(['RecorderID','AnswerID']).agg({'Unitsread_kva': ['mean', 'std'], 'Valid':'mean'})
+    except:
+        avgdailydemand = data.groupby(['RecorderID','AnswerID']).agg({'kVAh_calculated': ['mean', 'std'], 'Valid':'mean'})       
+        
+    avgdailydemand.rename(columns={'kVAh_calculated':'avgdailykVA'}, inplace=True)
     
-    return
+    return avgdailydemand.reset_index()
 
 def avgMonthlyDemand(year):
     
     data = aggProfilePower(year, 'M')
     try:
-        avgmonthlydemand = data.groupby(['RecorderID','AnswerID'])['Unitsread_kva'].mean()
+        avgmonthlydemand = data.groupby(['RecorderID','AnswerID']).agg({'Unitsread_kva': ['mean', 'std'], 'Valid':'mean'})
     except:
-        avgmonthlydemand = data.groupby(['RecorderID','AnswerID'])['kVAh_calculated'].mean()
+        avgmonthlydemand = data.groupby(['RecorderID','AnswerID']).agg({'kVAh_calculated': ['mean', 'std'], 'Valid':'mean'})
+        
+    avgmonthlydemand.rename(columns={'kVAh_calculated':'avgmonthlykVA'}, inplace=True)
     
     return avgmonthlydemand.reset_index()
 
@@ -184,10 +199,15 @@ def avgDaytypeDemand(year):
     data['hour'] = data['Datefield'].dt.hour
     cats = pd.cut(data.dayix, bins = [0, 5, 6, 7], right=False, labels= ['Weekday','Saturday','Sunday'], include_lowest=True)
     data['daytype'] = cats
+    data['totalobs'] = 1
     
     try:
-        daytypedemand = data.groupby(['AnswerID', 'month', 'daytype', 'hour'])['Unitsread_kva'].agg(['mean', 'std'])
-    except:
-        daytypedemand = data.groupby(['AnswerID', 'month', 'daytype', 'hour'])['kVAh_calculated'].agg(['mean', 'std'])
+        daytypedemand = data.groupby(['AnswerID', 'month', 'daytype', 'hour']).agg({'Unitsread_kva': ['mean', 'std'], 'Valid':'sum', 'totalobs':'sum'})
 
+    except:
+        daytypedemand = data.groupby(['AnswerID', 'month', 'daytype', 'hour']).agg({'kVAh_calculated': ['mean', 'std'], 'Valid':'sum', 'totalobs':'sum'})
+
+    daytypedemand['valid_observations'] = daytypedemand.Valid['sum'] / daytypedemand.totalobs['sum']
+    daytypedemand.drop(['totalobs', 'Valid'], axis=1, inplace=True)
+        
     return daytypedemand.reset_index()

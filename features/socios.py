@@ -102,6 +102,7 @@ def searchAnswers(searchterm = '', qnairid = 3, dtype = 'num'):
     questions = searchQuestions(searchterm, qnairid, dtype) #get column numbers for query
     result = ans[ans.AnswerID.isin(allans[allans.QuestionaireID == qnairid]['AnswerID'])] #subset responses by answer IDs
     result = result.iloc[:, [0] +  list(questions['ColumnNo'])]
+    
     return [result, questions[['ColumnNo','Question']]]
 
 def buildFeatureFrame(searchlist, year):
@@ -114,14 +115,12 @@ def buildFeatureFrame(searchlist, year):
     
     for s in searchlist:
         if year <= 1999:
-            ans = searchAnswers(s, qnairid = 6, dtype = 'num')
+            d, q = searchAnswers(s, qnairid = 6, dtype = 'num')
         else:
-            ans = searchAnswers(s, qnairid = 3, dtype = 'num')
-        d = ans[0]
-        q = ans[1]
+            d, q = searchAnswers(s, qnairid = 3, dtype = 'num')
         q['searchterm'] = s
         newdata = d[d.AnswerID.isin(data.AnswerID)]
-        data = pd.merge(data, newdata, how='outer', on = 'AnswerID')
+        data = pd.merge(data, newdata, on = 'AnswerID')
         questions = pd.concat([questions, q])
     questions.reset_index(drop=True, inplace=True)
         

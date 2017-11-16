@@ -59,7 +59,7 @@ def observedDemandSummary(year, experiment_dir):
     yearselect = yearsElectrified(year)
     
     richprofiles = data.merge(classes.merge(yearselect, on='AnswerID'), on='AnswerID')
-    richprofiles.columns = ['RecorderID', 'AnswerID', 'mean_monthly_kvah', 'class', 'YearsElectrified']  
+    richprofiles.columns = ['RecorderID', 'AnswerID', 'mean_monthly_kvah', 'class', 'YearsElectrified', 'Valid']  
     
     profiles = richprofiles.groupby(['class','YearsElectrified']).mean().drop(columns=['AnswerID'], axis=1)
     

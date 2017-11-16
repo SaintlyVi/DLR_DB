@@ -20,15 +20,15 @@ def shapeProfiles(year, unit):
     The function returns [shaped_profile_df, year, unit]; a tuple containing the shaped dataframe indexed by hour with aggregated unit values for all profiles, the year and unit concerned.
     
     """
-    data = loadProfiles(year, unit)[0]
-    year = loadProfiles(year, unit)[1]
-    unit = loadProfiles(year, unit)[2]
+    data, year, unit = loadProfiles(year, unit)
     
     valid_data = data[data.Valid > 0] #remove invalid data - valid for 10min readings = 6, valid for 5min readings = 12
     sorted_data = valid_data.sort_values(by='Datefield') #sort by date
     sorted_data.ProfileID = sorted_data.ProfileID.apply(lambda x: str(x))
-    pretty_data = sorted_data.set_index(['Datefield','ProfileID']).unstack()['Unitsread'] #reshape dataframe
-    return pretty_data, year, unit
+    profile_matrix = sorted_data.set_index(['Datefield','ProfileID']).unstack()['Unitsread'] #reshape dataframe
+    valid_matrix = sorted_data.set_index(['Datefield','ProfileID']).unstack()['Valid']
+    
+    return profile_matrix, year, unit, valid_matrix
 
 def nanAnalysis(year, unit, threshold = 0.95):
     """
@@ -41,9 +41,7 @@ def nanAnalysis(year, unit, threshold = 0.95):
         * the percentage of profiles and measurement days with full observational data above the threshold value.
     """
     
-    data = shapeProfiles(year, unit)[0]
-    year = shapeProfiles(year, unit)[1]
-    unit = shapeProfiles(year, unit)[2]
+    data, year, unit, valid_matrix = shapeProfiles(year, unit)
 
     #prep data
     fullrows = data.count(axis=1)/data.shape[1]
