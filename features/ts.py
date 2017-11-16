@@ -30,6 +30,7 @@ process
 
 import pandas as pd
 import numpy as np
+from pandas.tseries.frequencies import to_offset
 
 import features.socios as socios
 from processing.procore import loadProfiles, loadTables
@@ -50,20 +51,24 @@ def aggTs(year, unit, interval, locstring=None):
     try:
         data = loadProfiles(year, unit)[0]
         data['ProfileID'] = data['ProfileID'].astype('category')
+        data.set_index('Datefield', inplace=True)
     except:
         return print("Invalid unit")
     
-    #subset dataframe by location
+    #subset dataframe by location & remove invalid readings
     if locstring is None:
-        loc = data
+        loc = data[(data.Valid==1)]
     else:
-        loc = data[data.RecorderID.str.contains(locstring.upper())]
+        loc = data[(data.RecorderID.str.contains(locstring.upper())) & (data.Valid==1)]
         
     #specify aggregation function for different units    
     if unit in ['kW','kVA']:
         aggregated = loc.groupby(['RecorderID','ProfileID']).resample(interval, on='Datefield').sum()
     elif unit in ['A', 'V', 'Hz']:
-        aggregated = loc.groupby(['RecorderID','ProfileID']).resample(interval, on='Datefield').mean()
+        aggregated = loc.groupby(['RecorderID','ProfileID']).resample(interval).agg({'Unitsread':'mean','Valid':'sum'})
+        
+    validhours = pd.to_timedelta(to_offset(interval)) / np.timedelta64(1, 'h')
+    aggregated['Valid'] = aggregated['Valid']/validhours
     
     return aggregated
 
@@ -95,25 +100,26 @@ def getProfilePower(year):
         iprofile = iprofile.merge(vchan, on='RecorderID', suffixes=('_i','_v'))
         iprofile.rename(columns={"ProfileId": "matchcol"}, inplace=True)        
         power = iprofile.merge(vprofile, left_on=['matchcol', 'Datefield'], right_on=['ProfileID','Datefield'], suffixes=['_i', '_v'])
-        power.drop(['RecorderID_i', 'matchcol', 'Valid_i', 'Valid_v'], axis=1, inplace=True)
+        power.drop(['RecorderID_i', 'matchcol'], axis=1, inplace=True)
         power.rename(columns={'RecorderID_v':'RecorderID'}, inplace=True)
 
     elif 2009 < year <= 2014: #recorder type is set up so that each current profile has its own voltage profile
         vprofile['matchcol'] = vprofile['ProfileID'] + 1
         power_temp = vprofile.merge(iprofile, left_on=['matchcol', 'Datefield'], right_on=['ProfileID','Datefield'], suffixes=['_v', '_i'])
-        power_temp.drop(['RecorderID_v','RecorderID_i', 'matchcol', 'Valid_i', 'Valid_v'], axis=1, inplace=True)
+        power_temp.drop(['RecorderID_v','RecorderID_i', 'matchcol'], axis=1, inplace=True)
         
         pprofile = loadProfiles(year, 'kVA')[0] #get kW readings
         pprofile['matchcol'] = pprofile['ProfileID'] - 2 #UoM = 4, ChannelNo = 4, 8 or 12
         power = power_temp.merge(pprofile, right_on=['matchcol', 'Datefield'], left_on=['ProfileID_v','Datefield'])
         power.rename(columns={'ProfileID':'ProfileID_kva', 'Unitsread':'Unitsread_kva'}, inplace=True)
-        power.drop(['matchcol', 'Valid'], axis=1, inplace=True)
+        power.drop(['matchcol'], axis=1, inplace=True)
         
     else:
         return print('Year is out of range. Please select a year between 1994 and 2014')
     
     power['kVAh_calculated'] = power.Unitsread_v*power.Unitsread_i*0.001
-    output = power.merge(VI_profile_meta.loc[:,['AnswerID','ProfileID']], left_on='ProfileID_i', right_on='ProfileID').drop('ProfileID', axis=1)
+    power['valid_calculated'] = power.Valid_i * power.Valid_v
+    output = power.merge(VI_profile_meta.loc[:,['AnswerID','ProfileID']], left_on='ProfileID_i', right_on='ProfileID').drop(['ProfileID','Valid_i','Valid_v'], axis=1)
     output = output[output.columns.sort_values()]
     
     return output
@@ -129,6 +135,8 @@ def aggProfilePower(year, interval):
 
     data = getProfilePower(year)
     data.set_index('Datefield', inplace=True)
+    data.dropna(subset=['Valid','valid_calculated'], inplace=True)
+    
     try:
         aggregated = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({'Unitsread_i': np.mean, 'Unitsread_v': np.mean, 'Unitsread_kva': np.sum, 'kVAh_calculated': np.sum})
         aggregated = aggregated[['kVAh_calculated', 'Unitsread_kva', 'Unitsread_i', 'Unitsread_v']]

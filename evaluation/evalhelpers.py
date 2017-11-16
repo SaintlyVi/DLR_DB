@@ -243,7 +243,7 @@ def plotHourlyProfiles(customer_class, daytype='Weekday', years_electrified=7, *
 
 def plot15YearHourlyProfiles(customer_class, daytype='Weekday'):
     
-    df = expert.hourlyprofiles()
+    df = expert.dpetHourlyProfiles()
     df = df[(df['Day Type']==daytype) & (df['class']==customer_class)]
     
     ncol = 3
