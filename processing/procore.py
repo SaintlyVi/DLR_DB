@@ -62,6 +62,8 @@ def loadProfiles(year, unit):
     
     """
     data = feather.read_dataframe(os.path.join(hourlyprofiles_dir, unit, str(year) + '_' + unit + '.feather')) #load data
+    data.fillna(0, inplace=True)
+    
     return data, year, unit
 
 def loadTables(filepath = table_dir):
