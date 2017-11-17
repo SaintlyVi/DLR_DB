@@ -25,11 +25,15 @@ def inferredClasses(year, experiment_dir):
     """
     This function gets the inferred class for each AnswerID from 'DLR_DB/classmod/out/experiment_dir'.
     """
-    dirpath = os.path.join(classout_dir, experiment_dir)
-    filename = 'classes_' + str(year) + '.csv'
-    classes = pd.read_csv(os.path.join(dirpath, filename), header=None, names=['AnswerID','class'])
+    try:
+        dirpath = os.path.join(classout_dir, experiment_dir)
+        filename = 'classes_' + str(year) + '.csv'
+        classes = pd.read_csv(os.path.join(dirpath, filename), header=None, names=['AnswerID','class'])
+        
+        return classes
     
-    return classes
+    except:
+        print('No classes inferred for '+ str(year))
 
 def yearsElectrified(year):
     """
