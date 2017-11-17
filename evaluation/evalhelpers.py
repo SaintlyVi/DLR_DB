@@ -75,7 +75,9 @@ def observedHourlyProfiles(year, experiment_dir):
     classes = inferredClasses(year, experiment_dir)
     yearselect = yearsElectrified(year)
     
-    richprofiles = data.merge(classes.merge(yearselect, on='AnswerID'), on='AnswerID')
+    meta = pd.merge(classes, yearselect, on='AnswerID')
+    
+    richprofiles = pd.merge(data, meta, on='AnswerID')
     
     profiles = richprofiles.groupby(['class','YearsElectrified','month','daytype','hour']).mean().drop(columns=['AnswerID'], axis=1)
     

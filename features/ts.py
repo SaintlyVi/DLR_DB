@@ -51,7 +51,6 @@ def aggTs(year, unit, interval, locstring=None):
         data = loadProfiles(year, unit)[0]
         data['ProfileID'] = data['ProfileID'].astype('category')
         data.set_index('Datefield', inplace=True)
-        data.fillna({'Valid':0}, inplace=True)
         
     except:
         return print("Invalid unit")
@@ -207,7 +206,10 @@ def avgDaytypeDemand(year):
     except:
         daytypedemand = data.groupby(['AnswerID', 'month', 'daytype', 'hour']).agg({'kVAh_calculated': ['mean', 'std'], 'valid_calculated':'sum', 'totalobs':'sum'})
 
-    daytypedemand['valid_observations'] = daytypedemand.Valid['sum'] / daytypedemand.totalobs['sum']
+    daytypedemand['valid_observations'] = daytypedemand.valid_calculated['sum'] / daytypedemand.totalobs['sum']
+    daytypedemand.columns = daytypedemand.columns.droplevel(1)
+    daytypedemand.columns = ['valid_calculated', 'kVAh_calculated_mean', 'kVAh_calculated_std', 'totalobs',
+       'valid_observations']
     daytypedemand.drop(['totalobs', 'valid_calculated'], axis=1, inplace=True)
         
     return daytypedemand.reset_index()
