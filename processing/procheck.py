@@ -5,6 +5,7 @@ Created on Wed Nov  1 18:21:53 2017
 
 @author: saintlyvi
 """
+import numpy as np
 
 import plotly as py
 from plotly.offline import offline
@@ -22,9 +23,11 @@ def shapeProfiles(year, unit):
     """
     data, year, unit = loadProfiles(year, unit)
     
-    valid_data = data[data.Valid > 0] #remove invalid data - valid for 10min readings = 6, valid for 5min readings = 12
-    sorted_data = valid_data.sort_values(by='Datefield') #sort by date
-    sorted_data.ProfileID = sorted_data.ProfileID.apply(lambda x: str(x))
+    data.loc[(data.Unitsread.notnull())&(data.Valid != 1), 'Unitsread'] = np.nan
+    sorted_data = data.sort_values(by='Datefield') #sort by date
+    sorted_data.ProfileID = sorted_data.ProfileID.astype(str)
+    sorted_data.drop_duplicates(inplace=True)
+    sorted_data.reset_index(drop=True, inplace=True)
     profile_matrix = sorted_data.set_index(['Datefield','ProfileID']).unstack()['Unitsread'] #reshape dataframe
     valid_matrix = sorted_data.set_index(['Datefield','ProfileID']).unstack()['Valid']
     
