@@ -124,7 +124,7 @@ def getProfilePower(year):
     power['valid_calculated'] = power.Valid_i * power.Valid_v
     output = power.merge(VI_profile_meta.loc[:,['AnswerID','ProfileID']], left_on='ProfileID_i', right_on='ProfileID').drop(['ProfileID','Valid_i','Valid_v'], axis=1)
     output = output[output.columns.sort_values()]
-    output.fillna({'Valid':0, 'valid_calculated':0}, inplace=True)
+    output.fillna({'valid_calculated':0}, inplace=True)
     
     return output
 
@@ -141,17 +141,17 @@ def aggProfilePower(year, interval):
     data.set_index('Datefield', inplace=True)
     
     try:
-        aggregated = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({'Unitsread_i': np.mean, 'Unitsread_v': np.mean, 'Unitsread_kva': np.sum, 'kVAh_calculated': np.sum, 'Valid': np.sum})
-        aggregated = aggregated[['kVAh_calculated', 'Unitsread_kva', 'Unitsread_i', 'Unitsread_v', 'Valid']]
+        aggregated = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({'Unitsread_i': np.mean, 'Unitsread_v': np.mean, 'Unitsread_kva': np.sum, 'kVAh_calculated': np.sum, 'valid_calculated': np.sum})
+        aggregated = aggregated[['kVAh_calculated', 'Unitsread_kva', 'Unitsread_i', 'Unitsread_v', 'valid_calculated']]
     
     except:
-        aggregated = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({'Unitsread_i': np.mean, 'Unitsread_v': np.mean, 'kVAh_calculated': np.sum,  'Valid': np.sum})
-        aggregated = aggregated[['kVAh_calculated', 'Unitsread_i', 'Unitsread_v', 'Valid']]
+        aggregated = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({'Unitsread_i': np.mean, 'Unitsread_v': np.mean, 'kVAh_calculated': np.sum,  'valid_calculated': np.sum})
+        aggregated = aggregated[['kVAh_calculated', 'Unitsread_i', 'Unitsread_v', 'valid_calculated']]
         
     aggregated.reset_index(inplace=True)    
     
     validhours = aggregated['Datefield'].apply(lambda x: (x - pd.date_range(end=x, periods=2, freq = interval)[0]) / np.timedelta64(1, 'h'))
-    aggregated['Valid'] = aggregated['Valid']/validhours
+    aggregated['valid_calculated'] = aggregated['valid_calculated']/validhours
     
     return aggregated
 
@@ -173,7 +173,7 @@ def avgDailyDemand(year):
     try:
         avgdailydemand = data.groupby(['RecorderID','AnswerID']).agg({'Unitsread_kva': ['mean', 'std'], 'Valid':'mean'})
     except:
-        avgdailydemand = data.groupby(['RecorderID','AnswerID']).agg({'kVAh_calculated': ['mean', 'std'], 'Valid':'mean'})       
+        avgdailydemand = data.groupby(['RecorderID','AnswerID']).agg({'kVAh_calculated': ['mean', 'std'], 'valid_calculated':'mean'})       
         
     avgdailydemand.rename(columns={'kVAh_calculated':'avgdailykVA'}, inplace=True)
     
@@ -183,9 +183,9 @@ def avgMonthlyDemand(year):
     
     data = aggProfilePower(year, 'M')
     try:
-        avgmonthlydemand = data.groupby(['RecorderID','AnswerID']).agg({'Unitsread_kva': ['mean', 'std'], 'Valid':'mean'})
+        avgmonthlydemand = data.groupby(['RecorderID','AnswerID']).agg({'Unitsread_kva': ['mean', 'std'], 'valid_calculated':'mean'})
     except:
-        avgmonthlydemand = data.groupby(['RecorderID','AnswerID']).agg({'kVAh_calculated': ['mean', 'std'], 'Valid':'mean'})
+        avgmonthlydemand = data.groupby(['RecorderID','AnswerID']).agg({'kVAh_calculated': ['mean', 'std'], 'valid_calculated':'mean'})
         
     avgmonthlydemand.rename(columns={'kVAh_calculated':'avgmonthlykVA'}, inplace=True)
     
@@ -202,12 +202,12 @@ def avgDaytypeDemand(year):
     data['totalobs'] = 1
     
     try:
-        daytypedemand = data.groupby(['AnswerID', 'month', 'daytype', 'hour']).agg({'Unitsread_kva': ['mean', 'std'], 'Valid':'sum', 'totalobs':'sum'})
+        daytypedemand = data.groupby(['AnswerID', 'month', 'daytype', 'hour']).agg({'Unitsread_kva': ['mean', 'std'], 'valid_calculated':'sum', 'totalobs':'sum'})
 
     except:
-        daytypedemand = data.groupby(['AnswerID', 'month', 'daytype', 'hour']).agg({'kVAh_calculated': ['mean', 'std'], 'Valid':'sum', 'totalobs':'sum'})
+        daytypedemand = data.groupby(['AnswerID', 'month', 'daytype', 'hour']).agg({'kVAh_calculated': ['mean', 'std'], 'valid_calculated':'sum', 'totalobs':'sum'})
 
     daytypedemand['valid_observations'] = daytypedemand.Valid['sum'] / daytypedemand.totalobs['sum']
-    daytypedemand.drop(['totalobs', 'Valid'], axis=1, inplace=True)
+    daytypedemand.drop(['totalobs', 'valid_calculated'], axis=1, inplace=True)
         
     return daytypedemand.reset_index()
