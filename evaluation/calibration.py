@@ -6,9 +6,8 @@ Created on Wed Nov 15 14:09:59 2017
 @author: SaintlyVi
 """
 import pandas as pd
-import evaluation.evalhelpers as eh
 
-def datastats(ohp):
+def ohpstats(ohp):
     """
     Creates a dict with statistics for observed hourly profiles for a given year. 
     Use evaluation.evalhelpers.observedHourlyProfiles() to generate the input dataframe.
@@ -17,7 +16,7 @@ def datastats(ohp):
     
     for c in ohp['class'].unique():
         stats = ohp[ohp['class']==c].describe()
-        stats['customer_class',''] = c
+        stats['customer_class'] = c
         stats.reset_index(inplace=True)
         stats.set_index(['customer_class','index'], inplace=True)
         allstats.append(stats)

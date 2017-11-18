@@ -144,28 +144,26 @@ def aggProfilePower(year, interval):
     data.set_index('Datefield', inplace=True)
     
     try:
-        aggregated = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({
+        aggprofile = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({
                 'Unitsread_i': np.mean, 
                 'Unitsread_v': np.mean, 
                 'Unitsread_kva': np.sum, 
                 'kVAh_calculated': np.sum, 
                 'valid_calculated': np.sum})
-        aggregated = aggregated[['kVAh_calculated', 'Unitsread_kva', 'Unitsread_i', 'Unitsread_v', 'valid_calculated']]
     
     except:
-        aggregated = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({
+        aggprofile = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({
                 'Unitsread_i': np.mean, 
                 'Unitsread_v': np.mean, 
                 'kVAh_calculated': np.sum,  
                 'valid_calculated': np.sum})
-        aggregated = aggregated[['kVAh_calculated', 'Unitsread_i', 'Unitsread_v', 'valid_calculated']]
         
-    aggregated.reset_index(inplace=True)    
+    aggprofile.reset_index(inplace=True)    
     
-    validhours = aggregated['Datefield'].apply(lambda x: (x - pd.date_range(end=x, periods=2, freq = interval)[0]) / np.timedelta64(1, 'h'))
-    aggregated['valid_calculated'] = aggregated['valid_calculated']/validhours
-    
-    return aggregated
+    aggprofile['interval_hours'] = aggprofile['Datefield'].apply(lambda x: (x - pd.date_range(end=x, periods=2, freq = interval)[0]) / np.timedelta64(1, 'h'))
+    aggprofile['valid_obs_ratio'] = aggprofile['valid_calculated']/aggprofile['interval_hours']
+
+    return aggprofile
 
 ## TODO
 def maxDemand(year):
@@ -179,23 +177,38 @@ def maxDemand(year):
                              
     return maxdemand[['AnswerID','RecorderID','Unitsread_i','month','daytype','hour']]
 
-def avgIntervalDemand(year, interval='M'):
+def aggIntervalDemand(year, interval='M'):
     
     data = aggProfilePower(year, interval)
-    try:
-        avgmonthlydemand = data.groupby(['RecorderID','AnswerID']).agg({
-                'Unitsread_kva': ['mean', 'std'], 
-                'valid_calculated':'mean'})
-    except:
-        avgmonthlydemand = data.groupby(['RecorderID','AnswerID']).agg({
-                'kVAh_calculated': ['mean', 'std'], 
-                'valid_calculated':'mean'})
-        
-    avgmonthlydemand.rename(columns={'kVAh_calculated':'avgmonthlykVA'}, inplace=True)
     
-    return avgmonthlydemand.reset_index()
+    try:
+        aggdemand = data.groupby(['RecorderID','AnswerID']).agg({
+                'Unitsread_kva': ['mean', 'std'], 
+                'valid_calculated':'sum',
+                'interval_hours':'sum'})
+        aggdemand.columns = ['_'.join(col).strip() for col in aggdemand.columns.values]
+        aggdemand.rename(columns={
+                'Unitsread_kva_mean':interval+'_kvah_mean', 
+                'Unitsread_kva_std':interval+'_kvah_std', 
+                'valid_calculated_sum':'valid_hours'}, inplace=True)
 
-def avgDaytypeDemand(year):   
+    except:
+        aggdemand = data.groupby(['RecorderID','AnswerID']).agg({
+                'kVAh_calculated': ['mean', 'std'], 
+                'valid_calculated':'mean', 
+                'valid_calculated':'sum',
+                'interval_hours':'sum'})        
+        aggdemand.columns = ['_'.join(col).strip() for col in aggdemand.columns.values]
+        aggdemand.rename(columns={
+                'kVAh_calculated_mean':interval+'_kvah_mean', 
+                'kVAh_calculated_std':interval+'_kvah_std', 
+                'valid_calculated_sum':'valid_hours'}, inplace=True) 
+        
+    aggdemand['valid_obs_ratio'] = aggdemand['valid_hours']/aggdemand['interval_hours_sum']
+    
+    return aggdemand.reset_index()
+
+def aggDaytypeDemand(year):   
     """
     This function generates an hourly load profile for each AnswerID.
     The model contains aggregate hourly kVAh readings for the parameters:
@@ -210,7 +223,7 @@ def avgDaytypeDemand(year):
     data['hour'] = data['Datefield'].dt.hour
     cats = pd.cut(data.dayix, bins = [0, 5, 6, 7], right=False, labels= ['Weekday','Saturday','Sunday'], include_lowest=True)
     data['daytype'] = cats
-    data['total_hours'] = 1
+    data['total_hours'] = 1    
     
     try:
         daytypedemand = data.groupby(['AnswerID', 'month', 'daytype', 'hour']).agg({
@@ -234,6 +247,6 @@ def avgDaytypeDemand(year):
                 'kVAh_calculated_std':'kvah_std', 
                 'valid_calculated_sum':'valid_hours'}, inplace=True)
 
-    daytypedemand['valid_observations'] = daytypedemand.valid_hours / daytypedemand.total_hours_sum
+    daytypedemand['valid_obs_ratio'] = daytypedemand['valid_hours'] / daytypedemand['total_hours_sum']
         
     return daytypedemand.reset_index()

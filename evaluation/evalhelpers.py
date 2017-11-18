@@ -59,18 +59,39 @@ def yearsElectrified(year):
     
     return data
 
-def observedDemandSummary(year, experiment_dir):
+def observedDemandSummary(year, experiment_dir, interval='M'):
     
-    data = ts.avgMonthlyDemand(year)
-    classes = inferredClasses(year, experiment_dir)
-    yearselect = yearsElectrified(year)
+    try:
+        data = ts.aggIntervalDemand(year, interval)
+        classes = inferredClasses(year, experiment_dir)
+        yearselect = yearsElectrified(year)
+        
+        meta = pd.merge(classes, yearselect, on='AnswerID')
+        
+        richprofiles = pd.merge(data, meta, on='AnswerID')
+        
+        profiles = richprofiles.groupby(['class','YearsElectrified']).agg({
+                interval+'_kvah_mean':['mean','std'],
+                interval+'_kvah_std':['mean','std'], 
+                'valid_hours':'sum', 
+                'interval_hours_sum':'sum', 
+                'AnswerID':'count'})
+        
+        profiles.columns = ['_'.join(col).strip() for col in profiles.columns.values]
+        profiles.rename(columns={interval+'_kvah_mean_mean':interval+'_kvah_mean',
+                                 interval+'_kvah_mean_std':interval+'_kvah_mean_diversity', 
+                                 interval+'_kvah_std_mean':interval+'_kvah_std',
+                                 interval+'_kvah_std_std':interval+'_kvah_std_diversity', 
+                                 'valid_hours_sum':'valid_hours',
+                                 'interval_hours_sum_sum': 'interval_hours'}, inplace=True)
+        
+        profiles['valid_obs_ratio'] = profiles['valid_hours'] / profiles['interval_hours']
+        profiles.drop(columns=['valid_hours', 'interval_hours'], inplace=True)
     
-    richprofiles = data.merge(classes.merge(yearselect, on='AnswerID'), on='AnswerID')
-    richprofiles.columns = ['RecorderID', 'AnswerID', 'mean_monthly_kvah', 'class', 'YearsElectrified', 'Valid']  
+        return profiles.reset_index()
     
-    profiles = richprofiles.groupby(['class','YearsElectrified']).mean().drop(columns=['AnswerID'], axis=1)
-    
-    return profiles.reset_index()
+    except:
+        print('No classes inferred for '+ str(year))
 
 def observedHourlyProfiles(year, experiment_dir):
     """
@@ -82,32 +103,36 @@ def observedHourlyProfiles(year, experiment_dir):
         Hour
     """
     
-    data = ts.avgDaytypeDemand(year)
-    classes = inferredClasses(year, experiment_dir)
-    yearselect = yearsElectrified(year)
+    try:
+        data = ts.aggDaytypeDemand(year)
+        classes = inferredClasses(year, experiment_dir)
+        yearselect = yearsElectrified(year)
+        
+        meta = pd.merge(classes, yearselect, on='AnswerID')
+        
+        richprofiles = pd.merge(data, meta, on='AnswerID')
+        
+        profiles = richprofiles.groupby(['class','YearsElectrified','month','daytype','hour']).agg({
+                'kvah_mean':['mean','std'],
+                'kvah_std':['mean','std'], 
+                'valid_hours':'sum', 
+                'AnswerID':'count', 
+                'total_hours_sum':'sum'})
+        
+        profiles.columns = ['_'.join(col).strip() for col in profiles.columns.values]
+        profiles.rename(columns={'kvah_mean_mean':'kvah_mean',
+                                 'kvah_mean_std':'kvah_mean_diversity', 
+                                 'kvah_std_mean':'kvah_std',
+                                 'kvah_std_std':'kvah_std_diversity', 
+                                 'valid_hours_sum':'valid_hours',
+                                 'total_hours_sum_sum': 'total_hours'}, inplace=True)
+        
+        profiles['valid_obs_ratio'] = profiles['valid_hours'] / profiles['total_hours']
+        
+        return profiles.reset_index()
     
-    meta = pd.merge(classes, yearselect, on='AnswerID')
-    
-    richprofiles = pd.merge(data, meta, on='AnswerID')
-    
-    profiles = richprofiles.groupby(['class','YearsElectrified','month','daytype','hour']).agg({
-            'kvah_mean':['mean','std'],
-            'kvah_std':['mean','std'], 
-            'valid_hours':'sum', 
-            'AnswerID':'count', 
-            'total_hours_sum':'sum'})
-    
-    profiles.columns = ['_'.join(col).strip() for col in profiles.columns.values]
-    profiles.rename(columns={'kvah_mean_mean':'kvah_mean',
-                             'kvah_mean_std':'kvah_mean_diversity', 
-                             'kvah_std_mean':'kvah_std',
-                             'kvah_std_std':'kvah_std_diversity', 
-                             'valid_hours_sum':'valid_hours',
-                             'total_hours_sum_sum': 'total_period_hours'}, inplace=True)
-    
-    profiles['valid_observations'] = profiles.valid_hours['sum'] / profiles.total_hours_sum['sum']
-    
-    return profiles.reset_index()
+    except:
+        print('No classes inferred for '+ str(year))
 
 def plotDemandSummary(customer_class):
     """

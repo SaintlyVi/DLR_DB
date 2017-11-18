@@ -45,6 +45,8 @@ def reduceRawProfiles(year, unit):
         except:
             print('Could not add data for ' + str(child) + ' ' + unit) #skip if feather file does not exist 
         
+    ts.drop_duplicates(inplace=True)
+        
     return ts
 
 def saveRawProfiles(year):
@@ -76,6 +78,7 @@ def loadProfiles(year, unit):
     
     """
     data = feather.read_dataframe(os.path.join(hourlyprofiles_dir, unit, str(year) + '_' + unit + '.feather')) #load data
+    data.drop_duplicates(inplace=True)
     
     return data, year, unit
 
