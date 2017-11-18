@@ -65,7 +65,9 @@ def aggTs(year, unit, interval, locstring=None):
     if unit in ['kW','kVA']:
         aggregated = loc.groupby(['RecorderID','ProfileID']).resample(interval).sum()
     elif unit in ['A', 'V', 'Hz']:
-        aggregated = loc.groupby(['RecorderID','ProfileID']).resample(interval).agg({'Unitsread':'mean','Valid':'sum'})
+        aggregated = loc.groupby(['RecorderID','ProfileID']).resample(interval).agg({
+                'Unitsread':'mean',
+                'Valid':'sum'})
     
     aggregated.reset_index(inplace=True)    
     
@@ -113,7 +115,9 @@ def getProfilePower(year):
         pprofile = loadProfiles(year, 'kVA')[0] #get kW readings
         pprofile['matchcol'] = pprofile['ProfileID'] - 2 #UoM = 4, ChannelNo = 4, 8 or 12
         power = power_temp.merge(pprofile, right_on=['matchcol', 'Datefield'], left_on=['ProfileID_v','Datefield'])
-        power.rename(columns={'ProfileID':'ProfileID_kva', 'Unitsread':'Unitsread_kva'}, inplace=True)
+        power.rename(columns={
+                'ProfileID':'ProfileID_kva', 
+                'Unitsread':'Unitsread_kva'}, inplace=True)
         power.drop(['matchcol'], axis=1, inplace=True)
         
     else:
@@ -140,11 +144,20 @@ def aggProfilePower(year, interval):
     data.set_index('Datefield', inplace=True)
     
     try:
-        aggregated = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({'Unitsread_i': np.mean, 'Unitsread_v': np.mean, 'Unitsread_kva': np.sum, 'kVAh_calculated': np.sum, 'valid_calculated': np.sum})
+        aggregated = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({
+                'Unitsread_i': np.mean, 
+                'Unitsread_v': np.mean, 
+                'Unitsread_kva': np.sum, 
+                'kVAh_calculated': np.sum, 
+                'valid_calculated': np.sum})
         aggregated = aggregated[['kVAh_calculated', 'Unitsread_kva', 'Unitsread_i', 'Unitsread_v', 'valid_calculated']]
     
     except:
-        aggregated = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({'Unitsread_i': np.mean, 'Unitsread_v': np.mean, 'kVAh_calculated': np.sum,  'valid_calculated': np.sum})
+        aggregated = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({
+                'Unitsread_i': np.mean, 
+                'Unitsread_v': np.mean, 
+                'kVAh_calculated': np.sum,  
+                'valid_calculated': np.sum})
         aggregated = aggregated[['kVAh_calculated', 'Unitsread_i', 'Unitsread_v', 'valid_calculated']]
         
     aggregated.reset_index(inplace=True)    
@@ -166,31 +179,30 @@ def maxDemand(year):
                              
     return maxdemand[['AnswerID','RecorderID','Unitsread_i','month','daytype','hour']]
 
-def avgDailyDemand(year):
+def avgIntervalDemand(year, interval='M'):
     
-    data = aggProfilePower(year, 'D')
+    data = aggProfilePower(year, interval)
     try:
-        avgdailydemand = data.groupby(['RecorderID','AnswerID']).agg({'Unitsread_kva': ['mean', 'std'], 'Valid':'mean'})
+        avgmonthlydemand = data.groupby(['RecorderID','AnswerID']).agg({
+                'Unitsread_kva': ['mean', 'std'], 
+                'valid_calculated':'mean'})
     except:
-        avgdailydemand = data.groupby(['RecorderID','AnswerID']).agg({'kVAh_calculated': ['mean', 'std'], 'valid_calculated':'mean'})       
-        
-    avgdailydemand.rename(columns={'kVAh_calculated':'avgdailykVA'}, inplace=True)
-    
-    return avgdailydemand.reset_index()
-
-def avgMonthlyDemand(year):
-    
-    data = aggProfilePower(year, 'M')
-    try:
-        avgmonthlydemand = data.groupby(['RecorderID','AnswerID']).agg({'Unitsread_kva': ['mean', 'std'], 'valid_calculated':'mean'})
-    except:
-        avgmonthlydemand = data.groupby(['RecorderID','AnswerID']).agg({'kVAh_calculated': ['mean', 'std'], 'valid_calculated':'mean'})
+        avgmonthlydemand = data.groupby(['RecorderID','AnswerID']).agg({
+                'kVAh_calculated': ['mean', 'std'], 
+                'valid_calculated':'mean'})
         
     avgmonthlydemand.rename(columns={'kVAh_calculated':'avgmonthlykVA'}, inplace=True)
     
     return avgmonthlydemand.reset_index()
 
-def avgDaytypeDemand(year):
+def avgDaytypeDemand(year):   
+    """
+    This function generates an hourly load profile for each AnswerID.
+    The model contains aggregate hourly kVAh readings for the parameters:
+        Month
+        Daytype [Weekday, Sunday, Monday]
+        Hour
+    """
     
     data = getProfilePower(year)
     data['month'] = data['Datefield'].dt.month
@@ -198,18 +210,30 @@ def avgDaytypeDemand(year):
     data['hour'] = data['Datefield'].dt.hour
     cats = pd.cut(data.dayix, bins = [0, 5, 6, 7], right=False, labels= ['Weekday','Saturday','Sunday'], include_lowest=True)
     data['daytype'] = cats
-    data['totalobs'] = 1
+    data['total_hours'] = 1
     
     try:
-        daytypedemand = data.groupby(['AnswerID', 'month', 'daytype', 'hour']).agg({'Unitsread_kva': ['mean', 'std'], 'valid_calculated':'sum', 'totalobs':'sum'})
+        daytypedemand = data.groupby(['AnswerID', 'month', 'daytype', 'hour']).agg({
+                'Unitsread_kva': ['mean', 'std'], 
+                'valid_calculated':'sum', 
+                'total_hours':'sum'})
+        daytypedemand.columns = ['_'.join(col).strip() for col in daytypedemand.columns.values]
+        daytypedemand.rename(columns={
+                'Unitsread_kva_mean':'kvah_mean', 
+                'Unitsread_kva_std':'kvah_std', 
+                'valid_calculated_sum':'valid_hours'}, inplace=True)
 
-    except:
-        daytypedemand = data.groupby(['AnswerID', 'month', 'daytype', 'hour']).agg({'kVAh_calculated': ['mean', 'std'], 'valid_calculated':'sum', 'totalobs':'sum'})
+    except: #for years < 2009 where only V and I were observed
+        daytypedemand = data.groupby(['AnswerID', 'month', 'daytype', 'hour']).agg({
+                'kVAh_calculated': ['mean', 'std'],
+                'valid_calculated':'sum', 
+                'total_hours':'sum'})
+        daytypedemand.columns = ['_'.join(col).strip() for col in daytypedemand.columns.values]
+        daytypedemand.rename(columns={
+                'kVAh_calculated_mean':'kvah_mean', 
+                'kVAh_calculated_std':'kvah_std', 
+                'valid_calculated_sum':'valid_hours'}, inplace=True)
 
-    daytypedemand['valid_observations'] = daytypedemand.valid_calculated['sum'] / daytypedemand.totalobs['sum']
-    daytypedemand.columns = daytypedemand.columns.droplevel(1)
-    daytypedemand.columns = ['valid_calculated', 'kVAh_calculated_mean', 'kVAh_calculated_std', 'totalobs',
-       'valid_observations']
-    daytypedemand.drop(['totalobs', 'valid_calculated'], axis=1, inplace=True)
+    daytypedemand['valid_observations'] = daytypedemand.valid_hours / daytypedemand.total_hours_sum
         
     return daytypedemand.reset_index()

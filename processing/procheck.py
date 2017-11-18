@@ -24,12 +24,12 @@ def shapeProfiles(year, unit):
     data, year, unit = loadProfiles(year, unit)
     
     data.loc[(data.Unitsread.notnull())&(data.Valid != 1), 'Unitsread'] = np.nan
-    sorted_data = data.sort_values(by='Datefield') #sort by date
-    sorted_data.ProfileID = sorted_data.ProfileID.astype(str)
-    sorted_data.drop_duplicates(inplace=True)
-    sorted_data.reset_index(drop=True, inplace=True)
-    profile_matrix = sorted_data.set_index(['Datefield','ProfileID']).unstack()['Unitsread'] #reshape dataframe
-    valid_matrix = sorted_data.set_index(['Datefield','ProfileID']).unstack()['Valid']
+    data.ProfileID = data.ProfileID.astype(str)
+    data.set_index(['Datefield','ProfileID'], inplace=True, drop=True)
+    data = data[~data.index.duplicated(keep='first')]
+    
+    profile_matrix = data.unstack()['Unitsread'] #reshape dataframe
+    valid_matrix = data.unstack()['Valid']
     
     return profile_matrix, year, unit, valid_matrix
 

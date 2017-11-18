@@ -3,6 +3,9 @@
 """
 Created on Thu Nov  9 09:49:43 2017
 
+NB 2013 had no surveys taken
+NB 2014 AnswerIDs have not been matched to ProfileIDs
+
 @author: SaintlyVi
 """
 
@@ -70,6 +73,14 @@ def observedDemandSummary(year, experiment_dir):
     return profiles.reset_index()
 
 def observedHourlyProfiles(year, experiment_dir):
+    """
+    This function generates an hourly load profile model based on  a year of data. 
+    The model contains aggregate hourly kVAh readings for the parameters:
+        Customer Class
+        Month
+        Daytype [Weekday, Sunday, Monday]
+        Hour
+    """
     
     data = ts.avgDaytypeDemand(year)
     classes = inferredClasses(year, experiment_dir)
@@ -79,7 +90,22 @@ def observedHourlyProfiles(year, experiment_dir):
     
     richprofiles = pd.merge(data, meta, on='AnswerID')
     
-    profiles = richprofiles.groupby(['class','YearsElectrified','month','daytype','hour']).mean().drop(columns=['AnswerID'], axis=1)
+    profiles = richprofiles.groupby(['class','YearsElectrified','month','daytype','hour']).agg({
+            'kvah_mean':['mean','std'],
+            'kvah_std':['mean','std'], 
+            'valid_hours':'sum', 
+            'AnswerID':'count', 
+            'total_hours_sum':'sum'})
+    
+    profiles.columns = ['_'.join(col).strip() for col in profiles.columns.values]
+    profiles.rename(columns={'kvah_mean_mean':'kvah_mean',
+                             'kvah_mean_std':'kvah_mean_diversity', 
+                             'kvah_std_mean':'kvah_std',
+                             'kvah_std_std':'kvah_std_diversity', 
+                             'valid_hours_sum':'valid_hours',
+                             'total_hours_sum_sum': 'total_period_hours'}, inplace=True)
+    
+    profiles['valid_observations'] = profiles.valid_hours['sum'] / profiles.total_hours_sum['sum']
     
     return profiles.reset_index()
 
