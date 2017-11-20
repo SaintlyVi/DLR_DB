@@ -59,16 +59,17 @@ def yearsElectrified(year):
     
     return data
 
-def observedDemandSummary(year, experiment_dir, interval='M'):
+def observedDemandSummary(annualintervaldemanddata, year, experiment_dir):
+
+    interval = annualintervaldemanddata.interval[0]
     
     try:
-        data = ts.aggIntervalDemand(year, interval)
         classes = inferredClasses(year, experiment_dir)
         yearselect = yearsElectrified(year)
         
         meta = pd.merge(classes, yearselect, on='AnswerID')
         
-        richprofiles = pd.merge(data, meta, on='AnswerID')
+        richprofiles = pd.merge(annualintervaldemanddata, meta, on='AnswerID')
         
         profiles = richprofiles.groupby(['class','YearsElectrified']).agg({
                 interval+'_kvah_mean':['mean','std'],
@@ -93,7 +94,7 @@ def observedDemandSummary(year, experiment_dir, interval='M'):
     except:
         print('No classes inferred for '+ str(year))
 
-def observedHourlyProfiles(year, experiment_dir):
+def observedHourlyProfiles(aggdaytypedemanddata, year, experiment_dir):
     """
     This function generates an hourly load profile model based on  a year of data. 
     The model contains aggregate hourly kVAh readings for the parameters:
@@ -104,13 +105,12 @@ def observedHourlyProfiles(year, experiment_dir):
     """
     
     try:
-        data = ts.aggDaytypeDemand(year)
         classes = inferredClasses(year, experiment_dir)
         yearselect = yearsElectrified(year)
         
         meta = pd.merge(classes, yearselect, on='AnswerID')
         
-        richprofiles = pd.merge(data, meta, on='AnswerID')
+        richprofiles = pd.merge(aggdaytypedemanddata, meta, on='AnswerID')
         
         profiles = richprofiles.groupby(['class','YearsElectrified','month','daytype','hour']).agg({
                 'kvah_mean':['mean','std'],
@@ -230,9 +230,10 @@ def plotHourlyProfiles(customer_class, daytype='Weekday', years_electrified=7, *
         try:
             year = kwargs.get('year')
             experiment_dir = kwargs.get('experiment_dir')
+            aggdaytypedemanddata = kwargs.get('data')
         except:
-            return print('You must specify year and experiment_dir within your kwargs')
-        df = observedHourlyProfiles(year, experiment_dir)
+            return print('You must specify year, experiment_dir and data arguements within your kwargs')
+        df = observedHourlyProfiles(aggdaytypedemanddata, year, experiment_dir)
         df.columns = ['class', 'years_electrified', 'month', 'daytype', 'hour', 'mean_kva', 'std_kva']
         
     df = df[(df['daytype']==daytype) & (df['years_electrified']==years_electrified) & (df['class']==customer_class)]

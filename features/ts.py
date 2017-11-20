@@ -131,7 +131,7 @@ def getProfilePower(year):
     
     return output
 
-def aggProfilePower(year, interval):
+def aggProfilePower(profilepowerdata, interval):
     """
     This function returns the aggregated mean or total load profile for all AnswerIDs for a year.
     Interval should be 'D' for calendar day frequency, 'M' for month end frequency or 'A' for annual frequency. Other interval options are described here: http://pandas.pydata.org/pandas-docs/stable/timeseries.html#offset-aliases
@@ -140,8 +140,7 @@ def aggProfilePower(year, interval):
     The aggregate function for A, V is mean().
     """
 
-    data = getProfilePower(year)
-    data.set_index('Datefield', inplace=True)
+    data = profilepowerdata.set_index('Datefield')
     
     try:
         aggprofile = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({
@@ -162,14 +161,15 @@ def aggProfilePower(year, interval):
     
     aggprofile['interval_hours'] = aggprofile['Datefield'].apply(lambda x: (x - pd.date_range(end=x, periods=2, freq = interval)[0]) / np.timedelta64(1, 'h'))
     aggprofile['valid_obs_ratio'] = aggprofile['valid_calculated']/aggprofile['interval_hours']
+    
+    aggprofile['interval'] = interval
 
     return aggprofile
 
 ## TODO
-def maxDemand(year):
+def maxDemand(profilepowerdata):
     
-    data = getProfilePower(year)
-    maxdemand = data.iloc[data.reset_index().groupby(['AnswerID'])['Unitsread_i'].idxmax()].reset_index(drop=True)
+    maxdemand = profilepowerdata.iloc[profilepowerdata.reset_index().groupby(['AnswerID'])['Unitsread_i'].idxmax()].reset_index(drop=True)
     
     maxdemand['month'] = maxdemand['Datefield'].dt.month
     maxdemand['daytype'] = maxdemand['Datefield'].dt.dayofweek
@@ -177,12 +177,12 @@ def maxDemand(year):
                              
     return maxdemand[['AnswerID','RecorderID','Unitsread_i','month','daytype','hour']]
 
-def aggIntervalDemand(year, interval='M'):
+def annualIntervalDemand(aggprofilepowerdata):
     
-    data = aggProfilePower(year, interval)
+    interval = aggprofilepowerdata.interval[0]
     
     try:
-        aggdemand = data.groupby(['RecorderID','AnswerID']).agg({
+        aggdemand = aggprofilepowerdata.groupby(['RecorderID','AnswerID']).agg({
                 'Unitsread_kva': ['mean', 'std'], 
                 'valid_calculated':'sum',
                 'interval_hours':'sum'})
@@ -193,7 +193,7 @@ def aggIntervalDemand(year, interval='M'):
                 'valid_calculated_sum':'valid_hours'}, inplace=True)
 
     except:
-        aggdemand = data.groupby(['RecorderID','AnswerID']).agg({
+        aggdemand = aggprofilepowerdata.groupby(['RecorderID','AnswerID']).agg({
                 'kVAh_calculated': ['mean', 'std'], 
                 'valid_calculated':'mean', 
                 'valid_calculated':'sum',
@@ -206,9 +206,11 @@ def aggIntervalDemand(year, interval='M'):
         
     aggdemand['valid_obs_ratio'] = aggdemand['valid_hours']/aggdemand['interval_hours_sum']
     
+    aggdemand['interval'] = interval
+    
     return aggdemand.reset_index()
 
-def aggDaytypeDemand(year):   
+def aggDaytypeDemand(profilepowerdata):   
     """
     This function generates an hourly load profile for each AnswerID.
     The model contains aggregate hourly kVAh readings for the parameters:
@@ -217,7 +219,7 @@ def aggDaytypeDemand(year):
         Hour
     """
     
-    data = getProfilePower(year)
+    data = profilepowerdata
     data['month'] = data['Datefield'].dt.month
     data['dayix'] = data['Datefield'].dt.dayofweek
     data['hour'] = data['Datefield'].dt.hour
