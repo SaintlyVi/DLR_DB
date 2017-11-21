@@ -19,8 +19,7 @@ import plotly.graph_objs as go
 import plotly as py
 offline.init_notebook_mode(connected=True) #set for plotly offline plotting
 
-from support import classout_dir   
-import features.ts as ts
+from support import classout_dir
 import features.socios as socios
 import expertmod.excore as expert
     
@@ -96,7 +95,7 @@ def observedDemandSummary(annualintervaldemanddata, year, experiment_dir):
 
 def observedHourlyProfiles(aggdaytypedemanddata, year, experiment_dir):
     """
-    This function generates an hourly load profile model based on  a year of data. 
+    This function generates an hourly load profile model based on a year of data. 
     The model contains aggregate hourly kVAh readings for the parameters:
         Customer Class
         Month
