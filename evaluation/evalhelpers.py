@@ -58,9 +58,9 @@ def yearsElectrified(year):
     
     return data
 
-def observedDemandSummary(annualintervaldemanddata, year, experiment_dir):
+def observedDemandSummary(annualmonthlydemanddata, year, experiment_dir):
 
-    interval = annualintervaldemanddata.interval[0]
+    interval = annualmonthlydemanddata.interval[0]
     
     try:
         classes = inferredClasses(year, experiment_dir)
@@ -68,20 +68,22 @@ def observedDemandSummary(annualintervaldemanddata, year, experiment_dir):
         
         meta = pd.merge(classes, yearselect, on='AnswerID')
         
-        richprofiles = pd.merge(annualintervaldemanddata, meta, on='AnswerID')
+        richprofiles = pd.merge(annualmonthlydemanddata, meta, on='AnswerID')
         
         profiles = richprofiles.groupby(['class','YearsElectrified']).agg({
-                interval+'_kvah_mean':['mean','std'],
-                interval+'_kvah_std':['mean','std'], 
+                interval+'_kw_mean':['mean','std'],
+                interval+'_kw_std':['mean','std'], 
+                interval+'_kva_mean':['mean','std'],
+                interval+'_kva_std':['mean','std'],
                 'valid_hours':'sum', 
                 'interval_hours_sum':'sum', 
                 'AnswerID':'count'})
         
         profiles.columns = ['_'.join(col).strip() for col in profiles.columns.values]
-        profiles.rename(columns={interval+'_kvah_mean_mean':interval+'_kvah_mean',
-                                 interval+'_kvah_mean_std':interval+'_kvah_mean_diversity', 
-                                 interval+'_kvah_std_mean':interval+'_kvah_std',
-                                 interval+'_kvah_std_std':interval+'_kvah_std_diversity', 
+        profiles.rename(columns={interval+'_kw_mean_mean':interval+'_kw_mean',
+                                 interval+'_kw_mean_std':interval+'_kw_mean_diversity', 
+                                 interval+'_kw_std_mean':interval+'_kw_std',
+                                 interval+'_kw_std_std':interval+'_kw_std_diversity', 
                                  'valid_hours_sum':'valid_hours',
                                  'interval_hours_sum_sum': 'interval_hours'}, inplace=True)
         
@@ -96,7 +98,7 @@ def observedDemandSummary(annualintervaldemanddata, year, experiment_dir):
 def observedHourlyProfiles(aggdaytypedemanddata, year, experiment_dir):
     """
     This function generates an hourly load profile model based on a year of data. 
-    The model contains aggregate hourly kVAh readings for the parameters:
+    The model contains aggregate hourly kw readings for the parameters:
         Customer Class
         Month
         Daytype [Weekday, Sunday, Monday]
@@ -112,17 +114,17 @@ def observedHourlyProfiles(aggdaytypedemanddata, year, experiment_dir):
         richprofiles = pd.merge(aggdaytypedemanddata, meta, on='AnswerID')
         
         profiles = richprofiles.groupby(['class','YearsElectrified','month','daytype','hour']).agg({
-                'kvah_mean':['mean','std'],
-                'kvah_std':['mean','std'], 
+                'kva_mean':['mean','std'],
+                'kva_std':['mean','std'], 
                 'valid_hours':'sum', 
                 'AnswerID':'count', 
                 'total_hours_sum':'sum'})
         
         profiles.columns = ['_'.join(col).strip() for col in profiles.columns.values]
-        profiles.rename(columns={'kvah_mean_mean':'kvah_mean',
-                                 'kvah_mean_std':'kvah_mean_diversity', 
-                                 'kvah_std_mean':'kvah_std',
-                                 'kvah_std_std':'kvah_std_diversity', 
+        profiles.rename(columns={'kva_mean_mean':'kva_mean',
+                                 'kva_mean_std':'kva_mean_diversity', 
+                                 'kva_std_mean':'kva_std',
+                                 'kva_std_std':'kva_std_diversity', 
                                  'valid_hours_sum':'valid_hours',
                                  'total_hours_sum_sum': 'total_hours'}, inplace=True)
         
@@ -224,7 +226,7 @@ def plotHourlyProfiles(customer_class, daytype='Weekday', years_electrified=7, *
     
     if model == 'expert':        
         df = expert.dpetHourlyProfiles()
-        df.columns = ['years_electrified','mean_monthly_kvah','month','daytype','hour','mean_kva','std_kva','class']
+        df.columns = ['years_electrified','mean_monthly_kw','month','daytype','hour','mean_kw','std_kw','class']
     elif model == 'data':
         try:
             year = kwargs.get('year')
@@ -233,10 +235,10 @@ def plotHourlyProfiles(customer_class, daytype='Weekday', years_electrified=7, *
         except:
             return print('You must specify year, experiment_dir and data arguements within your kwargs')
         df = observedHourlyProfiles(aggdaytypedemanddata, year, experiment_dir)
-        df.columns = ['class', 'years_electrified', 'month', 'daytype', 'hour', 'mean_kva', 'std_kva']
+        df.columns = ['class', 'years_electrified', 'month', 'daytype', 'hour', 'mean_kw', 'std_kw']
         
     df = df[(df['daytype']==daytype) & (df['years_electrified']==years_electrified) & (df['class']==customer_class)]
-    maxdemand = df['mean_kva'].max()
+    maxdemand = df['mean_kw'].max()
     
     #generate plot data
     traces = []
@@ -245,7 +247,7 @@ def plotHourlyProfiles(customer_class, daytype='Weekday', years_electrified=7, *
     months = np.flipud(df['month'].unique())
     count = 0
     for m in months:
-        z_raw = df.loc[df['month'] == m, 'mean_kva']
+        z_raw = df.loc[df['month'] == m, 'mean_kw']
         z_raw = z_raw.reset_index(drop=True)
         x = []
         y = []
@@ -257,7 +259,7 @@ def plotHourlyProfiles(customer_class, daytype='Weekday', years_electrified=7, *
         hovertext = list() #modify text box on hover
         for yi, yy in y:
             hovertext.append(list())
-            hovertext[-1].append('{}h00<br /> {:.3f} kVA'.format(yy, z[yi][0]))
+            hovertext[-1].append('{}h00<br /> {:.3f} kW'.format(yy, z[yi][0]))
             
         traces.append(dict(
             z=z,
@@ -288,7 +290,7 @@ def plotHourlyProfiles(customer_class, daytype='Weekday', years_electrified=7, *
                         title = 'time of day',
                         tickvals = np.arange(0, 24, 2)),
                 zaxis=dict(
-                        title = 'demand (kVA)',
+                        title = 'demand (kW)',
                         tickvals = np.arange(0, ceil(maxdemand*10)/10, 0.1),
                         rangemode = "tozero")
                 )

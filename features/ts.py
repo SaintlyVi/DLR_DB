@@ -111,20 +111,25 @@ def getProfilePower(year):
         vprofile['matchcol'] = vprofile['ProfileID'] + 1
         power_temp = vprofile.merge(iprofile, left_on=['matchcol', 'Datefield'], right_on=['ProfileID','Datefield'], suffixes=['_v', '_i'])
         power_temp.drop(['RecorderID_v','RecorderID_i', 'matchcol'], axis=1, inplace=True)
+
+        kwprofile = loadProfiles(year, 'kW')[0] #get kW readings
+        kwprofile['matchcol'] = kwprofile['ProfileID'] - 3 #UoM = 5, ChannelNo = 5, 9, 13
+
+        kvaprofile = loadProfiles(year, 'kVA')[0] #get kW readings
+        kvaprofile['matchcol'] = kvaprofile['ProfileID'] - 2 #UoM = 4, ChannelNo = 4, 8 or 12        
+        kvaprofile.drop(columns='RecorderID',inplace=True)
         
-        pprofile = loadProfiles(year, 'kVA')[0] #get kW readings
-        pprofile['matchcol'] = pprofile['ProfileID'] - 2 #UoM = 4, ChannelNo = 4, 8 or 12
-        power = power_temp.merge(pprofile, right_on=['matchcol', 'Datefield'], left_on=['ProfileID_v','Datefield'])
-        power.rename(columns={
-                'ProfileID':'ProfileID_kva', 
-                'Unitsread':'Unitsread_kva'}, inplace=True)
+        power_temp2 = power_temp.merge(kwprofile, right_on=['matchcol', 'Datefield'], left_on=['ProfileID_v','Datefield'])
+        power = power_temp2.merge(kvaprofile, right_on=['matchcol', 'Datefield'], left_on=['matchcol','Datefield'], suffixes=['_kw','_kva'])
+        
         power.drop(['matchcol'], axis=1, inplace=True)
         
     else:
         return print('Year is out of range. Please select a year between 1994 and 2014')
     
-    power['kVAh_calculated'] = power.Unitsread_v*power.Unitsread_i*0.001
+    power['kw_calculated'] = power.Unitsread_v*power.Unitsread_i*0.001
     power['valid_calculated'] = power.Valid_i * power.Valid_v
+
     output = power.merge(VI_profile_meta.loc[:,['AnswerID','ProfileID']], left_on='ProfileID_i', right_on='ProfileID').drop(['ProfileID','Valid_i','Valid_v'], axis=1)
     output = output[output.columns.sort_values()]
     output.fillna({'valid_calculated':0}, inplace=True)
@@ -136,7 +141,7 @@ def aggProfilePower(profilepowerdata, interval):
     This function returns the aggregated mean or total load profile for all AnswerIDs for a year.
     Interval should be 'D' for calendar day frequency, 'M' for month end frequency or 'A' for annual frequency. Other interval options are described here: http://pandas.pydata.org/pandas-docs/stable/timeseries.html#offset-aliases
     
-    The aggregate function for kVA and kVA_calculated is sum().
+    The aggregate function for kW and kW_calculated is sum().
     The aggregate function for A, V is mean().
     """
 
@@ -146,15 +151,16 @@ def aggProfilePower(profilepowerdata, interval):
         aggprofile = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({
                 'Unitsread_i': np.mean, 
                 'Unitsread_v': np.mean, 
-                'Unitsread_kva': np.sum, 
-                'kVAh_calculated': np.sum, 
+                'Unitsread_kw': np.sum,
+                'Unitsread_kva': np.mean,
+                'kw_calculated': np.sum, 
                 'valid_calculated': np.sum})
     
     except:
         aggprofile = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({
                 'Unitsread_i': np.mean, 
                 'Unitsread_v': np.mean, 
-                'kVAh_calculated': np.sum,  
+                'kw_calculated': np.sum,  
                 'valid_calculated': np.sum})
         
     aggprofile.reset_index(inplace=True)    
@@ -168,14 +174,21 @@ def aggProfilePower(profilepowerdata, interval):
 
 ## TODO
 def maxDemand(profilepowerdata):
+    """
+    Check if this function makes sense.
+    """
     
-    maxdemand = profilepowerdata.iloc[profilepowerdata.reset_index().groupby(['AnswerID'])['Unitsread_i'].idxmax()].reset_index(drop=True)
+    try:
+        maxdemand = profilepowerdata.iloc[profilepowerdata.reset_index().groupby(['AnswerID'])['Unitsread_kva'].idxmax()].reset_index(drop=True)
+        
+        maxdemand['month'] = maxdemand['Datefield'].dt.month
+        maxdemand['daytype'] = maxdemand['Datefield'].dt.dayofweek
+        maxdemand['hour'] = maxdemand['Datefield'].dt.hour
+                                 
+        return maxdemand[['AnswerID','RecorderID','Unitsread_i','month','daytype','hour']]
     
-    maxdemand['month'] = maxdemand['Datefield'].dt.month
-    maxdemand['daytype'] = maxdemand['Datefield'].dt.dayofweek
-    maxdemand['hour'] = maxdemand['Datefield'].dt.hour
-                             
-    return maxdemand[['AnswerID','RecorderID','Unitsread_i','month','daytype','hour']]
+    except: 
+        print('Check if year is in range 2009 - 2014.')
 
 def annualIntervalDemand(aggprofilepowerdata):
     
@@ -183,29 +196,30 @@ def annualIntervalDemand(aggprofilepowerdata):
     
     try:
         aggdemand = aggprofilepowerdata.groupby(['RecorderID','AnswerID']).agg({
-                'Unitsread_kva': ['mean', 'std'], 
+                'Unitsread_kw': ['mean', 'std'], 
+                'Unitsread_kva': ['mean', 'std'],
                 'valid_calculated':'sum',
                 'interval_hours':'sum'})
         aggdemand.columns = ['_'.join(col).strip() for col in aggdemand.columns.values]
         aggdemand.rename(columns={
-                'Unitsread_kva_mean':interval+'_kvah_mean', 
-                'Unitsread_kva_std':interval+'_kvah_std', 
+                'Unitsread_kw_mean':interval+'_kw_mean', 
+                'Unitsread_kw_std':interval+'_kw_std', 
+                'Unitsread_kva_mean':interval+'_kva_mean', 
+                'Unitsread_kva_std':interval+'_kva_std', 
                 'valid_calculated_sum':'valid_hours'}, inplace=True)
 
     except:
         aggdemand = aggprofilepowerdata.groupby(['RecorderID','AnswerID']).agg({
-                'kVAh_calculated': ['mean', 'std'], 
-                'valid_calculated':'mean', 
+                'kw_calculated': ['mean', 'std'], 
                 'valid_calculated':'sum',
                 'interval_hours':'sum'})        
         aggdemand.columns = ['_'.join(col).strip() for col in aggdemand.columns.values]
         aggdemand.rename(columns={
-                'kVAh_calculated_mean':interval+'_kvah_mean', 
-                'kVAh_calculated_std':interval+'_kvah_std', 
+                'kw_calculated_mean':interval+'_kw_mean', 
+                'kw_calculated_std':interval+'_kw_std', 
                 'valid_calculated_sum':'valid_hours'}, inplace=True) 
         
-    aggdemand['valid_obs_ratio'] = aggdemand['valid_hours']/aggdemand['interval_hours_sum']
-    
+    aggdemand['valid_obs_ratio'] = aggdemand['valid_hours']/aggdemand['interval_hours_sum']    
     aggdemand['interval'] = interval
     
     return aggdemand.reset_index()
@@ -213,7 +227,7 @@ def annualIntervalDemand(aggprofilepowerdata):
 def aggDaytypeDemand(profilepowerdata):   
     """
     This function generates an hourly load profile for each AnswerID.
-    The model contains aggregate hourly kVAh readings for the parameters:
+    The model contains aggregate hourly kW readings for the parameters:
         Month
         Daytype [Weekday, Sunday, Monday]
         Hour
@@ -229,24 +243,27 @@ def aggDaytypeDemand(profilepowerdata):
     
     try:
         daytypedemand = data.groupby(['AnswerID', 'month', 'daytype', 'hour']).agg({
-                'Unitsread_kva': ['mean', 'std'], 
+                'Unitsread_kw': ['mean', 'std'], 
+                'Unitsread_kva': ['mean', 'std'],
                 'valid_calculated':'sum', 
                 'total_hours':'sum'})
         daytypedemand.columns = ['_'.join(col).strip() for col in daytypedemand.columns.values]
         daytypedemand.rename(columns={
-                'Unitsread_kva_mean':'kvah_mean', 
-                'Unitsread_kva_std':'kvah_std', 
+                'Unitsread_kw_mean':'kw_mean', 
+                'Unitsread_kw_std':'kw_std', 
+                'Unitsread_kva_mean':'kva_mean', 
+                'Unitsread_kva_std':'kva_std', 
                 'valid_calculated_sum':'valid_hours'}, inplace=True)
 
     except: #for years < 2009 where only V and I were observed
         daytypedemand = data.groupby(['AnswerID', 'month', 'daytype', 'hour']).agg({
-                'kVAh_calculated': ['mean', 'std'],
+                'kw_calculated': ['mean', 'std'],
                 'valid_calculated':'sum', 
                 'total_hours':'sum'})
         daytypedemand.columns = ['_'.join(col).strip() for col in daytypedemand.columns.values]
         daytypedemand.rename(columns={
-                'kVAh_calculated_mean':'kvah_mean', 
-                'kVAh_calculated_std':'kvah_std', 
+                'kw_calculated_mean':'kw_mean', 
+                'kw_calculated_std':'kw_std', 
                 'valid_calculated_sum':'valid_hours'}, inplace=True)
 
     daytypedemand['valid_obs_ratio'] = daytypedemand['valid_hours'] / daytypedemand['total_hours_sum']
