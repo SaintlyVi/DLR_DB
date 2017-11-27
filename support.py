@@ -15,6 +15,7 @@ dlrdb_dir = str(Path(__file__).parents[0])
 classmodel_dir = os.path.join(dlrdb_dir, 'classmod')
 obs_dir = os.path.join(dlrdb_dir, 'observations')
 data_dir = os.path.join(dlrdb_dir, 'data')
+eval_dir = os.path.join(dlrdb_dir, 'evaluation')
 
 # level 2 & 3 DATA
 rawprofiles_dir = os.path.join(data_dir, 'profiles', 'raw')
