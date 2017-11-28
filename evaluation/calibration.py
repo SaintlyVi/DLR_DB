@@ -95,8 +95,8 @@ def logCalibration(year, experiment_dir, min_answerid = 2, min_obsratio = 0.85):
     ohp.name = 'hourly_profiles'
     data_uncert = dataUncertainty([ods, ohp], min_answerid, min_obsratio)
     
-    exhp = expert.dpetHourlyProfiles()
-    exds = expert.dpetDemandSummary()
+    exhp = expert.expertHourlyProfiles()
+    exds = expert.expertDemandSummary()
     
     indexhp = ['class','YearsElectrified','month','daytype','hour']
     indexds = ['class','YearsElectrified']
