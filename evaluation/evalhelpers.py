@@ -15,7 +15,6 @@ import os
 from math import ceil
 
 import plotly.offline as offline
-import plotly as py
 import plotly.graph_objs as go
 offline.init_notebook_mode(connected=True) #set for plotly offline plotting
 
@@ -52,9 +51,10 @@ def yearsElectrified(year):
         data.columns = ['AnswerID','YearsElectrified']
         cats = [0] + list(range(2, 16)) + [100]
         data.YearsElectrified = pd.cut(data.YearsElectrified, cats, right=False, labels = list(range(1, 16)), include_lowest=False)
+        data.YearsElectrified = data.YearsElectrified.astype('int', copy=False)
     
     except:
-        return print('No valid data exists for the supplied year')
+        return print('Could not retreive valid data for the given year.')
     
     return data
 
@@ -134,6 +134,90 @@ def observedHourlyProfiles(aggdaytypedemanddata, year, experiment_dir):
     
     except:
         print('No classes inferred for '+ str(year))
+
+def plotAnswerIDCount(submodel):
+
+    data = []
+    
+    #Get mean AnswerID count for number of years electrified
+    for c in submodel['class'].unique():
+        t = submodel[submodel['class']==c][['YearsElectrified',
+                    'AnswerID_count']].groupby('YearsElectrified').mean().fillna(0).applymap(
+                    lambda x: ceil(x)).reset_index() 
+        
+        trace = go.Bar(
+                x=list(range(1, 16)),
+                y=t['AnswerID_count'],
+                name=c
+                )
+        data.append(trace)
+    
+    layout = go.Layout(
+                barmode='stack',
+                title = 'Number of AnswerIDs inferred for each customer class for 1 - 15+ years after electrification',
+                xaxis = dict(title='Years Electrified',
+                                tickvals = list(range(1, 16))),
+                yaxis = dict(title='AnswerID count'),
+                margin = dict(t=100,r=150,b=50,l=150))
+    
+    fig = go.Figure(data=data, layout=layout)
+
+    return offline.iplot(fig, filename='answer_id_count')
+
+def plotValidObsRatio(ohp, daytype):
+        
+    lenx = 15 * 12 * 24 # = years * months * hours
+    
+
+    d = ohp.loc[ohp['daytype']==daytype][['class', 'YearsElectrified', 'month', 'hour', 'valid_obs_ratio']]
+    d['tix'] = 12*24*(d.YearsElectrified-1) + 24*(d.month-1) + d.hour
+    z = d['valid_obs_ratio']*100
+    x = d['tix']
+    y = d['class']
+    hovertext = list() #modify text box on hover
+    for row in d.iterrows():
+        hovertext.append(list())
+        hovertext[-1].append(
+                'Year: {}<br />month: {}<br />time: {}h00<br />valid: {}%'.format(
+                        row[1]['YearsElectrified'], row[1]['month'], 
+                        row[1]['hour'], row[1]['valid_obs_ratio']*100))
+    data = [go.Heatmap(z = z, 
+                       x = x, 
+                       y = y,
+                       name = daytype,
+                       zmin = 0,
+                       zmax = 100,
+                       text = hovertext,
+                       hoverinfo ="text" , 
+                       colorscale=[[0.0, 'rgb(165,0,38)'], 
+                                   [0.1111111111111111,'rgb(215,48,39)'],
+                                   [0.2222222222222222,'rgb(244,109,67)'],
+                                   [0.3333333333333333, 'rgb(253,174,97)'],
+                                   [0.4444444444444444, 'rgb(254,224,144)'],
+                                   [0.5555555555555556, 'rgb(224,243,248)'],
+                                   [0.6666666666666666, 'rgb(171,217,233)'],
+                                   [0.7777777777777778, 'rgb(116,173,209)'],
+                                   [0.8888888888888888, 'rgb(69,117,180)'],
+                                   [1.0, 'rgb(49,54,149)']]
+                       )]
+
+    layout = go.Layout(showlegend=False, 
+                       title='Percentage valid ' + daytype + ' observations for all inferred classes in data model',
+                       margin = dict(t=150,r=150,b=50,l=150),
+                       height = 400,
+                       yaxis = dict(
+                               type = 'category',
+                               ticktext = d['class'],
+                               tickwidth = 1.5),
+                       xaxis = dict(                        
+                               title = 'Years Electrified',
+                               ticktext = list(range(0, 16)),
+                               tickvals = np.arange(0, lenx+1, 12*24)),
+                               )
+                       
+    fig = go.Figure(data=data, layout=layout)
+                                
+    return offline.iplot(fig, filename='valid_obs_ratio_'+daytype)
 
 def plotAnnualHourlyProfiles(customer_class, daytype='Weekday', years_electrified=7, 
                              model_dir=None, **kwargs):
@@ -234,96 +318,6 @@ def plotAnnualHourlyProfiles(customer_class, daytype='Weekday', years_electrifie
    
     return offline.iplot(fig, filename='annual_hourly_profiles')
 
-def plotAnswerIDCount(submodel):
-
-    data = []
+def plotSimilarityAnnualProfiles(customer_class, daytype, data):
     
-    #Get mean AnswerID count for number of years electrified
-    for c in submodel['class'].unique():
-        t = submodel[submodel['class']==c][['YearsElectrified',
-                    'AnswerID_count']].groupby('YearsElectrified').mean().fillna(0).applymap(
-                    lambda x: ceil(x)).reset_index() 
-        
-        trace = go.Bar(
-                x=list(range(1, 16)),
-                y=t['AnswerID_count'],
-                name=c
-                )
-        data.append(trace)
-    
-    layout = go.Layout(
-                barmode='stack',
-                title = 'Number of AnswerIDs inferred for each customer class for 1 - 15+ years after electrification',
-                xaxis = dict(title='Years Electrified',
-                                tickvals = list(range(1, 16))),
-                yaxis = dict(title='AnswerID count'))
-    
-    fig = go.Figure(data=data, layout=layout)
-
-    return offline.iplot(fig, filename='answer_id_count')
-    
-def plotValidObsRatio(submodel):
-    
-    fig = py.tools.make_subplots(rows=3, cols=1, subplot_titles=['','',''], horizontal_spacing = 0.1, print_grid=False)
-    
-    lenx = 15 * 12 * 24 # = years * months * hours
-    
-    r = 1
-    for d in submodel.daytype.unique():
-        data = submodel.loc[submodel['daytype']==d][['class', 'YearsElectrified', 'month', 'hour', 'valid_obs_ratio']]
-        data['tix'] = 12*24*(data.YearsElectrified-1) + 24*(data.month-1) + data.hour
-        z = data['valid_obs_ratio']*100
-        x = data['tix']
-        y = data['class']
-        hovertext = list() #modify text box on hover
-        for row in data.iterrows():
-            hovertext.append(list())
-            hovertext[-1].append(
-                    'Year: {}<br />month: {}<br />time: {}h00<br />valid: {}%'.format(
-                            row[1]['YearsElectrified'], row[1]['month'], 
-                            row[1]['hour'], row[1]['valid_obs_ratio']*100))
-        trace = go.Heatmap(z = z, 
-                           x = x, 
-                           y = y,
-                           name = d,
-                           zmin = 0,
-                           zmax = 100,
-                           text = hovertext,
-                           hoverinfo = 'text', 
-                           colorscale=[[0.0, 'rgb(165,0,38)'], 
-                                       [0.1111111111111111,'rgb(215,48,39)'],
-                                       [0.2222222222222222,'rgb(244,109,67)'],
-                                       [0.3333333333333333, 'rgb(253,174,97)'],
-                                       [0.4444444444444444, 'rgb(254,224,144)'],
-                                       [0.5555555555555556, 'rgb(224,243,248)'],
-                                       [0.6666666666666666, 'rgb(171,217,233)'],
-                                       [0.7777777777777778, 'rgb(116,173,209)'],
-                                       [0.8888888888888888, 'rgb(69,117,180)'],
-                                       [1.0, 'rgb(49,54,149)']]
-                           )
-        fig.append_trace(trace, r, 1)        
-        r += 1
-
-    fig['layout'].update(showlegend=False, 
-                           title='Percentage valid observations for each day type and all inferred classes in data model',
-                           margin = dict(t=200,r=200,b=200,l=200),
-                           xaxis = dict(title = 'Years Electrified'),
-                           height = 900
-                           )
-    
-    for k in range(1,4):
-          fig['layout'].update({
-                'yaxis{}'.format(k): go.YAxis(
-                        type = 'category',
-                        ticktext = data['class'],
-                        tickwidth = 1.5
-                ),
-                'xaxis{}'.format(k): go.XAxis(
-                        #title = 'Years Electrified',
-                        ticktext = list(range(0, 16)),
-                        tickvals = np.arange(0, lenx+1, 12*24)),
-                'title{}'.format(k):
-                        
-                })    
-                                
-    return offline.iplot(fig, filename='valid_obs_ratio')
+    return

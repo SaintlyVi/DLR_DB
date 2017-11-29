@@ -69,7 +69,6 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
-ipython.html
 
 # pyenv
 .python-version
@@ -112,3 +111,4 @@ temp-plot.html
 
 # R
 .Rhistory
+*.html

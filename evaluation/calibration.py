@@ -66,7 +66,7 @@ def dataIntegrity(submodels, min_answerid, min_obsratio):
             unit = 'total_valid_hours' 
         except:
             valid_unit_count = valid_data['AnswerID_count'].sum()
-            unit = 'total_AnswerID_count' 
+            unit = 'valid_AnswerID_count' 
             
         validmodels = validmodels.append({'submodel_name':name, 
                                           'valid_data':valid_data, 
@@ -153,4 +153,5 @@ def logCalibration(year, experiment_dir, min_answerid = 2, min_obsratio = 0.85):
     else:
         log.to_csv(logpath, mode='w', columns = log.columns, index=False)
         print('\nLog file created and log entry added at ' + logpath + '\n')
-    return
+    
+    return log
