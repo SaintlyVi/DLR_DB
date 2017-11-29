@@ -1,5 +1,40 @@
-timestamp,year,experiment,submodel,valid_answerid,valid_obsratio,uncertainty_ix,sim_eucliddist,sim_count
-2017-11-27 09:26:30,2011,exp1,demand_summary,2,0.85,0.631578947368421,1259.2162086550104,30
-2017-11-27 09:26:30,2011,exp1,hourly_profiles,2,0.85,0.6255200685266764,48.35971178974109,19008
-2017-11-27 09:26:30,2011,exp1,demand_summary,2,0.85,0.631578947368421,1259.2162086550104,30
-2017-11-27 09:26:30,2011,exp1,hourly_profiles,2,0.85,0.6255200685266764,48.35971178974109,19008
+timestamp,year,experiment,submodel,min_answerid_count,min_valid_obsratio,uncertainty_ix,valid_unit_count,sim_eucliddist,sim_count
+2017-11-29 12:11:04,2011,exp1,demand_summary,3,0.9,0.42105263157894735,"class                YearsElectrified
+informal_settlement  3                    5
+                     5                    4
+                     7                    9
+                     8                   26
+                     12                  18
+                     14                  21
+                     15                  78
+township             1                    4
+                     3                    3
+                     8                    3
+                     12                   5
+                     14                   4
+                     15                  69
+village              7                    4
+                     8                    9
+                     15                  23
+Name: AnswerID_count, dtype: int64",257.4433764772904,13
+2017-11-29 12:11:04,2011,exp1,hourly_profiles,3,0.9,0.4127202643171806,"class                YearsElectrified
+informal_settlement  1                    49619.0
+                     3                    40053.0
+                     5                    30449.0
+                     7                    74367.0
+                     8                   218161.0
+                     10                    2947.0
+                     11                    4446.0
+                     12                  139274.0
+                     14                  143708.0
+                     15                  560507.0
+township             1                    25765.0
+                     3                    25695.0
+                     8                    25590.0
+                     12                   34524.0
+                     14                   27886.0
+                     15                  573072.0
+village              7                    32225.0
+                     8                    76145.0
+                     15                  194539.0
+Name: valid_hours, dtype: float64",21.25238439735804,8704
