@@ -12,10 +12,11 @@ NB 2014 AnswerIDs have not been matched to ProfileIDs
 import pandas as pd    
 import numpy as np
 import os
-from math import ceil
+from math import ceil, floor
 
 import plotly.offline as offline
 import plotly.graph_objs as go
+import plotly as py
 offline.init_notebook_mode(connected=True) #set for plotly offline plotting
 
 from support import classout_dir
@@ -58,9 +59,32 @@ def yearsElectrified(year):
     
     return data
 
-def observedDemandSummary(annualmonthlydemanddata, year, experiment_dir):
+def observedMaxDemand(profilepowerdata, year, experiment_dir):
+    
+    try:
+        try:
+            maxdemand = profilepowerdata.iloc[profilepowerdata.reset_index().groupby(['AnswerID'])['Unitsread_kva'].idxmax()].reset_index(drop=True)
+            
+            maxdemand['month'] = maxdemand['Datefield'].dt.month
+            maxdemand['daytype'] = maxdemand['Datefield'].dt.dayofweek
+            maxdemand['hour'] = maxdemand['Datefield'].dt.hour                                 
+            md = maxdemand[['AnswerID','RecorderID','Unitsread_kva','month','daytype','hour']] 
+        except: 
+            print('Check if year is in range 2009 - 2014.')
 
-    interval = annualmonthlydemanddata.interval[0]
+        classes = inferredClasses(year, experiment_dir)
+        yearselect = yearsElectrified(year)        
+        meta = pd.merge(classes, yearselect, on='AnswerID')
+        profiles = pd.merge(md, meta, on='AnswerID')
+          
+        return profiles
+    
+    except:
+        print('No classes inferred for '+ str(year))
+
+def observedDemandSummary(annual_monthly_demand_data, year, experiment_dir):
+
+    interval = annual_monthly_demand_data.interval[0]
     
     try:
         classes = inferredClasses(year, experiment_dir)
@@ -68,7 +92,7 @@ def observedDemandSummary(annualmonthlydemanddata, year, experiment_dir):
         
         meta = pd.merge(classes, yearselect, on='AnswerID')
         
-        richprofiles = pd.merge(annualmonthlydemanddata, meta, on='AnswerID')
+        richprofiles = pd.merge(annual_monthly_demand_data, meta, on='AnswerID')
         
         profiles = richprofiles.groupby(['class','YearsElectrified']).agg({
                 interval+'_kw_mean':['mean','std'],
@@ -95,7 +119,7 @@ def observedDemandSummary(annualmonthlydemanddata, year, experiment_dir):
     except:
         print('No classes inferred for '+ str(year))
 
-def observedHourlyProfiles(aggdaytypedemanddata, year, experiment_dir):
+def observedHourlyProfiles(aggdaytype_demand_data, year, experiment_dir):
     """
     This function generates an hourly load profile model based on a year of data. 
     The model contains aggregate hourly kw readings for the parameters:
@@ -111,7 +135,7 @@ def observedHourlyProfiles(aggdaytypedemanddata, year, experiment_dir):
         
         meta = pd.merge(classes, yearselect, on='AnswerID')
         
-        richprofiles = pd.merge(aggdaytypedemanddata, meta, on='AnswerID')
+        richprofiles = pd.merge(aggdaytype_demand_data  , meta, on='AnswerID')
         
         profiles = richprofiles.groupby(['class','YearsElectrified','month','daytype','hour']).agg({
                 'kva_mean':['mean','std'],
@@ -138,15 +162,17 @@ def observedHourlyProfiles(aggdaytypedemanddata, year, experiment_dir):
 def plotAnswerIDCount(submodel):
 
     data = []
+    yrs = list(range(1,16))
     
     #Get mean AnswerID count for number of years electrified
     for c in submodel['class'].unique():
-        t = submodel[submodel['class']==c][['YearsElectrified',
-                    'AnswerID_count']].groupby('YearsElectrified').mean().fillna(0).applymap(
-                    lambda x: ceil(x)).reset_index() 
+        selectdata = submodel[submodel['class']==c][['YearsElectrified',
+                         'AnswerID_count']].groupby('YearsElectrified').mean().applymap(
+                         lambda x: ceil(x))
+        t = selectdata.reindex(yrs, fill_value=0).reset_index()
         
         trace = go.Bar(
-                x=list(range(1, 16)),
+                x=yrs,
                 y=t['AnswerID_count'],
                 name=c
                 )
@@ -156,7 +182,7 @@ def plotAnswerIDCount(submodel):
                 barmode='stack',
                 title = 'Number of AnswerIDs inferred for each customer class for 1 - 15+ years after electrification',
                 xaxis = dict(title='Years Electrified',
-                                tickvals = list(range(1, 16))),
+                                tickvals = yrs),
                 yaxis = dict(title='AnswerID count'),
                 margin = dict(t=100,r=150,b=50,l=150))
     
@@ -168,7 +194,6 @@ def plotValidObsRatio(ohp, daytype):
         
     lenx = 15 * 12 * 24 # = years * months * hours
     
-
     d = ohp.loc[ohp['daytype']==daytype][['class', 'YearsElectrified', 'month', 'hour', 'valid_obs_ratio']]
     d['tix'] = 12*24*(d.YearsElectrified-1) + 24*(d.month-1) + d.hour
     z = d['valid_obs_ratio']*100
@@ -211,52 +236,41 @@ def plotValidObsRatio(ohp, daytype):
                                tickwidth = 1.5),
                        xaxis = dict(                        
                                title = 'Years Electrified',
-                               ticktext = list(range(0, 16)),
-                               tickvals = np.arange(0, lenx+1, 12*24)),
+                               ticktext = list(range(1, 16)),
+                               tickvals = np.arange(12*24/2, lenx+1, 12*24),
+                               ),
                                )
                        
     fig = go.Figure(data=data, layout=layout)
                                 
     return offline.iplot(fig, filename='valid_obs_ratio_'+daytype)
 
-def plotAnnualHourlyProfiles(customer_class, daytype='Weekday', years_electrified=7, 
-                             model_dir=None, **kwargs):
+def plotHourlyProfiles(customer_class, model_cat, daytype='Weekday', years_electrified=7, 
+                             model_dir=None, data=None):
     """
     This function plots the hourly load profile for a subset of a customer class for a specified year since electrification. The function requires either a data model or an expert model as input.
-    
-    **kwargs must specify:
-        model = 'data' OR model = 'expert'
-    if model = data, then **kwargs must also contain: 
-        year(int) of observations, 
-        experiment_dir(str),
-        data(ts.aggDaytypeDemand(ts.getProfilePower(year)))
+
     """
     
-    try:
-        model = kwargs.get('model')
-    except:
-        return print('You must specify model = "expert" or model = "data" within your kwargs')
-    
-    if model == 'expert':
+    if model_cat == 'expert':
         if model_dir is None:        
             df = expert.expertHourlyProfiles()
         else:
             df = expert.expertHourlyProfiles(model_dir)
         df.columns = ['YearsElectrified', 'mean_monthly_kw', 'month', 'daytype', 'hour', 
                       'kva_mean', 'kva_std', 'class']
-    elif model == 'data':
-        try:
-            year = kwargs.get('year')
-            experiment_dir = kwargs.get('experiment_dir')
-            adtd = kwargs.get('data')
-        except:
-            return print('You must specify year, experiment_dir and data arguements within your kwargs')
-        df = observedHourlyProfiles(adtd, year, experiment_dir)
-        df = df[['class', 'YearsElectrified', 'month', 'daytype', 
+    elif model_cat == 'data':
+        if data is None:
+            return(print('Specify the observed hourly load profile dataframe to be used for this graphic.'))
+        else:
+            df = data[['class', 'YearsElectrified', 'month', 'daytype', 
                          'hour', 'kva_mean', 'kva_std']]
-        
+  
     df = df[(df['daytype']==daytype) & (df['YearsElectrified']==years_electrified) & (df['class']==customer_class)]
-    maxdemand = df['kva_mean'].max()
+    if df.empty:
+        return(print('Cannot retrieve data for the given submodel parameters. Please specify a different submodel.'))
+    else:
+        maxdemand = df['kva_mean'].max()
     
     #generate plot data
     traces = []
@@ -293,7 +307,8 @@ def plotAnnualHourlyProfiles(customer_class, daytype='Weekday', years_electrifie
         
     #set layout    
     layout = go.Layout(
-            title= daytype + ' hourly load profile for "' + customer_class + '" customers ' + str(years_electrified) +' years after electrification',
+            title= daytype + ' hourly load profile for "' + customer_class + '" customers ' +
+                    str(years_electrified) +' years after electrification',
             margin=go.Margin(t=50,r=50,b=50,l=50, pad=10),
             height= 700,
             scene=dict(
@@ -302,7 +317,7 @@ def plotAnnualHourlyProfiles(customer_class, daytype='Weekday', years_electrifie
                         type = 'category',
                         ticktext = months,
                         tickvals = np.arange(0.5, 12.5, 1),
-                        tickwidth = 1.5
+                        tickwidth = 1.5,
                         ),
                 yaxis=dict(
                         title = 'time of day',
@@ -318,6 +333,148 @@ def plotAnnualHourlyProfiles(customer_class, daytype='Weekday', years_electrifie
    
     return offline.iplot(fig, filename='annual_hourly_profiles')
 
-def plotSimilarityAnnualProfiles(customer_class, daytype, data):
+def plotProfileSimilarity(merged_hp, customer_class, daytype):
+    """
+    daytype = one of [Weekday, Saturday, Sunday]
+    """
     
-    return
+    d = merged_hp.loc[(merged_hp['daytype']==daytype) & (merged_hp['class']==customer_class)][['YearsElectrified', 'month', 'hour', 'Mean [kVA]', 'kva_mean', 'kva_std']]
+    d['tix'] = 12*24*(d.YearsElectrified-1) + 24*(d.month-1) + d.hour
+    d['tixnames'] = d.apply(lambda xd: 'Year '+str(int(xd.YearsElectrified))+
+        '<br />Month '+str(int(xd.month))+'<br />'+str(int(xd.hour))+'h00', axis=1)
+
+    trace0 = go.Scatter(
+        showlegend=False,
+        opacity=0,
+        x=d['tix'],
+        y=list([0]*len(d)),
+        mode='lines',
+        name='new-model',
+        line=dict(
+            color='black',
+            width=0.5),
+        text=d['tixnames'],
+        hoverinfo = 'text',
+        hoverlabel = dict(
+                bgcolor='white')
+        )
+    trace1 = go.Scatter(
+            x=d['tix'],
+            y=d['Mean [kVA]'],
+            fill= None,
+            mode='lines',
+            name='ex model mean',
+            line=dict(
+                    color='green'),
+            hoverinfo='y'
+            )
+    trace2 = go.Scatter(
+        x=d['tix'],
+        y=d['kva_mean'],
+        fill='tonexty',
+        fillcolor='rgb(255, 204, 255)',
+        mode='lines',
+        name='new model mean',
+        line=dict(
+            color='purple'),
+        hoverinfo='y'
+            )
+    trace3 = go.Scatter(
+        x=d['tix'],
+        y=d['kva_std'] + d['kva_mean'],
+        mode='lines',
+        name='new model std dev',
+        line=dict(
+            color='purple',
+            dash = 'dot'),
+        hoverinfo='none'
+            )
+    
+    y4 = [(y>0)*y for y in d['kva_mean'] - d['kva_std']]
+    trace4 = go.Scatter(
+        x=d['tix'],
+        y=y4,
+        mode='lines',
+        showlegend=False,
+        line=dict(
+            color='purple',
+            dash = 'dot'),
+        hoverinfo='none'
+            )
+    
+    data = [trace0, trace1, trace2, trace3, trace4]
+    
+    layout = go.Layout(showlegend=True, 
+                title=daytype + ' load profile model similarity for ' + customer_class + ' customers ',
+                margin = dict(t=150,r=150,b=50,l=150),
+                height = 400,
+                yaxis = dict(
+                        title = 'mean hourly demand (kVA)',
+                        ticksuffix=' kVA'),
+                xaxis = dict(                        
+                        title = 'time electrified (years)',
+                        ticktext = list(range(0, 16)),
+                        tickvals = np.arange(0, (15*12*24)+1, 12*24),
+                        rangeslider=dict(),)
+                        )
+    fig = go.Figure(data=data, layout=layout)
+    
+    return offline.iplot(fig, filename='profile-similarity')
+
+def plotDemandSimilarity(merged_ds):
+    """
+    daytype = one of [Weekday, Saturday, Sunday]
+    """
+    data = []
+    lay = []
+
+    #generate existing and new model traces for each customer subclass
+    count=1
+    for c in merged_ds['class'].unique():
+        d = merged_ds.loc[(merged_ds['class']==c)][['YearsElectrified','Energy [kWh]','M_kw_mean','M_kw_std']]
+
+        trace0 = go.Bar(
+                x=d['YearsElectrified'],
+                y=d['Energy [kWh]'],
+                xaxis='x'+str(count),
+                yaxis='y'+str(count),
+                marker=dict(
+                        color='green'),
+                name='ex-model'
+                )
+                
+        trace1 = go.Bar(
+            x=d['YearsElectrified'],
+            y=d['M_kw_mean'],            
+            name='new-model',
+            opacity=0.5
+            )
+        
+        lay.append({'yaxis{}'.format(count): go.YAxis(type = 'linear',
+                            title='annual mean monthly<br /> consumption (kWh)'),
+                    'xaxis{}'.format(count): go.XAxis(title = 'time electrified (years)',
+                            ticktext = list(range(0, d.YearsElectrified.max()+1)), 
+                            tickvals = np.arange(0, d.YearsElectrified.max()+1, 1))
+                     })
+ 
+        data.append(trace0)
+        data.append(trace1)
+        count+=1
+
+    #create subplot graph objects
+    rows = int(len(data)/2)
+    fig = py.tools.make_subplots(rows=rows, cols=1, subplot_titles=list(merged_ds['class'].unique()), horizontal_spacing = 0.1, print_grid=False)    
+
+    for i in list(range(0,len(data))):
+        r = floor(i/2)+1
+        fig.append_trace(data[i],r,1)
+
+    fig['layout'].update(showlegend=False, 
+                title='15 year annualised monthly demand model similarity',
+                barmode='stack')
+    
+    #update layout for all subplots
+    for k in range(0,rows):
+        fig['layout'].update(lay[k])
+                                
+    return offline.iplot(fig, filename='demand-similarity')

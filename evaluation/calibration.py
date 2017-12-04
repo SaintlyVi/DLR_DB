@@ -19,13 +19,13 @@ def generateDataModel(year, experiment_dir):
     
     pp = ts.getProfilePower(year)
     aggpp = ts.aggProfilePower(pp, 'M')
-#    md = ts.maxDemand(pp)
     amd = ts.annualIntervalDemand(aggpp)
     adtd = ts.aggDaytypeDemand(pp)
+    md = eh.observedMaxDemand(pp)
     ods = eh.observedDemandSummary(amd, year, experiment_dir)
     ohp = eh.observedHourlyProfiles(adtd, year, experiment_dir)
     
-    return ods, ohp, adtd, amd, aggpp, pp
+    return ods, ohp, md, adtd, amd, aggpp, pp
 
 def uncertaintyStats(submodel):
     """
@@ -78,24 +78,46 @@ def dataIntegrity(submodels, min_answerid, min_obsratio):
         
     return validmodels
 
-def modelSimilarity(old_submodel, old_ts, valid_new_submodel, new_ts, index_cols):
+def dpetModel():
     """
-    valid_new_submodel is output from dataIntegrity function -> only want to compare valid data
+    Fetch data for existing/expert DPET model.
     """
-    old_submodel.set_index(index_cols, inplace=True)
-    valid_new_submodel.set_index(index_cols, inplace=True)
+    hp = exc.expertHourlyProfiles()
+    ds = exc.expertDemandSummary()
+    dsts = 'Energy [kWh]'
+    hpts = 'Mean [kVA]'
     
-    slice_old_sub = old_submodel[old_submodel.index.isin(valid_new_submodel.index)]
-    simvec = valid_new_submodel[new_ts] - slice_old_sub[old_ts]
+    return ds, hp, dsts, hpts
+
+def modelSimilarity(ex_submodel, ex_ts, valid_new_submodel, new_ts, submod_type):
+    """
+    ex_submodel = (DataFrame) either existing/expert demand_summary or hourly_profiles submodel
+    valid_new_submodel = (DataFrame) output from dataIntegrity function 
+                            -> only want to compare valid data
+    submod_type = (str) one of [ds, hp] 
+                            -> ds=demand_summary, hp=hourly_profiles
+    """
+    
+    if submod_type == 'ds':
+        index_cols = ['class','YearsElectrified']
+    elif submod_type == 'hp':
+        index_cols = ['class','YearsElectrified','month','daytype','hour']
+    else:
+        return(print('Valid submod_type is one of [ds, hp] -> ds=demand_summary, hp=hourly_profiles.'))
+    
+    merged_sub = ex_submodel.merge(valid_new_submodel, on=index_cols)
+    simvec = merged_sub[new_ts] - merged_sub[ex_ts]
     simvec.dropna(inplace=True)
     simveccount = len(simvec)
     
     eucliddist = np.sqrt(sum(simvec**2))
     
-    return eucliddist, simveccount
+    return eucliddist, simveccount, merged_sub
 
-def logCalibration(year, experiment_dir, min_answerid = 2, min_obsratio = 0.85):
-
+def logCalibration(ex_model, year, experiment_dir, min_answerid = 2, min_obsratio = 0.85):
+    """
+    ex_model = [demand_summary, hourly_profiles, ds_val_col_name, hp_val_col_name]
+    """
     #Generate data model
     dm = generateDataModel(year, experiment_dir)
     ods = dm[0]
@@ -107,22 +129,18 @@ def logCalibration(year, experiment_dir, min_answerid = 2, min_obsratio = 0.85):
     validmodels = dataIntegrity([ods, ohp], min_answerid, min_obsratio)
     valid_new_ds = validmodels.at['demand_summary','valid_data']
     valid_new_hp = validmodels.at['hourly_profiles','valid_data']
-    
-    #Fetch expert model
-    exhp = exc.expertHourlyProfiles()
-    exds = exc.expertDemandSummary()
-    
-    #Calculate model similarity
-    indexhp = ['class','YearsElectrified','month','daytype','hour']
-    indexds = ['class','YearsElectrified']
-    
-    old_dsts = 'Energy [kWh]'
-    old_hpts = 'Mean [kVA]'
     new_dsts = 'M_kw_mean'
     new_hpts = 'kva_mean'
-
-    euclid_ds, count_ds = modelSimilarity(exds, old_dsts, valid_new_ds, new_dsts, indexds)
-    euclid_hp, count_hp = modelSimilarity(exhp, old_hpts, valid_new_hp, new_hpts, indexhp)
+    
+    #Fetch expert model
+    ex_ds = ex_model[0]
+    ex_hp = ex_model[1]
+    ex_dsts = ex_model[2]
+    ex_hpts = ex_model[3]
+    
+    #Calculate model similarity
+    euclid_ds, count_ds, slice_ex_ds = modelSimilarity(ex_ds, ex_dsts, valid_new_ds, new_dsts, 'ds')
+    euclid_hp, count_hp, sliced_ex_hp = modelSimilarity(ex_hp, ex_hpts, valid_new_hp, new_hpts, 'hp')
     
     #Prepare and write logs
     ds_uix = validmodels.at['demand_summary','uncertainty_index']

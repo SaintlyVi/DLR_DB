@@ -172,24 +172,6 @@ def aggProfilePower(profilepowerdata, interval):
 
     return aggprofile
 
-## TODO
-def maxDemand(profilepowerdata):
-    """
-    Check if this function makes sense.
-    """
-    
-    try:
-        maxdemand = profilepowerdata.iloc[profilepowerdata.reset_index().groupby(['AnswerID'])['Unitsread_kva'].idxmax()].reset_index(drop=True)
-        
-        maxdemand['month'] = maxdemand['Datefield'].dt.month
-        maxdemand['daytype'] = maxdemand['Datefield'].dt.dayofweek
-        maxdemand['hour'] = maxdemand['Datefield'].dt.hour
-                                 
-        return maxdemand[['AnswerID','RecorderID','Unitsread_i','month','daytype','hour']]
-    
-    except: 
-        print('Check if year is in range 2009 - 2014.')
-
 def annualIntervalDemand(aggprofilepowerdata):
     
     interval = aggprofilepowerdata.interval[0]
