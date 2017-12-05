@@ -12,7 +12,6 @@ import os
 
 import evaluation.evalhelpers as eh
 import features.ts as ts
-import expertmod.excore as exc
 from support import eval_dir
 
 def generateDataModel(year, experiment_dir):
@@ -21,7 +20,7 @@ def generateDataModel(year, experiment_dir):
     aggpp = ts.aggProfilePower(pp, 'M')
     amd = ts.annualIntervalDemand(aggpp)
     adtd = ts.aggDaytypeDemand(pp)
-    md = eh.observedMaxDemand(pp)
+    md = eh.observedMaxDemand(pp, year, experiment_dir)
     ods = eh.observedDemandSummary(amd, year, experiment_dir)
     ohp = eh.observedHourlyProfiles(adtd, year, experiment_dir)
     
@@ -77,17 +76,6 @@ def dataIntegrity(submodels, min_answerid, min_obsratio):
     validmodels.set_index('submodel_name', drop=True, inplace=True)
         
     return validmodels
-
-def dpetModel():
-    """
-    Fetch data for existing/expert DPET model.
-    """
-    hp = exc.expertHourlyProfiles()
-    ds = exc.expertDemandSummary()
-    dsts = 'Energy [kWh]'
-    hpts = 'Mean [kVA]'
-    
-    return ds, hp, dsts, hpts
 
 def modelSimilarity(ex_submodel, ex_ts, valid_new_submodel, new_ts, submod_type):
     """
