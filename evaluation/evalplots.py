@@ -8,6 +8,8 @@ Created on Mon Dec  4 12:17:34 2017
 import pandas as pd    
 import numpy as np
 from math import ceil, floor
+import colorlover as cl
+from scipy import stats
 
 import plotly.offline as offline
 import plotly.graph_objs as go
@@ -20,6 +22,8 @@ def plotAnswerIDCount(submodel):
 
     data = []
     yrs = list(range(1,16))
+    clrs = ['Greens','RdPu','Blues','YlOrRd','Purples','Reds', 'Greys']
+    i = 0
     
     #Get mean AnswerID count for number of years electrified
     for c in submodel['class'].unique():
@@ -31,9 +35,11 @@ def plotAnswerIDCount(submodel):
         trace = go.Bar(
                 x=yrs,
                 y=t['AnswerID_count'],
-                name=c
+                name=c,
+                marker=dict(color=cl.flipper()['seq']['3'][clrs[i]][1])
                 )
         data.append(trace)
+        i+=1
     
     layout = go.Layout(
                 barmode='stack',
@@ -206,7 +212,7 @@ def plotProfileSimilarity(merged_hp, customer_class, daytype):
         x=d['tix'],
         y=list([0]*len(d)),
         mode='lines',
-        name='new-model',
+        name='data-model',
         line=dict(
             color='black',
             width=0.5),
@@ -220,7 +226,7 @@ def plotProfileSimilarity(merged_hp, customer_class, daytype):
             y=d['Mean [kVA]'],
             fill= None,
             mode='lines',
-            name='ex model mean',
+            name='benchmark mean',
             line=dict(
                     color='green'),
             hoverinfo='y'
@@ -231,7 +237,7 @@ def plotProfileSimilarity(merged_hp, customer_class, daytype):
         fill='tonexty',
         fillcolor='rgb(255, 204, 255)',
         mode='lines',
-        name='new model mean',
+        name='data model mean',
         line=dict(
             color='purple'),
         hoverinfo='y'
@@ -240,7 +246,7 @@ def plotProfileSimilarity(merged_hp, customer_class, daytype):
         x=d['tix'],
         y=d['kva_std'] + d['kva_mean'],
         mode='lines',
-        name='new model std dev',
+        name='data model std dev',
         line=dict(
             color='purple',
             dash = 'dot'),
@@ -283,28 +289,106 @@ def plotDemandSimilarity(merged_ds):
     daytype = one of [Weekday, Saturday, Sunday]
     """
     data = []
+    trcs = len(merged_ds['class'].unique())
+    clrs = ['Greens','RdPu','Blues','YlOrRd','Purples','Reds', 'Greys']
+
+    #generate existing and new model traces for each customer subclass
+    count=0
+    for c in merged_ds['class'].unique():
+        d = merged_ds.loc[(merged_ds['class']==c)][['YearsElectrified','Energy [kWh]','M_kw_mean','M_kw_std']]
+        
+        wx = 0.8/trcs
+        ox = -wx*(count)
+        slope, intercept, r_value, p_value, std_err = stats.linregress(d['YearsElectrified'].values, d['M_kw_mean'].values)
+        line = slope*d['YearsElectrified'].values+intercept
+
+        trace0 = go.Bar(
+                x=d['YearsElectrified'].values,
+                y=d['Energy [kWh]'].values,
+                marker=dict(
+                        color=cl.flipper()['seq']['3'][clrs[count]][-1]),
+                name=c + ' benchmark',
+                opacity=0.6,
+                width = wx,
+                offset = ox,
+                )
+                
+        trace1 = go.Bar(
+            x=d['YearsElectrified'].values,
+            y=d['M_kw_mean'].values,            
+            name=c + ' data model',
+            marker=dict(
+                    color=cl.flipper()['seq']['3'][clrs[count]][1]), 
+            width = wx,
+            offset = ox,            
+            )
+        
+        trace2 = go.Scatter(
+                    x=d['YearsElectrified'].values,
+                    y=line,
+                    mode='lines',
+                    line=dict(color=cl.flipper()['seq']['3'][clrs[count]][1], 
+                                     width=3),
+                    name=c + ' data lin_reg'
+            )
+ 
+        data.append(trace1)
+        data.append(trace2)
+        data.append(trace0)
+        count+=1
+    
+    layout = go.Layout(
+                    title='Annual mean monthly demand model similarity',
+                    xaxis = dict(title='time electrified (years)',
+                        tickvals = list(range(1,16))),
+                    yaxis = dict(title='annual mean monthly consumption (kWh)')
+                    )
+    fig = go.Figure(data=data, layout=layout)
+                                
+    return offline.iplot(fig, filename='demand-similarity')
+
+def multiplotDemandSimilarity(merged_ds):
+    """
+    daytype = one of [Weekday, Saturday, Sunday]
+    """
+    data = []
     lay = []
+    clrs = ['Greens','RdPu','Blues','YlOrRd','Purples','Reds', 'Greys']
+
 
     #generate existing and new model traces for each customer subclass
     count=1
     for c in merged_ds['class'].unique():
         d = merged_ds.loc[(merged_ds['class']==c)][['YearsElectrified','Energy [kWh]','M_kw_mean','M_kw_std']]
 
+        slope, intercept, r_value, p_value, std_err = stats.linregress(d['YearsElectrified'].values, d['M_kw_mean'].values)
+        line = slope*d['YearsElectrified'].values+intercept
+        
         trace0 = go.Bar(
-                x=d['YearsElectrified'],
-                y=d['Energy [kWh]'],
+                x=d['YearsElectrified'].values,
+                y=d['Energy [kWh]'].values,
                 xaxis='x'+str(count),
                 yaxis='y'+str(count),
                 marker=dict(
-                        color='green'),
-                name='ex-model'
+                        color=cl.flipper()['seq']['3'][clrs[count-1]][-1]),
+                name=c + ' benchmark',
                 )
                 
         trace1 = go.Bar(
-            x=d['YearsElectrified'],
-            y=d['M_kw_mean'],            
-            name='new-model',
-            opacity=0.5
+            x=d['YearsElectrified'].values,
+            y=d['M_kw_mean'].values,            
+            name=c + ' data model',
+            marker=dict(
+                    color=cl.flipper()['seq']['3'][clrs[count-1]][1]), 
+            )
+        
+        trace2 = go.Scatter(
+            x=d['YearsElectrified'].values,
+            y=line,
+            mode='lines',
+            line=dict(color=cl.flipper()['seq']['3'][clrs[count-1]][1], 
+                             width=3),
+            name=c + ' data lin_reg'
             )
         
         lay.append({'yaxis{}'.format(count): go.YAxis(type = 'linear',
@@ -314,46 +398,52 @@ def plotDemandSimilarity(merged_ds):
                             tickvals = np.arange(0, d.YearsElectrified.max()+1, 1))
                      })
  
-        data.append(trace0)
         data.append(trace1)
+        data.append(trace2)
+        data.append(trace0)
         count+=1
 
     #create subplot graph objects
-    rows = int(len(data)/2)
+    rows = int(len(data)/3)
     fig = py.tools.make_subplots(rows=rows, cols=1, subplot_titles=list(merged_ds['class'].unique()), horizontal_spacing = 0.1, print_grid=False)    
 
     for i in list(range(0,len(data))):
-        r = floor(i/2)+1
+        r = floor(i/3)+1
         fig.append_trace(data[i],r,1)
 
-    fig['layout'].update(showlegend=False, 
-                title='15 year annualised monthly demand model similarity',
-                barmode='stack')
+    fig['layout'].update(
+                title='Annual mean monthly demand model similarity')
     
     #update layout for all subplots
     for k in range(0,rows):
         fig['layout'].update(lay[k])
                                 
-    return offline.iplot(fig, filename='demand-similarity')
+    return offline.iplot(fig, filename='multiplot-demand-similarity')
 
 def plotMaxDemandSpread(md):
 
-    data = []
+    table = pd.pivot_table(md, values='Unitsread_kva', index=['month','hour'],aggfunc='count')
+    table.reset_index(inplace=True)
     
-    for c in md['class'].unique():
-        d = md[md['class']==c]
-        trace = dict(
-            type = 'scatter',
-            x=d['month'],
-            y=d['hour'],
-            mode = 'markers', 
-            name = c,
-            marker = dict(size = d['Unitsread_kva']*3)
-            )
+    data = [go.Heatmap(
+        x=table['month'],
+        y=table['hour'], 
+        z = table['Unitsread_kva'],
+        colorscale=[[0.0, cl.flipper()['seq']['3']['Oranges'][0]],
+                    [1.0, cl.flipper()['seq']['3']['Oranges'][-1]]]
+        )]
     
-        data.append(trace)
-    
-    return offline.iplot({'data': data}, filename='max-demand-spread')
+    layout = go.Layout(
+                title = 'Spread of occurence of maximum demand for all households',
+                xaxis = dict(title='month',
+                                tickvals = list(range(1,13))),
+                yaxis = dict(title='hour',
+                             tickvals = list(range(1,25)))
+                )
+                
+    fig = go.Figure(data=data, layout=layout)
+
+    return offline.iplot(fig, filename='max-demand-spread')
 
 def plotMonthlyMaxDemand(md):
 
