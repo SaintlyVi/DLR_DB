@@ -65,7 +65,9 @@ def dpetModel():
 
 
 def observedMaxDemand(profilepowerdata, year, experiment_dir):
-    
+    """
+    This function selects the maximum demand in kVA for each Answer ID in a year and returns it with its time of occurence.    
+    """
     try:
         try:
             maxdemand = profilepowerdata.iloc[profilepowerdata.reset_index().groupby(['AnswerID'])['Unitsread_kva'].idxmax()].reset_index(drop=True)
@@ -88,7 +90,12 @@ def observedMaxDemand(profilepowerdata, year, experiment_dir):
         print('No classes inferred for '+ str(year))
 
 def observedDemandSummary(annual_monthly_demand_data, year, experiment_dir):
-
+    """
+        This function generates a demand summary model based on a year of data.
+        The model contains aggregate hourly kW readings for the factors:
+        Customer Class
+        Years Electrified
+    """
     interval = annual_monthly_demand_data.interval[0]
     
     try:
@@ -127,11 +134,12 @@ def observedDemandSummary(annual_monthly_demand_data, year, experiment_dir):
 def observedHourlyProfiles(aggdaytype_demand_data, year, experiment_dir):
     """
     This function generates an hourly load profile model based on a year of data. 
-    The model contains aggregate hourly kw readings for the parameters:
+    The model contains aggregate hourly kVA readings for the factors:
         Customer Class
         Month
         Daytype [Weekday, Sunday, Monday]
         Hour
+        Years Electrified
     """
     
     try:

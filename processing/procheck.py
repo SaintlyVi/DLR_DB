@@ -36,8 +36,7 @@ def shapeProfiles(year, unit):
 def nanAnalysis(year, unit, threshold = 0.95):
     """
     This function displays information about the missing values for all customers in a load profile unit year.
-    shapedprofile is a dataframe that has been created with shapeProfiles.
-    threshold 
+    threshold - float between 0 and 1: user defined value that specifies the percentage of observed hours that must be valid for the profile to be considered useable.
     
     The function returns:
         * two plots with summary statistics of all profiles

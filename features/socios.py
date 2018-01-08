@@ -17,7 +17,7 @@ tables = loadTables()
 
 def loadID(year = None, id_name = 'AnswerID'):
     """
-    This function subsets Answer or Profile IDs by year. Tables variable can be constructred with loadTables() function. Year input can be number or string. id_name is AnswerID or ProfileID.
+    This function subsets Answer or Profile IDs by year. Tables variable can be constructred with loadTables() function. Year input can be number or string. id_name is AnswerID or ProfileID. 
     """
     groups = tables.get('groups')
     links = tables.get('links')

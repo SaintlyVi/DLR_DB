@@ -15,7 +15,9 @@ import features.ts as ts
 from support import eval_dir
 
 def generateDataModel(year, experiment_dir):
-    
+    """
+    This function generates the experimental model from observations.
+    """
     pp = ts.getProfilePower(year)
     aggpp = ts.aggProfilePower(pp, 'M')
     amd = ts.annualIntervalDemand(aggpp)
@@ -79,6 +81,8 @@ def dataIntegrity(submodels, min_answerid, min_obsratio):
 
 def modelSimilarity(ex_submodel, ex_ts, valid_new_submodel, new_ts, submod_type):
     """
+    This function calcualtes the evaluation measure for the run.
+    
     ex_submodel = (DataFrame) either existing/expert demand_summary or hourly_profiles submodel
     valid_new_submodel = (DataFrame) output from dataIntegrity function 
                             -> only want to compare valid data
@@ -104,6 +108,8 @@ def modelSimilarity(ex_submodel, ex_ts, valid_new_submodel, new_ts, submod_type)
 
 def logCalibration(ex_model, year, experiment_dir, min_answerid = 2, min_obsratio = 0.85):
     """
+    This function logs the evaluation results of the run.
+    
     ex_model = [demand_summary, hourly_profiles, ds_val_col_name, hp_val_col_name]
     """
     #Generate data model

@@ -15,17 +15,23 @@ from pathlib import Path
 
 from support import rawprofiles_dir, hourlyprofiles_dir, table_dir
 
-def reduceRawProfiles(year, unit):
+def reduceRawProfiles(year, unit, interval):
     """
     This function uses a rolling window to reduce all raw load profiles to hourly mean values. Monthly load profiles are then concatenated into annual profiles and returned as a dictionary object.
-    The data is structured as follows:
-        dict[unit:{year:[list_of_profile_ts]}]
+    The data is structured as dict[unit:{year:[list_of_profile_ts]}]
     
     """
     p = Path(os.path.join(rawprofiles_dir, str(year)))
     
+    #set resampling interval
+    if interval is None:
+        i = 'H'
+    else:
+        i = interval
+    
     #initialise empty dataframe to concatenate annual timeseries
     ts = pd.DataFrame()
+
     #iterate through all data files to combine 5min monthly into hourly reduced annual timeseries
     for child in p.iterdir():  
         try:
@@ -35,7 +41,7 @@ def reduceRawProfiles(year, unit):
             data['Valid'] = data['Valid'].map(lambda x: x.strip()).map({'Y':1, 'N':0})
             data['Valid'].fillna(0, inplace=True)
             if unit in ['A','V','Hz','kVA','kW']:
-                hourlydata = data.groupby(['RecorderID', 'ProfileID']).resample('H', on='Datefield').mean()
+                hourlydata = data.groupby(['RecorderID', 'ProfileID']).resample(i, on='Datefield').mean()
             else:
                 print("Unit must be one of 'A', 'V', 'kVA', 'Hz', 'kW'")
             hourlydata.reset_index(inplace=True)
@@ -49,11 +55,9 @@ def reduceRawProfiles(year, unit):
         
     return ts
 
-def saveRawProfiles(year):
+def saveReducedProfiles(year, interval=None):
     """
-    This function uses a rolling window to reduce all raw load profiles to hourly mean values. Monthly load profiles are then concatenated into annual profiles and returned as a dictionary object.
-    The data is structured as follows:
-        dict[unit:{year:[list_of_profile_ts]}]
+    This function iterates through profile units, reduces all profiles with reduceRawProfiles() and saves the result as a feather object in a directory tree.
     
     """
     for unit in ['A', 'V', 'kVA', 'Hz', 'kW']:
@@ -63,7 +67,8 @@ def saveRawProfiles(year):
         os.makedirs(dir_path, exist_ok=True)
     
         ts = reduceRawProfiles(year, unit)
-    #write to reduced data to file
+        
+        #write to reduced data to file
         if ts.empty:
             pass
         else:
@@ -77,7 +82,8 @@ def loadProfiles(year, unit):
     This function loads a year's hourly unit profiles into a dataframe and returns it together with the year and unit concerned.
     
     """
-    data = feather.read_dataframe(os.path.join(hourlyprofiles_dir, unit, str(year) + '_' + unit + '.feather')) #load data
+    #load data
+    data = feather.read_dataframe(os.path.join(hourlyprofiles_dir, unit, str(year) + '_' + unit + '.feather'))
     data.drop_duplicates(inplace=True)
     
     return data, year, unit
@@ -104,9 +110,11 @@ def csvTables(savepath):
     """
     This function fetches tables saved as feather objects and saves them as csv files.
     """
-    
-    tables = loadTables() #get data
-    filenames = [os.path.join(savepath, x + '.csv') for x in list(tables.keys())] #generate list of filenames
+    #get data
+    tables = loadTables()
+
+    #generate list of filenames
+    filenames = [os.path.join(savepath, x + '.csv') for x in list(tables.keys())]
     
     for name, path in zip(list(tables.keys()), filenames):
         df = tables[name]

@@ -77,6 +77,9 @@ def aggTs(year, unit, interval, locstring=None):
     return aggregated
 
 def getProfilePower(year):
+    """
+    This function retrieves and computes kW and kVA readings for all profiles in a year.
+    """
     #get list of AnswerIDs in variable year
     a_id = socios.loadID(year, id_name = 'AnswerID')
     
@@ -115,7 +118,7 @@ def getProfilePower(year):
         kwprofile = loadProfiles(year, 'kW')[0] #get kW readings
         kwprofile['matchcol'] = kwprofile['ProfileID'] - 3 #UoM = 5, ChannelNo = 5, 9, 13
 
-        kvaprofile = loadProfiles(year, 'kVA')[0] #get kW readings
+        kvaprofile = loadProfiles(year, 'kVA')[0] #get kVA readings
         kvaprofile['matchcol'] = kvaprofile['ProfileID'] - 2 #UoM = 4, ChannelNo = 4, 8 or 12        
         kvaprofile.drop(columns='RecorderID',inplace=True)
         
@@ -173,6 +176,9 @@ def aggProfilePower(profilepowerdata, interval):
     return aggprofile
 
 def annualIntervalDemand(aggprofilepowerdata):
+    """
+    This function computes the mean annual power consumption for the interval aggregated in aggprofilepowerdata.
+    """
     
     interval = aggprofilepowerdata.interval[0]
     
