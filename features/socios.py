@@ -11,7 +11,7 @@ Answer query script: This script contains functions to query and manipulate DLR 
 
 import numpy as np
 import pandas as pd
-from processing.procore import loadTables
+from observations.obs_processing import loadTables
 
 tables = loadTables()
 
@@ -83,14 +83,6 @@ def searchQuestions(searchterm = '', qnairid = None, dtype = None):
         return print('Please select a valid QuestionaireID', qnairids)
     result = qdf.loc[qdf.Question.str.lower().str.contains('|'.join(searchterm)), ['Question', 'Datatype','QuestionaireID', 'ColumnNo', 'Lower', 'Upper']]
     return result
-
-def typeSplitQuestions(qnid = 3):
-    """
-    Creates a dict with items containing questions by type (num, blob, char).
-    
-    """
-    d = {i : searchQuestions(qnairid = qnid, dtype=i) for i in ['num','blob','char']}
-    return d
 
 def searchAnswers(searchterm = '', qnairid = 3, dtype = 'num'):
     """
