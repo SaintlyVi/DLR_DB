@@ -14,14 +14,14 @@ from observations.obs_retrieval import saveTables, saveAnswers, saveRawProfiles
 
 parser = optparse.OptionParser()
 
-parser.add_option('-c', '--cnxn', dest='cnxn', help='Database connection filename')
+parser.add_option('-c', '--cnxn', dest='cnxn', default='cnxnstr.txt', help='Database connection filename')
 parser.add_option('-t', '--tables', action='store_true', dest='tables', help='Save tables to disk')
 parser.add_option('-a', '--answers', action='store_true', dest='answers', help='Save answers to disk')
 parser.add_option('-p', '--profiles', action='store_true', dest='profiles', help='Save profiles to disk')
-parser.add_option('-s', '--startyear', dest='startyear', help='Start year for profile data retrieval')
-parser.add_option('-e', '--endyear', dest='endyear', help='End year for profile data retrieval')
+parser.add_option('-s', '--startyear', dest='startyear', type=int, help='Start year for profile data retrieval')
+parser.add_option('-e', '--endyear', dest='endyear', type=int, help='End year for profile data retrieval')
 
-parser.set_defaults(default='cnxnstr.txt', tables=False, answers=False, profiles=False)
+parser.set_defaults(tables=False, answers=False, profiles=False)
 
 (options, args) = parser.parse_args()
     
@@ -33,7 +33,9 @@ if options.answers == True:
 
 if options.profiles == True:
     if options.startyear is None:
-        options.startyear = int(input('Enter observation start year:'))
+        options.startyear = int(input('Enter observation start year: '))
     if options.endyear is None:
-        options.endyear = int(input('Enter observation end year:'))
+        options.endyear = int(input('Enter observation end year: '))
     saveRawProfiles(options.startyear, options.endyear, options.cnxn)
+    
+print('>>>script end<<<')
