@@ -81,6 +81,7 @@ def searchQuestions(searchterm = '', qnairid = None, dtype = None):
         qdf = qdf[qdf.QuestionaireID == qnairid] #subset dataframe to relevant ID
     else:
         return print('Please select a valid QuestionaireID', qnairids)
+    
     result = qdf.loc[qdf.Question.str.lower().str.contains('|'.join(searchterm)), ['Question', 'Datatype','QuestionaireID', 'ColumnNo', 'Lower', 'Upper']]
     return result
 
@@ -110,6 +111,7 @@ def buildFeatureFrame(searchlist, year):
             d, q = searchAnswers(s, qnairid = 6, dtype = 'num')
         else:
             d, q = searchAnswers(s, qnairid = 3, dtype = 'num')
+            d.columns = ['AnswerID', s]
         q['searchterm'] = s
         newdata = d[d.AnswerID.isin(data.AnswerID)]
         data = pd.merge(data, newdata, on = 'AnswerID')

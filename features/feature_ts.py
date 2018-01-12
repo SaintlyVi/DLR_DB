@@ -31,13 +31,13 @@ process
 import pandas as pd
 import numpy as np
 
-import features.socios as socios
-from processing.procore import loadProfiles, loadTables
+import features.feature_socios as socios
+from observations.obs_processing import loadProfiles, loadTables
 
 tables = loadTables()
 
 #investigating one location
-def aggTs(year, unit, interval, locstring=None):
+def aggTs(year, unit, interval, dir_name='H', locstring=None):
     """
     This function returns the aggregated mean or total load profile for all ProfileIDs for a year in a given location.
     Use socios.recorderLocations() to get locstrings for locations of interest. 
@@ -48,7 +48,7 @@ def aggTs(year, unit, interval, locstring=None):
     """
     #load data
     try:
-        data = loadProfiles(year, unit)[0]
+        data = loadProfiles(year, unit, dir_name)[0]
         data['ProfileID'] = data['ProfileID'].astype('category')
         data.set_index('Datefield', inplace=True)
         
@@ -76,7 +76,7 @@ def aggTs(year, unit, interval, locstring=None):
     
     return aggregated
 
-def getProfilePower(year):
+def getProfilePower(year, dir_name='H'):
     """
     This function retrieves and computes kW and kVA readings for all profiles in a year.
     """
@@ -95,8 +95,8 @@ def getProfilePower(year):
     VI_profile_meta = profile_meta.loc[(profile_meta['Unit of measurement'] == 2), :] #select current profiles only
         
     #get profile data for year
-    iprofile = loadProfiles(year, 'A')[0]    
-    vprofile = loadProfiles(year, 'V')[0]
+    iprofile = loadProfiles(year, 'A', dir_name)[0]    
+    vprofile = loadProfiles(year, 'V', dir_name)[0]
     
     if year <= 2009: #pre-2009 recorder type is set up so that up to 12 current profiles share one voltage profile
         #get list of ProfileIDs in variable year
@@ -115,10 +115,10 @@ def getProfilePower(year):
         power_temp = vprofile.merge(iprofile, left_on=['matchcol', 'Datefield'], right_on=['ProfileID','Datefield'], suffixes=['_v', '_i'])
         power_temp.drop(['RecorderID_v','RecorderID_i', 'matchcol'], axis=1, inplace=True)
 
-        kwprofile = loadProfiles(year, 'kW')[0] #get kW readings
+        kwprofile = loadProfiles(year, 'kW', dir_name)[0] #get kW readings
         kwprofile['matchcol'] = kwprofile['ProfileID'] - 3 #UoM = 5, ChannelNo = 5, 9, 13
 
-        kvaprofile = loadProfiles(year, 'kVA')[0] #get kVA readings
+        kvaprofile = loadProfiles(year, 'kVA', dir_name)[0] #get kVA readings
         kvaprofile['matchcol'] = kvaprofile['ProfileID'] - 2 #UoM = 4, ChannelNo = 4, 8 or 12        
         kvaprofile.drop(columns='RecorderID',inplace=True)
         

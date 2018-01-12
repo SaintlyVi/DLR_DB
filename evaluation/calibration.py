@@ -10,23 +10,8 @@ import numpy as np
 import datetime as dt
 import os
 
-import evaluation.evalhelpers as eh
-import features.ts as ts
+from experiment.experimental_model import experimentalModel
 from support import eval_dir
-
-def generateDataModel(year, experiment_dir):
-    """
-    This function generates the experimental model from observations.
-    """
-    pp = ts.getProfilePower(year)
-    aggpp = ts.aggProfilePower(pp, 'M')
-    amd = ts.annualIntervalDemand(aggpp)
-    adtd = ts.aggDaytypeDemand(pp)
-    md = eh.observedMaxDemand(pp, year, experiment_dir)
-    ods = eh.observedDemandSummary(amd, year, experiment_dir)
-    ohp = eh.observedHourlyProfiles(adtd, year, experiment_dir)
-    
-    return ods, ohp, md, adtd, amd, aggpp, pp
 
 def uncertaintyStats(submodel):
     """
@@ -113,7 +98,7 @@ def logCalibration(ex_model, year, experiment_dir, min_answerid = 2, min_obsrati
     ex_model = [demand_summary, hourly_profiles, ds_val_col_name, hp_val_col_name]
     """
     #Generate data model
-    dm = generateDataModel(year, experiment_dir)
+    dm = experimentalModel(year, experiment_dir)
     ods = dm[0]
     ohp = dm[1]
     

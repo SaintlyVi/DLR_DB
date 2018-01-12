@@ -38,4 +38,4 @@ if options.profiles == True:
         options.endyear = int(input('Enter observation end year: '))
     saveRawProfiles(options.startyear, options.endyear, options.cnxn)
     
-print('>>>script end<<<')
+print('>>>obsSave end<<<')

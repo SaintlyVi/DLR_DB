@@ -12,18 +12,17 @@ from pathlib import Path
 dlrdb_dir = str(Path(__file__).parents[0])
 
 # level 1
-classmodel_dir = os.path.join(dlrdb_dir, 'classmod')
+experimental_model_dir = os.path.join(dlrdb_dir, 'experiment')
 obs_dir = os.path.join(dlrdb_dir, 'observations')
+feature_dir = os.path.join(dlrdb_dir, 'features')
 data_dir = os.path.join(dlrdb_dir, 'data')
 eval_dir = os.path.join(dlrdb_dir, 'evaluation')
 image_dir = os.path.join(dlrdb_dir, 'images')
 
 # level 2 & 3 DATA
-rawprofiles_dir = os.path.join(data_dir, 'profiles', 'raw')
-hourlyprofiles_dir = os.path.join(data_dir, 'profiles', 'hourly')
-table_dir = os.path.join(data_dir, 'tables')
-dpet_dir = os.path.join(data_dir, 'dpet')
-
-# level 2 & 3 INFERENCE
-evidence_dir = os.path.join(classmodel_dir, 'evidence')
-classout_dir = os.path.join(classmodel_dir, 'out')
+dpet_dir = os.path.join(data_dir, 'benchmark_model', 'dpet')
+table_dir = os.path.join(data_dir, 'obs_datasets', 'tables')
+profiles_dir = os.path.join(data_dir, 'obs_datasets', 'profiles')
+rawprofiles_dir = os.path.join(profiles_dir, 'raw')
+fdata_dir = os.path.join(data_dir, 'feature_data')
+cdata_dir = os.path.join(dlrdb_dir, 'class_data')
