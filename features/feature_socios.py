@@ -11,7 +11,9 @@ Answer query script: This script contains functions to query and manipulate DLR 
 
 import numpy as np
 import pandas as pd
+
 from observations.obs_processing import loadTables
+from support import validYears
 
 tables = loadTables()
 
@@ -24,7 +26,8 @@ def loadID(year = None, id_name = 'AnswerID'):
     all_ids = links[(links.GroupID != 0) & (links[id_name] != 0)]
     if year is None:
         ids = pd.Series(all_ids.loc[:, id_name].unique())
-    else:      
+    else:   
+        validYears(year) #check if year input is valid
         stryear = str(year)
         id_select = groups[groups.Year==stryear]['GroupID']
         ids = pd.Series(all_ids.loc[all_ids.GroupID.isin(id_select), id_name].unique())
@@ -118,7 +121,7 @@ def buildFeatureFrame(searchlist, year):
         questions = pd.concat([questions, q])
     questions.reset_index(drop=True, inplace=True)
         
-    return [data, questions]
+    return data, questions
 
 def checkAnswer(answerid, features):
     """

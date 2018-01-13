@@ -89,7 +89,7 @@ def modelSimilarity(ex_submodel, ex_ts, valid_new_submodel, new_ts, submod_type)
     
     return eucliddist, simveccount, merged_sub
 
-def logCalibration(ex_model, year, experiment_dir, min_answerid = 2, min_obsratio = 0.85):
+def logCalibration(bm_model, year, experiment_dir, min_answerid = 2, min_obsratio = 0.85):
     """
     This function logs the evaluation results of the run.
     
@@ -109,15 +109,15 @@ def logCalibration(ex_model, year, experiment_dir, min_answerid = 2, min_obsrati
     new_dsts = 'M_kw_mean'
     new_hpts = 'kva_mean'
     
-    #Fetch expert model
-    ex_ds = ex_model[0]
-    ex_hp = ex_model[1]
-    ex_dsts = ex_model[2]
-    ex_hpts = ex_model[3]
+    #Fetch benchmark model
+    bm_ds = bm_model[0]
+    bm_hp = bm_model[1]
+    bm_dsts = bm_model[2]
+    bm_hpts = bm_model[3]
     
     #Calculate model similarity
-    euclid_ds, count_ds, slice_ex_ds = modelSimilarity(ex_ds, ex_dsts, valid_new_ds, new_dsts, 'ds')
-    euclid_hp, count_hp, sliced_ex_hp = modelSimilarity(ex_hp, ex_hpts, valid_new_hp, new_hpts, 'hp')
+    euclid_ds, count_ds, slice_ex_ds = modelSimilarity(bm_ds, bm_dsts, valid_new_ds, new_dsts, 'ds')
+    euclid_hp, count_hp, sliced_ex_hp = modelSimilarity(bm_hp, bm_hpts, valid_new_hp, new_hpts, 'hp')
     
     #Prepare and write logs
     ds_uix = validmodels.at['demand_summary','uncertainty_index']

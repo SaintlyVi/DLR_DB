@@ -19,7 +19,7 @@ import plotly as py
 from plotly.offline import offline
 import plotly.graph_objs as go
 
-from support import rawprofiles_dir, profiles_dir, table_dir
+from support import rawprofiles_dir, profiles_dir, table_dir, writeLog, validYears
 
 def reduceRawProfiles(year, unit, interval):
     """
@@ -27,6 +27,7 @@ def reduceRawProfiles(year, unit, interval):
     The data is structured as dict[unit:{year:[list_of_profile_ts]}]
     
     """
+    validYears(year) #check if year input is valid
     p = Path(os.path.join(rawprofiles_dir, str(year)))
     
     #initialise empty dataframe to concatenate annual timeseries
@@ -76,6 +77,11 @@ def saveReducedProfiles(yearstart, yearend, interval):
                 wpath = os.path.join(dir_path, str(year) + '_' + unit + '.feather')
                 feather.write_dataframe(ts, wpath)
                 print('Write success')
+    
+    logline = [yearstart, yearend, interval]
+    log_lines = pd.DataFrame([logline], columns = ['from_year','to_year', 'resample_interval'])
+    writeLog(log_lines,'log_reduce_profiles')
+
     return
 
 def loadProfiles(year, unit, dir_name):
@@ -83,6 +89,8 @@ def loadProfiles(year, unit, dir_name):
     This function loads a year's unit profiles from the dir_name in profiles directory into a dataframe and returns it together with the year and unit concerned.
     
     """
+    validYears(year) #check if year input is valid
+    
     #load data
     data = feather.read_dataframe(os.path.join(profiles_dir, dir_name, unit,
                                                str(year)+'_'+unit+'.feather'))

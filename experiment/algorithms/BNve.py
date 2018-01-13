@@ -18,13 +18,13 @@ from libpgm.nodedata import NodeData
 from libpgm.discretebayesiannetwork import DiscreteBayesianNetwork
 from libpgm.tablecpdfactorization import TableCPDFactorization
 
-from support import fdata_dir, experimental_model_dir, cdata_dir
+from support import fdata_dir, experiment_dir, cdata_dir, InputError, writeLog, validYears
 
 def loadbn(param_file):
     """
     This function loads the bn model into the workspace from its associated .txt file.
     """
-    file_path = os.path.join(experimental_model_dir, 'parameters', param_file + '.txt')
+    file_path = os.path.join(experiment_dir, 'parameters', param_file + '.txt')
     
     nd = NodeData()
     skel = GraphSkeleton()
@@ -38,18 +38,22 @@ def readEvidence(year, dir_name):
     """
     This function reads the data from an evidence file saved in the evidence directory. The naming convention for the file is `bn_evidence_(year).txt`. The function returns a list of evidence dicts and a list of corresponding AnswerIDs.
     """
+    
+    validYears(year) #check if year input is valid
+    
     dir_path = os.path.join(fdata_dir, dir_name)
     file_name = [s for s in os.listdir(dir_path) if str(year) in s][0]
     file_path = os.path.join(dir_path, file_name)
     
     with open(file_path, 'r') as f:
         data = json.load(f)
-    for c in data.columns: #remove nan as BN inference cannot deal with them
-        data[c].replace(np.nan, '', regex=True, inplace=True)
-    answerid = list(data.keys())
-    evidence = list(data.values())
-    
-    return evidence, answerid
+    if data is None:
+        raise InputError(year, 'No evidence data available for this year')
+    else:
+        answerid = list(data.keys())
+        evidence = list(data.values())
+        
+        return evidence, answerid
 
 def inferCustomerClasses(param_file, evidence_dir, year):
     """
@@ -82,25 +86,44 @@ def inferCustomerClasses(param_file, evidence_dir, year):
     
     return result
 
-def classes2csv(yearstart, yearend, param_file, evidence_dir):
+def saveClasses(yearstart, yearend, param_file, evidence_dir):
     """
     This function saves the inferred class for each AnswerID in a csv file. 
     Requires a dataframe created with inferCustomerClasses() as input.
     """
     
+    loglines = []
+    
     for year in range(yearstart, yearend + 1):
-        classes = inferCustomerClasses(param_file, evidence_dir, year)
         
         try:
-            inferredclass = classes.idxmax(axis=1)            
             dir_path = os.path.join(cdata_dir, param_file)
             os.makedirs(dir_path , exist_ok=True)
-            file_path = os.path.join(dir_path, 'classes'+year+'.txt')  
+            file_path = os.path.join(dir_path, 'classes_'+str(year)+'.csv')  
+
+            classes = inferCustomerClasses(param_file, evidence_dir, year)
+            inferredclass = classes.idxmax(axis=1)                        
             
-            inferredclass.to_csv(file_path)            
-            print('Successfully saved to' + file_path)            
-        except:
-            print('Could not save file.')       
+            status = 1      
+            message = 'Success!'
+            print('Success! Saving to class_data/' + param_file + '/classes_'+str(year)+'.csv' )            
+
+        except InputError as e:
+            pass
+            inferredclass = pd.DataFrame()
+            status = 0 
+            message = e.message
+            print(e)
+            print('Saving empty file') 
+
+        inferredclass.to_csv(file_path)
+                       
+        l = ['classInference', year, status, message, param_file, evidence_dir+'_spec']
+        loglines.append(l)
+        
+    logs = pd.DataFrame(loglines, columns = ['process', 'year','status','message', 
+                                             'parameter_settings', 'feature_specification'])
+    writeLog(logs,'log_inferClasses')
             
 def graphViz(param_file):
     """
@@ -155,7 +178,7 @@ def graphViz(param_file):
         pgm.add_edge(e[0], e[1])
 
     # Render and save
-    dir_path = os.path.join(experimental_model_dir, 'images')
+    dir_path = os.path.join(experiment_dir, 'images')
     os.makedirs(dir_path , exist_ok=True)
     file_path = os.path.join(dir_path, param_file + ".png")    
     

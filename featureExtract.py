@@ -27,4 +27,4 @@ if options.endyear is None:
     options.endyear = int(input('Enter observation end year: '))
 saveData(options.startyear, options.endyear, options.specfile, options.name)
 
-print('>>>featureExtract end<<<')
+print('>>>featureExtraction end<<<')

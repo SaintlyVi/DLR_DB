@@ -10,7 +10,7 @@ import json
 import os
 import numpy as np
 
-from support import feature_dir, fdata_dir, InputError, writeLog
+from support import feature_dir, fdata_dir, InputError, writeLog, validYears
 import features.feature_socios as socios
 
 def generateData(year, spec_file):
@@ -27,6 +27,8 @@ def generateData(year, spec_file):
     
     if year >= int(year_range[0]) and year <= int(year_range[1]):
         
+        validYears(year) #check if year input is valid
+        
         searchlist = featurespec['searchlist']
         features = featurespec['features']
         transform = featurespec['transform']
@@ -36,8 +38,11 @@ def generateData(year, spec_file):
         
         #Get data and questions from socio-demographic survey responses
         data, questions = socios.buildFeatureFrame(searchlist, year)
+
+        if len(data) is 0:
+            raise InputError(year, 'No survey data collected for this year')
         
-        try:
+        else:
             #Transform and select BN nodes from dataframe 
             for k, v in transform.items():
                 data[k] = data.apply(lambda x: eval(v), axis=1)
@@ -58,6 +63,10 @@ def generateData(year, spec_file):
                     data[c] = data[c].map("{:.0f}".format, na_action='ignore')
             
             data.set_index('AnswerID', inplace=True) #set AnswerID column as index
+
+            for c in data.columns: #remove nan as BN inference cannot deal with them
+                data[c].replace(np.nan, '', regex=True, inplace=True)
+
             
             #Convert dataframe into a dict formatted for use as evidence in libpgm BN inference
             featuredict = data.to_dict('index') 
@@ -72,9 +81,6 @@ def generateData(year, spec_file):
             
             return evidence
         
-        except ValueError:
-            pass
-        
     else:
         raise InputError(year, 'The input year is out of range of the specification.') 
         
@@ -83,6 +89,8 @@ def saveData(yearstart, yearend, spec_file, output_name='evidence'):
     This function saves an evidence dataset with observations in the data directory.
     
     """
+    loglines = []
+    
     for year in range(yearstart, yearend + 1):
         
         #Save data to disk
@@ -95,17 +103,26 @@ def saveData(yearstart, yearend, spec_file, output_name='evidence'):
         try:
             #Generate evidence data
             evidence = generateData(year, spec_file)
-            print('Saving data to feature_data/' + root_name + '/' + file_name)
+            status = 1      
+            message = 'Success!'
+            print('Success! Saved to feature_data/' + file_name)
+
         except InputError as e:
+            pass            
+            evidence = None
+            status = 0 
+            message = e.message
             print(e)
             print('Saving empty file')
-            evidence = None
-        
+
         with open(file_path, 'w') as f:
             json.dump(evidence, f)
+            
+        l = ['featureExtraction', year, status, message, spec_file, file_name]
+        loglines.append(l)
         
-    logline = [yearstart, yearend, spec_file]
-    log_lines = pd.DataFrame([logline], columns = ['from_year','to_year', 'specification_name'])
-    writeLog(log_lines,'log_feature_ext')
+    logs = pd.DataFrame(loglines, columns = ['process','year','status','message',
+                                             'feature_specification', 'output_file'])
+    writeLog(logs,'log_generateData')
             
     return

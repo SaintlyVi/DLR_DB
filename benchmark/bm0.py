@@ -75,6 +75,18 @@ def expertHourlyProfiles(model_dir = dpet_dir):
     
     return hourlyprofiles
 
+def benchmarkModel():
+    """
+    Fetch data for existing/expert DPET model.
+    """
+    hp = expertHourlyProfiles()
+    ds = expertDemandSummary()
+    dsts = 'Energy [kWh]'
+    hpts = 'Mean [kVA]'
+    
+    return ds, hp, dsts, hpts
+
+
 def plotExpDemandSummary(customer_class, model_dir = dpet_dir):
     """
     This function plots the average monthly energy consumption for a specified customer class from 
@@ -108,17 +120,6 @@ def plotExpDemandSummary(customer_class, model_dir = dpet_dir):
     )
     
     return offline.iplot({"data":data, "layout":layout}, filename=os.path.join(image_dir,'demand_summary_'+customer_class+'.png'))
-
-def benchmarkModel():
-    """
-    Fetch data for existing/expert DPET model.
-    """
-    hp = expertHourlyProfiles()
-    ds = expertDemandSummary()
-    dsts = 'Energy [kWh]'
-    hpts = 'Mean [kVA]'
-    
-    return ds, hp, dsts, hpts
 
 def plot15YearExpDemandSummary(model_dir = dpet_dir):
     """

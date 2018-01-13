@@ -35,7 +35,7 @@ import pyodbc
 import feather
 import os
 
-from support import rawprofiles_dir, table_dir, obs_dir, InputError
+from support import rawprofiles_dir, table_dir, obs_dir, InputError, writeLog, validYears
 
 def getObs(db_cnx, tablename = None, querystring = 'SELECT * FROM tablename', chunksize = 10000):
     """
@@ -110,6 +110,7 @@ def getGroups(db_cnx, year = None):
         return allgroups
     #filter dataframe on year
     else:
+        validYears(year)
         stryear = str(year)
         return allgroups[allgroups['Year']== stryear] 
 
@@ -218,6 +219,10 @@ def writeProfiles(db_cnx, group_year, month, units):
         print(path)
         feather.write_dataframe(tail_df, path)
         print('Write success')
+    
+    logline = [group_year, month, units]
+    log_lines = pd.DataFrame([logline], columns = ['group_year','observation_month', 'unit'])
+    writeLog(log_lines,'log_retrieve_observations')
 
 def writeTables(names, dataframes): 
     """
@@ -295,5 +300,3 @@ def saveRawProfiles(yearstart, yearend, db_cnx):
             for unit in ['A', 'V', 'kVA', 'Hz', 'kW']:
                 for month in range(1, 13):
                     writeProfiles(db_cnx, year, month, unit)
-    else:
-        raise InputError([yearstart, yearend], 'Years are out of range. Please select a year start and end date between 1994 and 2014')
