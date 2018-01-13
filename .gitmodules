@@ -1,9 +1,0 @@
-[submodule "clmod"]
-	path = classmod
-	url = https://github.com/SaintlyVi/DLR_DB.classmod.git
-[submodule "exmod"]
-	path = expertmod
-	url = https://github.com/SaintlyVi/DLR_DB.expertmod.git
-[submodule "observations"]
-	path = observations
-	url = https://github.com/ERC-data/DLR_DB.observations.git
