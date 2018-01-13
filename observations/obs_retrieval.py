@@ -35,7 +35,7 @@ import pyodbc
 import feather
 import os
 
-from support import rawprofiles_dir, table_dir, obs_dir
+from support import rawprofiles_dir, table_dir, obs_dir, InputError
 
 def getObs(db_cnx, tablename = None, querystring = 'SELECT * FROM tablename', chunksize = 10000):
     """
@@ -296,4 +296,4 @@ def saveRawProfiles(yearstart, yearend, db_cnx):
                 for month in range(1, 13):
                     writeProfiles(db_cnx, year, month, unit)
     else:
-        print('Years are out of range. Please select a year start and end date between 1994 and 2014')
+        raise InputError([yearstart, yearend], 'Years are out of range. Please select a year start and end date between 1994 and 2014')

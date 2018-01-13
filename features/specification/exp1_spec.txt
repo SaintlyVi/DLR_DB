@@ -1,4 +1,5 @@
 {
+"year_range" : ["2000","2014"],
 "features" : ["monthly_income", "water_access", "roof_material", "wall_material", "cb_size", "floor_area", "geyser_nr"],
 "searchlist" : ["earn per month", "watersource", "GeyserNumber", "GeyserBroken", "roof", "wall", "main switch", "floor area"],
 "transform": {

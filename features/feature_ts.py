@@ -33,6 +33,7 @@ import numpy as np
 
 import features.feature_socios as socios
 from observations.obs_processing import loadProfiles, loadTables
+from support import InputError
 
 tables = loadTables()
 
@@ -53,7 +54,7 @@ def aggTs(year, unit, interval, dir_name='H', locstring=None):
         data.set_index('Datefield', inplace=True)
         
     except:
-        return print("Invalid unit")
+        raise InputError(unit, "Invalid unit")
     
     #subset dataframe by location & remove invalid readings
     if locstring is None:

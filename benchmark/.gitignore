@@ -101,9 +101,4 @@ ENV/
 .mypy_cache/
 
 # other
-*~
-*.html
 .DS_Store
-*.pyc
-out/
-evidence/
