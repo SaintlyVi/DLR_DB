@@ -7,6 +7,7 @@ Support functions for the src module
 
 import os
 from pathlib import Path
+import datetime as dt
 
 # root dir
 dlrdb_dir = str(Path(__file__).parents[0])
@@ -18,6 +19,7 @@ feature_dir = os.path.join(dlrdb_dir, 'features')
 data_dir = os.path.join(dlrdb_dir, 'data')
 eval_dir = os.path.join(dlrdb_dir, 'evaluation')
 image_dir = os.path.join(dlrdb_dir, 'images')
+log_dir = os.path.join(dlrdb_dir, 'log')
 
 # level 2 & 3 DATA
 dpet_dir = os.path.join(data_dir, 'benchmark_model', 'dpet')
@@ -38,3 +40,22 @@ class InputError(ValueError):
     def __init__(self, expression, message):
         self.expression = expression
         self.message = message
+        
+def writeLog(log_line, file_name):    
+    """Adds timestamp column to dataframe, then writes dataframe to csv log file. 
+    """
+    #Create log_dir and file to log path
+    os.makedirs(log_dir , exist_ok=True)
+    log_path = os.path.join(log_dir, file_name+'.csv')
+    
+    #Add timestamp
+    log_line.insert(0, 'timestamp', dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    
+    #Write log data to file
+    if os.path.isfile(log_path):
+        log_line.to_csv(log_path, mode='a', header=False, columns = log_line.columns, index=False)
+        print('\nSuccess! Log entry added to log/' + file_name + '.csv\n')
+    else:
+        log_line.to_csv(log_path, mode='w', columns = log_line.columns, index=False)
+        print('\nSuccess! Log file created and log entry added to log/' + file_name + '.csv\n')    
+    return log_line

@@ -7,11 +7,9 @@ Created on Wed Nov 15 14:09:59 2017
 """
 import pandas as pd
 import numpy as np
-import datetime as dt
-import os
 
 from experiment.experimental_model import experimentalModel
-from support import eval_dir
+from support import writeLog
 
 def uncertaintyStats(submodel):
     """
@@ -129,26 +127,13 @@ def logCalibration(ex_model, year, experiment_dir, min_answerid = 2, min_obsrati
     hp_vuc = validmodels.at['hourly_profiles','valid_unit_count']
     hp_unit = validmodels.at['hourly_profiles','unit']
     
-    logrowds = [dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), year, experiment_dir, 
-                ods.name, min_answerid, min_obsratio, 
-                ds_uix, ds_vuc, ds_unit, euclid_ds, count_ds]
-    logrowhp = [dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), year, experiment_dir, 
-                ohp.name, min_answerid, min_obsratio, 
-                hp_uix, hp_vuc, hp_unit, euclid_hp, count_hp]
+    loglineds = [year, experiment_dir, ods.name, min_answerid, min_obsratio, ds_uix, ds_vuc,
+                 ds_unit, euclid_ds, count_ds]
+    loglinehp = [year, experiment_dir, ohp.name, min_answerid, min_obsratio, hp_uix, hp_vuc, 
+                 hp_unit, euclid_hp, count_hp]
     
-    log = pd.DataFrame([logrowds, logrowhp], columns = ['timestamp','year','experiment',
+    log_lines = pd.DataFrame([loglineds, loglinehp], columns = ['year','experiment',
                        'submodel','min_answerid_count','min_valid_obsratio',
                        'uncertainty_ix','valid_unit_count','unit','sim_eucliddist','sim_count'])
     
-    log_dir = os.path.join(eval_dir, 'out')
-    os.makedirs(log_dir , exist_ok=True)
-    logpath = os.path.join(log_dir, 'log_calibrate.csv')
-    
-    if os.path.isfile(logpath):
-        log.to_csv(logpath, mode='a', header=False, columns = log.columns, index=False)
-        print('\nModel calibration log entry added to ' + logpath + '\n')
-    else:
-        log.to_csv(logpath, mode='w', columns = log.columns, index=False)
-        print('\nLog file created and log entry added at ' + logpath + '\n')
-    
-    return log
+    writeLog(log_lines,'log_calibration')

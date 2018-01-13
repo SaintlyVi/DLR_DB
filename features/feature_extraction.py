@@ -10,7 +10,7 @@ import json
 import os
 import numpy as np
 
-from support import feature_dir, fdata_dir, InputError
+from support import feature_dir, fdata_dir, InputError, writeLog
 import features.feature_socios as socios
 
 def generateData(year, spec_file):
@@ -95,7 +95,7 @@ def saveData(yearstart, yearend, spec_file, output_name='evidence'):
         try:
             #Generate evidence data
             evidence = generateData(year, spec_file)
-            print('Saving data to ' + file_path)
+            print('Saving data to feature_data/' + root_name + '/' + file_name)
         except InputError as e:
             print(e)
             print('Saving empty file')
@@ -103,5 +103,9 @@ def saveData(yearstart, yearend, spec_file, output_name='evidence'):
         
         with open(file_path, 'w') as f:
             json.dump(evidence, f)
+        
+    logline = [yearstart, yearend, spec_file]
+    log_lines = pd.DataFrame([logline], columns = ['from_year','to_year', 'specification_name'])
+    writeLog(log_lines,'log_feature_ext')
             
     return
