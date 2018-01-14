@@ -7,26 +7,9 @@ Created on Wed Nov 15 14:09:59 2017
 """
 import pandas as pd
 import numpy as np
-import datetime as dt
-import os
 
-import evaluation.evalhelpers as eh
-import features.ts as ts
-from support import eval_dir
-
-def generateDataModel(year, experiment_dir):
-    """
-    This function generates the experimental model from observations.
-    """
-    pp = ts.getProfilePower(year)
-    aggpp = ts.aggProfilePower(pp, 'M')
-    amd = ts.annualIntervalDemand(aggpp)
-    adtd = ts.aggDaytypeDemand(pp)
-    md = eh.observedMaxDemand(pp, year, experiment_dir)
-    ods = eh.observedDemandSummary(amd, year, experiment_dir)
-    ohp = eh.observedHourlyProfiles(adtd, year, experiment_dir)
-    
-    return ods, ohp, md, adtd, amd, aggpp, pp
+from experiment.experimental_model import experimentalModel
+from support import writeLog
 
 def uncertaintyStats(submodel):
     """
@@ -106,14 +89,14 @@ def modelSimilarity(ex_submodel, ex_ts, valid_new_submodel, new_ts, submod_type)
     
     return eucliddist, simveccount, merged_sub
 
-def logCalibration(ex_model, year, experiment_dir, min_answerid = 2, min_obsratio = 0.85):
+def logCalibration(bm_model, year, experiment_dir, min_answerid = 2, min_obsratio = 0.85):
     """
     This function logs the evaluation results of the run.
     
     ex_model = [demand_summary, hourly_profiles, ds_val_col_name, hp_val_col_name]
     """
     #Generate data model
-    dm = generateDataModel(year, experiment_dir)
+    dm = experimentalModel(year, experiment_dir)
     ods = dm[0]
     ohp = dm[1]
     
@@ -126,15 +109,15 @@ def logCalibration(ex_model, year, experiment_dir, min_answerid = 2, min_obsrati
     new_dsts = 'M_kw_mean'
     new_hpts = 'kva_mean'
     
-    #Fetch expert model
-    ex_ds = ex_model[0]
-    ex_hp = ex_model[1]
-    ex_dsts = ex_model[2]
-    ex_hpts = ex_model[3]
+    #Fetch benchmark model
+    bm_ds = bm_model[0]
+    bm_hp = bm_model[1]
+    bm_dsts = bm_model[2]
+    bm_hpts = bm_model[3]
     
     #Calculate model similarity
-    euclid_ds, count_ds, slice_ex_ds = modelSimilarity(ex_ds, ex_dsts, valid_new_ds, new_dsts, 'ds')
-    euclid_hp, count_hp, sliced_ex_hp = modelSimilarity(ex_hp, ex_hpts, valid_new_hp, new_hpts, 'hp')
+    euclid_ds, count_ds, slice_ex_ds = modelSimilarity(bm_ds, bm_dsts, valid_new_ds, new_dsts, 'ds')
+    euclid_hp, count_hp, sliced_ex_hp = modelSimilarity(bm_hp, bm_hpts, valid_new_hp, new_hpts, 'hp')
     
     #Prepare and write logs
     ds_uix = validmodels.at['demand_summary','uncertainty_index']
@@ -144,26 +127,13 @@ def logCalibration(ex_model, year, experiment_dir, min_answerid = 2, min_obsrati
     hp_vuc = validmodels.at['hourly_profiles','valid_unit_count']
     hp_unit = validmodels.at['hourly_profiles','unit']
     
-    logrowds = [dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), year, experiment_dir, 
-                ods.name, min_answerid, min_obsratio, 
-                ds_uix, ds_vuc, ds_unit, euclid_ds, count_ds]
-    logrowhp = [dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), year, experiment_dir, 
-                ohp.name, min_answerid, min_obsratio, 
-                hp_uix, hp_vuc, hp_unit, euclid_hp, count_hp]
+    loglineds = [year, experiment_dir, ods.name, min_answerid, min_obsratio, ds_uix, ds_vuc,
+                 ds_unit, euclid_ds, count_ds]
+    loglinehp = [year, experiment_dir, ohp.name, min_answerid, min_obsratio, hp_uix, hp_vuc, 
+                 hp_unit, euclid_hp, count_hp]
     
-    log = pd.DataFrame([logrowds, logrowhp], columns = ['timestamp','year','experiment',
+    log_lines = pd.DataFrame([loglineds, loglinehp], columns = ['year','experiment',
                        'submodel','min_answerid_count','min_valid_obsratio',
                        'uncertainty_ix','valid_unit_count','unit','sim_eucliddist','sim_count'])
     
-    log_dir = os.path.join(eval_dir, 'out')
-    os.makedirs(log_dir , exist_ok=True)
-    logpath = os.path.join(log_dir, 'log_calibrate.csv')
-    
-    if os.path.isfile(logpath):
-        log.to_csv(logpath, mode='a', header=False, columns = log.columns, index=False)
-        print('\nModel calibration log entry added to ' + logpath + '\n')
-    else:
-        log.to_csv(logpath, mode='w', columns = log.columns, index=False)
-        print('\nLog file created and log entry added at ' + logpath + '\n')
-    
-    return log
+    writeLog(log_lines,'log_calibration')

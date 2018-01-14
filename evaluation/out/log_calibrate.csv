@@ -1,7 +1,0 @@
-timestamp,year,experiment,submodel,min_answerid_count,min_valid_obsratio,uncertainty_ix,valid_unit_count,unit,sim_eucliddist,sim_count
-2017-11-29 16:11:48,2011,exp1,demand_summary,2,0.85,0.631578947368421,311.0,total_AnswerID_count,535.3559754039379,21
-2017-11-29 16:11:48,2011,exp1,hourly_profiles,2,0.85,0.6255200685266764,2475269.0,total_valid_hours,35.67159711147445,13943
-2017-11-29 16:38:31,2010,exp1,demand_summary,2,0.85,0.5151515151515151,76.0,valid_AnswerID_count,249.84946608325183,13
-2017-11-29 16:38:31,2010,exp1,hourly_profiles,2,0.85,0.6216609832338733,1153834.0,total_valid_hours,15.627522260750036,12143
-2017-11-29 16:48:17,2012,exp1,demand_summary,2,0.85,0.6666666666666666,448.0,valid_AnswerID_count,513.7740823620302,27
-2017-11-29 16:48:17,2012,exp1,hourly_profiles,2,0.85,0.6832875246272468,3929558.0,total_valid_hours,35.438324401373116,18907

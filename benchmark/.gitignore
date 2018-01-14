@@ -100,15 +100,5 @@ ENV/
 # mypy
 .mypy_cache/
 
-# data and Google Drive folders
-/data
-/GoogleDrive_DLR_DB
-/profiles
-/log
 # other
 .DS_Store
-temp-plot.html
-
-# R
-.Rhistory
-*.html
