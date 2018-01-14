@@ -104,6 +104,7 @@ ENV/
 /data
 /GoogleDrive_DLR_DB
 /profiles
+/log
 
 # other
 .DS_Store
