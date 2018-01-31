@@ -9,8 +9,12 @@ Created on Mon Oct 16 16:09:33 2017
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
+import dash_table_experiments as dt
+from dash.dependencies import Input, Output, State
 
-import features.feature_socios as fs 
+import plotly.figure_factory as ff
+
+import features.feature_socios as socios 
 
 app = dash.Dash()
 
@@ -59,21 +63,34 @@ app.layout = html.Div(
                 style={'margin-bottom': '10'}
             ),
         ],
-            className='row'
+            className='container',
+            style={'margin': 10,
+                   'padding': 0}
         ),
         html.Hr(),
         html.Div([
             html.H3('Survey Questions'
             ), 
-            dcc.Input(
-                id='search-word',
-                placeholder='search term',
-                type='text',
-                value=''
-            )
+            html.Div([
+                dcc.Input(
+                    id='search-word',
+                    placeholder='search term',
+                    type='text',
+                    value=''
+                ),
+                dt.DataTable(
+                    id='search-word-questions',
+                    rows=[{}], # initialise the rows
+                    row_selectable=True,
+                    filterable=False,
+                    sortable=True,
+                    selected_row_indices=[],)
+            ],
+                className='six columns')
         ],
-            className='row',
-            style={'margin-bottom': '10'}
+            className='container',
+            style={'margin': 10,
+                   'padding': 0}
         ),
         html.Hr(),        
         html.Div([
@@ -92,9 +109,10 @@ app.layout = html.Div(
                     dots = True
                 )
             ],
-                className='six columns',
-                style={'display': 'inline-block'}
+                className='seven columns',
+                style={'margin-bottom': '40'}
             ),
+            html.P(),
             html.Div([
                 html.Label('Specify comma-separated list of search terms to select question responses'
                 ),
@@ -105,15 +123,18 @@ app.layout = html.Div(
                     value=''
                 )
             ],
-                style={'display': 'inline-block'}
+                className='seven columns',
+                style={'margin-bottom': '10'}
             )
         ],
-            style={'margin-bottom': '10'}
+            className='container',
+            style={'margin': 10,
+                   'padding': 0}
         ),
     ],
     #Set the style for the overall dashboard
     style={
-        'width': '85%',
+        'width': '100%',
         'max-width': '1200',
         'margin-left': 'auto',
         'margin-right': 'auto',
@@ -123,7 +144,17 @@ app.layout = html.Div(
         'padding-top': '20',
         'padding-bottom': '20',
     },
-    )
+)
+
+#Define outputs            
+@app.callback(
+        Output('search-word-questions','rows'),
+        [Input('search-word','value')]
+        )
+def update_questions(user_selection):
+    df = socios.searchQuestions(user_selection)[['Question','QuestionaireID']]
+    
+    return df.to_dict('records')
 
 # Run app from script. Go to 127.0.0.1:8050 to view
 if __name__ == '__main__':
