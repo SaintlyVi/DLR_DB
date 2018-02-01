@@ -10,9 +10,7 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_table_experiments as dt
-from dash.dependencies import Input, Output, State
-
-import plotly.figure_factory as ff
+from dash.dependencies import Input, Output#, State
 
 import features.feature_socios as socios 
 
@@ -78,6 +76,7 @@ app.layout = html.Div(
                     type='text',
                     value=''
                 ),
+                html.P(),
                 dt.DataTable(
                     id='search-word-questions',
                     rows=[{}], # initialise the rows
@@ -110,7 +109,7 @@ app.layout = html.Div(
                 )
             ],
                 className='seven columns',
-                style={'margin-bottom': '40'}
+                style={'margin-bottom': '50'}
             ),
             html.P(),
             html.Div([
@@ -152,9 +151,10 @@ app.layout = html.Div(
         [Input('search-word','value')]
         )
 def update_questions(user_selection):
-    df = socios.searchQuestions(user_selection)[['Question','QuestionaireID']]
-    
-    return df.to_dict('records')
+    df = socios.searchQuestions(user_selection, dtype='num')[['Question','QuestionaireID']]
+    dff = df.loc[~df['QuestionaireID'].isin([1, 2, 4])]
+    dff.columns=['Question','Questionaire']
+    return dff.to_dict('records')
 
 # Run app from script. Go to 127.0.0.1:8050 to view
 if __name__ == '__main__':
