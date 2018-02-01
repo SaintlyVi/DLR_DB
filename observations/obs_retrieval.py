@@ -266,7 +266,7 @@ def saveTables(db_cnx):
  
 def saveAnswers(db_cnx):
     """
-    This function fetches survey responses and anonymises them to remove all discriminating personal information of respondents. The anonymsed dataset is returned and saved as a feather object.
+    This function fetches survey responses and anonymises them to remove all discriminating personal information of respondents. The anonymised dataset is returned and saved as a feather object.
     Details for questions to anonymise are contained in two csv files, anonymise/blobQs.csv and anonymise/charQs.csv.
     
     """
@@ -282,7 +282,7 @@ def saveAnswers(db_cnx):
             for i, rows in qanon.iterrows():
                 a.set_value(a[a.AnswerID == rows.AnswerID].index[0], str(rows.ColumnNo),'a')
         
-        writeTables([k.lower() + '_anon'],[a]) #saves answers as feather object
+        writeTables([k.lower() + '_anonymised'],[a]) #saves answers as feather object
     return
     
 def saveRawProfiles(yearstart, yearend, db_cnx):

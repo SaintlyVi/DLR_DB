@@ -13,6 +13,7 @@ import dash_table_experiments as dt
 from dash.dependencies import Input, Output#, State
 
 import features.feature_socios as socios 
+from observations.obs_processing import loadTable
 
 app = dash.Dash()
 
@@ -39,7 +40,7 @@ app.layout = html.Div(
             ), 
             html.Div([
                 dcc.RangeSlider(
-                    id = 'year-range',
+                    id = 'years-explore',
                     marks={i: i for i in range(1994, 2015, 2)},
                     min=1994,
                     max=2014,
@@ -54,8 +55,18 @@ app.layout = html.Div(
             html.Div([
                 html.H3('Table'
                 ),
-                html.H3('Table'
-                ),        
+                html.Div([
+                        html.P(),
+                        dt.DataTable(
+                            id='location-list',
+                            rows=[{}], # initialise the rows
+                            row_selectable=True,
+                            filterable=False,
+                            sortable=True,
+                            selected_row_indices=[],)
+                    ],
+                        className='four columns'
+                    ),        
             ],
                 className='four columns',
                 style={'margin-bottom': '10'}
@@ -85,7 +96,8 @@ app.layout = html.Div(
                     sortable=True,
                     selected_row_indices=[],)
             ],
-                className='six columns')
+                className='seven columns'
+            )
         ],
             className='container',
             style={'margin': 10,
@@ -99,7 +111,7 @@ app.layout = html.Div(
                 html.Label('Select year range'
                 ),
                 dcc.RangeSlider(
-                    id = 'year-range',
+                    id = 'years-download',
                     marks={i: i for i in range(1994, 2015, 2)},
                     min=1994,
                     max=2014,
@@ -145,7 +157,23 @@ app.layout = html.Div(
     },
 )
 
-#Define outputs            
+#Define outputs
+@app.callback(
+        Output('location-list','rows'),
+        [Input('years-explore','value')]
+        )
+def update_locations(user_selection):
+    groups = loadTable('groups')
+    ids = socios.loadID()
+    for u in user_selection:
+        g = groups[groups.Year==str(u)]
+        df = socios.loadID(u)
+
+        dff = df.loc[~df['QuestionaireID'].isin([1, 2, 4])]
+    
+    return dff.to_dict('records')
+
+            
 @app.callback(
         Output('search-word-questions','rows'),
         [Input('search-word','value')]

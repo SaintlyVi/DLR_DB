@@ -12,20 +12,19 @@ Answer query script: This script contains functions to query and manipulate DLR 
 import numpy as np
 import pandas as pd
 
-from observations.obs_processing import loadTables
+from observations.obs_processing import loadTable
 from support import validYears
-
-tables = loadTables()
 
 def loadID(year = None, id_name = 'AnswerID'):
     """
     This function subsets Answer or Profile IDs by year. Tables variable can be constructred with loadTables() function. Year input can be number or string. id_name is AnswerID or ProfileID. 
     """
-    groups = tables.get('groups')
-    links = tables.get('links')
+    groups = loadTable('groups')
+    links = loadTable('links')
     all_ids = links[(links.GroupID != 0) & (links[id_name] != 0)]
+    clean_ids = all_ids.drop_duplicates(id_name)[['GroupID',id_name]]
     if year is None:
-        ids = pd.Series(all_ids.loc[:, id_name].unique())
+        ids = clean_ids[id_name]
     else:   
         validYears(year) #check if year input is valid
         stryear = str(year)
@@ -38,7 +37,7 @@ def loadQuestions(dtype = None):
     This function gets all questions.
     
     """
-    qu = tables.get('questions').drop(labels='lock', axis=1)
+    qu = loadTable('questions').drop(labels='lock', axis=1)
     qu.Datatype = qu.Datatype.astype('category')
     qu.Datatype.cat.categories = ['blob','char','num']
     if dtype is None:
@@ -53,14 +52,14 @@ def loadAnswers(dtype = None):
     
     """
     if dtype is None:
-        ans = tables.get('answers').drop(labels='lock', axis=1)
+        ans = loadTable('answers', columns=['AnswerID', 'QuestionaireID'])
     elif dtype == 'blob':
-        ans = tables.get('answers_blob_anon')
+        ans = loadTable('answers_blob_anonymised')
         ans.fillna(np.nan, inplace = True)
     elif dtype == 'char':
-        ans = tables.get('answers_char_anon').drop(labels='lock', axis=1)
+        ans = loadTable('answers_char_anonymised').drop(labels='lock', axis=1)
     elif dtype == 'num':
-        ans = tables.get('answers_number_anon').drop(labels='lock', axis=1)
+        ans = loadTable('answers_number_anonymised').drop(labels='lock', axis=1)
     return ans
 
 def searchQuestions(searchterm = '', qnairid = None, dtype = None):
@@ -74,10 +73,10 @@ def searchQuestions(searchterm = '', qnairid = None, dtype = None):
     else:
         searchterm = [searchterm]
     searchterm = [s.lower() for s in searchterm]
-    qcons = tables.get('qconstraints').drop(labels='lock', axis=1)
+    qcons = loadTable('qconstraints').drop(labels='lock', axis=1)
     qu = loadQuestions(dtype)
     qdf = qu.join(qcons, 'QuestionID', rsuffix='_c') #join question constraints to questions table
-    qnairids = list(tables.get('questionaires')['QuestionaireID']) #get list of valid questionaire IDs
+    qnairids = list(loadTable('questionaires', 'QuestionaireID')) #get list of valid questionaire IDs
     if qnairid is None: #gets all relevant queries
         pass
     elif qnairid in qnairids: #check that ID is valid if provided
@@ -128,9 +127,9 @@ def checkAnswer(answerid, features):
     This function returns the survey responses for an individuals answer ID and list of search terms.
     
     """
-    links = tables.get('links')
+    links = loadTable('links')
     groupid = links.loc[links['AnswerID']==answerid].reset_index(drop=True).get_value(0, 'GroupID')
-    groups = tables.get('groups')
+    groups = loadTable('groups')
     year = int(groups.loc[groups.GroupID == groupid, 'Year'].reset_index(drop=True)[0])
     
     ans = buildFeatureFrame(features, year)[0].loc[buildFeatureFrame(features, year)[0]['AnswerID']==answerid]
@@ -143,9 +142,9 @@ def recorderLocations(year = 2014):
     """
     if year > 2009:
         stryear = str(year)
-        groups = tables.get('groups')
+        groups = loadTable('groups')
         groups['loc'] = groups['Location'].apply(lambda x:x.partition(' ')[2])
-        recorderids = tables.get('recorderinstall')
+        recorderids = loadTable('recorderinstall')
         
         reclocs = groups.merge(recorderids, left_on='GroupID', right_on='GROUP_ID')
         reclocs['recorder_abrv'] = reclocs['RECORDER_ID'].apply(lambda x:x[:3])

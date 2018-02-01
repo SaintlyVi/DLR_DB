@@ -98,7 +98,7 @@ def loadProfiles(year, unit, dir_name):
     
     return data, year, unit
 
-def loadTables():
+def loadTable(name, query=None, columns=None):
     """
     This function loads all feather tables in filepath into workspace.
     
@@ -106,41 +106,56 @@ def loadTables():
     dir_path = os.path.join(table_dir, 'feather')
     
     try:
-        files = glob(os.path.join(dir_path, '*.feather'))
-        names = [f.rpartition('.')[0] for f in os.listdir(dir_path)]
-        tables = {}
-        for n, f in zip(names, files):
-            tables[n] = feather.read_dataframe(f)
+        file = os.path.join(dir_path, name +'.feather')
+        d = feather.read_dataframe(file)
+        if columns is None:
+            table = d
+        else:
+            table = d[columns]
             
     except:
         #fetch tables from energydata.uct.ac.za
         ckan = ckanapi.RemoteCKAN('http://energydata.uct.ac.za/', get_only=True)
-        resources = ckan.action.package_show(id='dlr-database-tables-94-14')
-        names = [r['name'] for r in resources['resources']]
-        ids = [r['id'] for r in resources['resources']]
-        tables = {}
-        for n, i in zip(names, ids):
-            d = ckan.action.datastore_search(resource_id=i)['records']
-            tables[n] = pd.DataFrame(d)
-    
-    return tables
+        resources = ckan.action.package_show(id='dlr-database-tables-94-14')        
+        for i in range(0, len(resources['resources'])):
+            if resources['resources'][i]['name'] == name:
+                print('... fetching table from energydata.uct.ac.za')
+                r_id = resources['resources'][i]['id']
+                d = ckan.action.datastore_search(resource_id=r_id, q=query, fields=columns, limit=1000000)['records']
+                table = pd.DataFrame(d)
+            else:
+                pass
+
+    try: 
+        return table
+
+    except UnboundLocalError:
+        return('Could not find table with name '+name)    
 
 def csvTables():
     """
     This function fetches tables saved as feather objects and saves them as csv files.
     """
-    #get data
-    tables = loadTables()
-    
-    dir_path = os.path.join(table_dir, 'csv')
 
-    #generate list of filenames
-    filenames = [os.path.join(dir_path, x + '.csv') for x in list(tables.keys())]
+    os.makedirs(os.path.join(table_dir, 'csv') , exist_ok=True)
     
-    for name, path in zip(list(tables.keys()), filenames):
-        df = tables[name]
-        df.to_csv(path, index=False)
-        print('Successfully saved to ' + path)        
+    #get data
+    feather_path = os.path.join(table_dir, 'feather')
+    names = [f.rpartition('.')[0] for f in os.listdir(feather_path)]
+
+    for n in names:    
+        table = loadTable(n)
+        path = os.path.join(table_dir, 'csv', n + '.csv')
+        table.to_csv(path, index=False)
+        print('Successfully saved to ' + path)
+        
+        #generate list of filenames
+#        filenames = [os.path.join(dir_path, 'csv', x + '.csv') for x in list(tables.keys())]
+#        
+#        for name, path in zip(list(tables.keys()), filenames):
+#            df = tables[name]
+#            df.to_csv(path, index=False)
+#            print('Successfully saved to ' + path)        
     return
         
 def shapeProfiles(year, unit):
