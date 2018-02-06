@@ -21,16 +21,16 @@ def loadID(year = None, id_name = 'AnswerID'):
     """
     groups = loadTable('groups')
     links = loadTable('links')
-    all_ids = links[(links.GroupID != 0) & (links[id_name] != 0)]
-    clean_ids = all_ids.drop_duplicates(id_name)[['GroupID',id_name]]
+    join = links.merge(groups, how='left', on='GroupID')
+    all_ids = join[(join.GroupID != 0) & (join[id_name] != 0) & (join['Survey'] != 'Namibia')] # take Namibia out
+    clean_ids = all_ids.drop_duplicates(id_name)[['Year', 'LocName', 'GroupID', id_name]]
+    clean_ids.columns = ['Year', 'LocName', 'GroupID', 'id']
     if year is None:
-        ids = clean_ids[id_name]
+        return clean_ids
     else:   
         validYears(year) #check if year input is valid
-        stryear = str(year)
-        id_select = groups[groups.Year==stryear]['GroupID']
-        ids = pd.Series(all_ids.loc[all_ids.GroupID.isin(id_select), id_name].unique())
-    return ids
+        ids = clean_ids[clean_ids.Year == str(year)]
+        return ids
 
 def loadQuestions(dtype = None):
     """
@@ -76,7 +76,7 @@ def searchQuestions(searchterm = '', qnairid = None, dtype = None):
     qcons = loadTable('qconstraints').drop(labels='lock', axis=1)
     qu = loadQuestions(dtype)
     qdf = qu.join(qcons, 'QuestionID', rsuffix='_c') #join question constraints to questions table
-    qnairids = list(loadTable('questionaires', 'QuestionaireID')) #get list of valid questionaire IDs
+    qnairids = list(loadTable('questionaires')['QuestionaireID']) #get list of valid questionaire IDs
     if qnairid is None: #gets all relevant queries
         pass
     elif qnairid in qnairids: #check that ID is valid if provided
@@ -105,7 +105,8 @@ def buildFeatureFrame(searchlist, year):
     This function creates a dataframe containing the data for a set of selected features for a given year.
     
     """
-    data = pd.DataFrame(data = loadID(year), columns=['AnswerID']) #get AnswerIDs for year
+    data = pd.DataFrame(loadID(year, 'AnswerID')['id'], columns='AnswerID') #get AnswerIDs for year
+    data.columns = 'AnswerID'
     questions = pd.DataFrame() #construct dataframe with feature questions
     
     for s in searchlist:

@@ -12,8 +12,10 @@ import dash_html_components as html
 import dash_table_experiments as dt
 from dash.dependencies import Input, Output#, State
 
+import pandas as pd
+from collections import OrderedDict
+
 import features.feature_socios as socios 
-from observations.obs_processing import loadTable
 
 app = dash.Dash()
 
@@ -33,14 +35,16 @@ app.layout = html.Div(
                     style={'textAlign': 'center'}
             )              
         ],
-            className='row' 
+            className='twelve columns',
+            style={'background': 'white',
+                   'margin-bottom': '40'}
         ), 
         html.Div([
             html.H3('Survey Locations'
             ), 
             html.Div([
                 dcc.RangeSlider(
-                    id = 'years-explore',
+                    id = 'input-years-explore',
                     marks={i: i for i in range(1994, 2015, 2)},
                     min=1994,
                     max=2014,
@@ -53,50 +57,68 @@ app.layout = html.Div(
                 style={'margin-bottom': '10'}
             ),
             html.Div([
-                html.H3('Table'
-                ),
                 html.Div([
                         html.P(),
                         dt.DataTable(
-                            id='location-list',
+                            id='output-location-list',
                             rows=[{}], # initialise the rows
                             row_selectable=True,
-                            filterable=False,
+                            filterable=True,
                             sortable=True,
+                            min_width=400,
                             selected_row_indices=[],)
                     ],
                         className='four columns'
                     ),        
             ],
                 className='four columns',
-                style={'margin-bottom': '10'}
+                style={'margin-bottom': '10',
+                       'padding-left': '40'}
             ),
         ],
             className='container',
-            style={'margin': 10,
-                   'padding': 0}
+            style={'margin': 10}
         ),
         html.Hr(),
         html.Div([
             html.H3('Survey Questions'
             ), 
             html.Div([
-                dcc.Input(
-                    id='search-word',
-                    placeholder='search term',
-                    type='text',
-                    value=''
+                html.P('The DLR socio-demographic survey was updated in 2000. Select the surveys that you want to search.'),
+                html.Div([
+                    dcc.Checklist(
+                        id = 'input-survey',
+                        options=[
+                                {'label': '1994 - 1999', 'value': 6},
+                                {'label': '2000 - 2014', 'value': 3}
+                                ],
+                        values=[3]
+                    ),              
+                    html.P(),   
+                ],
+                    className='container',
+                    style={'margin': '10'}
                 ),
-                html.P(),
+                html.Div([
+                    dcc.Input(
+                        id='input-search-word',
+                        placeholder='search term',
+                        type='text',
+                        value=''
+                    ),              
+                    html.P(),
+                ],
+                    className='four colmns'
+                ),
                 dt.DataTable(
-                    id='search-word-questions',
+                    id='output-search-word-questions',
                     rows=[{}], # initialise the rows
                     row_selectable=True,
                     filterable=False,
                     sortable=True,
                     selected_row_indices=[],)
             ],
-                className='seven columns'
+                className='six columns'
             )
         ],
             className='container',
@@ -111,7 +133,7 @@ app.layout = html.Div(
                 html.Label('Select year range'
                 ),
                 dcc.RangeSlider(
-                    id = 'years-download',
+                    id = 'input-years-download',
                     marks={i: i for i in range(1994, 2015, 2)},
                     min=1994,
                     max=2014,
@@ -159,30 +181,34 @@ app.layout = html.Div(
 
 #Define outputs
 @app.callback(
-        Output('location-list','rows'),
-        [Input('years-explore','value')]
+        Output('output-location-list','rows'),
+        [Input('input-years-explore','value')]
         )
 def update_locations(user_selection):
-    groups = loadTable('groups')
     ids = socios.loadID()
-    for u in user_selection:
-        g = groups[groups.Year==str(u)]
-        df = socios.loadID(u)
-
-        dff = df.loc[~df['QuestionaireID'].isin([1, 2, 4])]
-    
-    return dff.to_dict('records')
+    dff = pd.DataFrame()
+    for u in range(user_selection[0], user_selection[1]+1):
+        df = ids[ids.Year == str(u)].groupby(['Year','LocName'])['id'].count().reset_index()
+        dff = dff.append(df)
+    dff.reset_index(inplace=True, drop=True)
+    dff.rename(columns={'LocName':'Location', 'id':'# households'}, inplace=True)
+    return dff.to_dict('records', OrderedDict)
 
             
 @app.callback(
-        Output('search-word-questions','rows'),
-        [Input('search-word','value')]
+        Output('output-search-word-questions','rows'),
+        [Input('input-search-word','value'),
+         Input('input-survey','values')]
         )
-def update_questions(user_selection):
-    df = socios.searchQuestions(user_selection, dtype='num')[['Question','QuestionaireID']]
-    dff = df.loc[~df['QuestionaireID'].isin([1, 2, 4])]
-    dff.columns=['Question','Questionaire']
-    return dff.to_dict('records')
+def update_questions(search_word, surveys):
+    if isinstance(surveys, list):
+        pass
+    else:
+        surveys = [surveys]
+    df = socios.searchQuestions(search_word)[['Question','QuestionaireID']]
+    dff = df.loc[df['QuestionaireID'].isin(surveys)]
+    questions = pd.DataFrame(dff['Question'])
+    return questions.to_dict('records')
 
 # Run app from script. Go to 127.0.0.1:8050 to view
 if __name__ == '__main__':

@@ -105,6 +105,7 @@ def getGroups(db_cnx, year = None):
     
     #create multi-index dataframe
     allgroups = prettyg.set_index(['GroupID_1','GroupID_2','GroupID_3']).sort_index()
+    allgroups['LocName'] = allgroups['Location'].apply(lambda x:x.partition(' ')[2])
     
     if year is None:
         return allgroups
