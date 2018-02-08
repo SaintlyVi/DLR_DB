@@ -18,9 +18,9 @@ import base64
 from collections import OrderedDict
 
 import features.feature_socios as socios 
-from support import data_dir
+from support import dlrdb_dir
 
-image_dir = os.path.join(data_dir,'images')
+image_dir = os.path.join(dlrdb_dir,'img')
 erc_logo = os.path.join(image_dir, 'erc_logo.jpg')
 erc_encoded = base64.b64encode(open(erc_logo, 'rb').read())
 sanedi_logo = os.path.join(image_dir, 'sanedi_logo.jpg')
