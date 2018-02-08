@@ -13,9 +13,18 @@ import dash_table_experiments as dt
 from dash.dependencies import Input, Output#, State
 
 import pandas as pd
+import os
+import base64
 from collections import OrderedDict
 
 import features.feature_socios as socios 
+from support import data_dir
+
+image_dir = os.path.join(data_dir,'images')
+erc_logo = os.path.join(image_dir, 'erc_logo.jpg')
+erc_encoded = base64.b64encode(open(erc_logo, 'rb').read())
+sanedi_logo = os.path.join(image_dir, 'sanedi_logo.jpg')
+sanedi_encoded = base64.b64encode(open(sanedi_logo, 'rb').read())
 
 app = dash.Dash()
 
@@ -25,17 +34,33 @@ external_css = ["https://fonts.googleapis.com/css?family=Overpass:300,300i",
 for css in external_css:
     app.css.append_css({"external_url": css})
 
-app.layout = html.Div(
-        [
+app.layout = html.Div([
         html.Div([
-            html.H2('South African Domestic Load Research',
-                    style={'textAlign': 'center'}
+            html.Div([
+                html.Img(src='data:image/png;base64,{}'.format(erc_encoded.decode()), 
+                         style={'width': '100%', 'paddingLeft':'5%', 'marginTop':'20%' })    
+            ],
+                className='three columns',
+                style={'margin_top':'20'}
             ),
-            html.H1('Data eXplorer',
-                    style={'textAlign': 'center'}
-            )              
+            html.Div([
+                html.H2('South African Domestic Load Research',
+                        style={'textAlign': 'center'}
+                ),
+                html.H1('Data eXplorer',
+                        style={'textAlign': 'center'}
+                )                    
+            ],
+                className='six columns'
+            ),        
+            html.Div([
+                 html.Img(src='data:image/png;base64,{}'.format(sanedi_encoded.decode()), 
+                          style={'width': '100%', 'margin-left':'-5%', 'marginTop':'10%' })                       
+            ],
+                className='three columns'
+            ),              
         ],
-            className='twelve columns',
+            className='row',
             style={'background': 'white',
                    'margin-bottom': '40'}
         ), 
