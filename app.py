@@ -213,7 +213,7 @@ def update_locations(user_selection):
     ids = socios.loadID()
     dff = pd.DataFrame()
     for u in range(user_selection[0], user_selection[1]+1):
-        df = ids[ids.Year == str(u)].groupby(['Year','LocName'])['id'].count().reset_index()
+        df = ids[ids.Year == u].groupby(['Year','LocName'])['id'].count().reset_index()
         dff = dff.append(df)
     dff.reset_index(inplace=True, drop=True)
     dff.rename(columns={'LocName':'Location', 'id':'# households'}, inplace=True)

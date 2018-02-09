@@ -123,6 +123,7 @@ def loadTable(name, query=None, columns=None):
                 r_id = resources['resources'][i]['id']
                 d = ckan.action.datastore_search(resource_id=r_id, q=query, fields=columns, limit=1000000)['records']
                 table = pd.DataFrame(d)
+                table = table.iloc[:,:-1]
             else:
                 pass
 

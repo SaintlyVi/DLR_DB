@@ -21,15 +21,16 @@ def loadID(year = None, id_name = 'AnswerID'):
     """
     groups = loadTable('groups')
     links = loadTable('links')
-    join = links.merge(groups, how='left', on='GroupID')
-    all_ids = join[(join.GroupID != 0) & (join[id_name] != 0) & (join['Survey'] != 'Namibia')] # take Namibia out
+    links = links[(links.GroupID != 0) & (links[id_name] != 0)]
+    join = links.merge(groups, on='GroupID')    
+    all_ids = join[join['Survey'] != 'Namibia'] # take Namibia out
     clean_ids = all_ids.drop_duplicates(id_name)[['Year', 'LocName', 'GroupID', id_name]]
     clean_ids.columns = ['Year', 'LocName', 'GroupID', 'id']
     if year is None:
         return clean_ids
     else:   
         validYears(year) #check if year input is valid
-        ids = clean_ids[clean_ids.Year == str(year)]
+        ids = clean_ids[clean_ids.Year == int(year)]
         return ids
 
 def loadQuestions(dtype = None):
