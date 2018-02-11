@@ -30,7 +30,7 @@ def loadID(year = None, id_name = 'AnswerID'):
         return clean_ids
     else:   
         validYears(year) #check if year input is valid
-        ids = clean_ids[clean_ids.Year == int(year)]
+        ids = clean_ids[clean_ids.Year.astype(int) == int(year)]
         return ids
 
 def loadQuestions(dtype = None):
@@ -106,20 +106,28 @@ def buildFeatureFrame(searchlist, year):
     This function creates a dataframe containing the data for a set of selected features for a given year.
     
     """
-    data = pd.DataFrame(loadID(year, 'AnswerID')['id'], columns='AnswerID') #get AnswerIDs for year
-    data.columns = 'AnswerID'
+    data = pd.DataFrame(loadID(year, 'AnswerID')['id']) #get AnswerIDs for year
+    data.columns = ['AnswerID']
     questions = pd.DataFrame() #construct dataframe with feature questions
-    
+
+    if isinstance(searchlist, list):
+        pass
+    else:
+        searchlist = [searchlist]
+        
     for s in searchlist:
-        if year <= 1999:
-            d, q = searchAnswers(s, qnairid = 6, dtype = 'num')
-        else:
-            d, q = searchAnswers(s, qnairid = 3, dtype = 'num')
-            d.columns = ['AnswerID', s]
-        q['searchterm'] = s
-        newdata = d[d.AnswerID.isin(data.AnswerID)]
-        data = pd.merge(data, newdata, on = 'AnswerID')
-        questions = pd.concat([questions, q])
+        try:
+            if year <= 1999:
+                d, q = searchAnswers(s, qnairid = 6, dtype = 'num')
+            else:
+                d, q = searchAnswers(s, qnairid = 3, dtype = 'num')
+                d.columns = ['AnswerID', s]
+            q['searchterm'] = s
+            newdata = d[d.AnswerID.isin(data.AnswerID)]
+            data = pd.merge(data, newdata, on = 'AnswerID')
+            questions = pd.concat([questions, q])
+        except:
+            pass
     questions.reset_index(drop=True, inplace=True)
         
     return data, questions

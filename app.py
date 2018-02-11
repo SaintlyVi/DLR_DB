@@ -48,67 +48,70 @@ app.layout = html.Div([
                         style={'textAlign': 'center'}
                 ),
                 html.H1('Data eXplorer',
-                        style={'textAlign': 'center'}
+                        style={'textAlign':'center'}
                 )                    
             ],
                 className='six columns'
             ),        
             html.Div([
                  html.Img(src='data:image/png;base64,{}'.format(sanedi_encoded.decode()), 
-                          style={'width': '100%', 'margin-left':'-5%', 'marginTop':'10%' })                       
+                          style={'width':'100%','margin-left':'-5%','marginTop':'10%' })                       
             ],
                 className='three columns'
             ),              
         ],
             className='row',
-            style={'background': 'white',
-                   'margin-bottom': '40'}
+            style={'background':'white',
+                   'margin-bottom':'40'}
         ), 
         html.Div([
-            html.H3('Survey Locations'
-            ), 
             html.Div([
-                dcc.RangeSlider(
-                    id = 'input-years-explore',
-                    marks={i: i for i in range(1994, 2015, 2)},
-                    min=1994,
-                    max=2014,
-                    step=1,
-                    value=[2011, 2011],
-                    dots = True
+                html.H3('Survey Locations'
+                ),
+                html.Div([
+                    dcc.RangeSlider(
+                        id = 'input-years-explore',
+                        marks={i: i for i in range(1994, 2015, 2)},
+                        min=1994,
+                        max=2014,
+                        step=1,
+                        value=[2011, 2011],
+                        dots = True
+                    )                        
+                ],
+                    className='ten columns'
                 ),
             ],
-                className='seven columns',
-                style={'margin-bottom': '10'}
+                className='columns',
+                style={'margin-bottom':'10',
+                       'width':'55%',
+                       'float':'left'}
             ),
             html.Div([
-                html.Div([
-                        html.P(),
-                        dt.DataTable(
-                            id='output-location-list',
-                            rows=[{}], # initialise the rows
-                            row_selectable=True,
-                            filterable=True,
-                            sortable=True,
-                            min_width=400,
-                            selected_row_indices=[],)
-                    ],
-                        className='four columns'
-                    ),        
+                dt.DataTable(
+                    id='output-location-list',
+                    rows=[{}], # initialise the rows
+                    row_selectable=True,
+                    filterable=True,
+                    sortable=True,
+                    column_widths=100,
+                    resizable=True,
+                    selected_row_indices=[],)     
             ],
-                className='four columns',
-                style={'margin-bottom': '10',
-                       'padding-left': '40'}
+                className='columns',
+                style={'margin-bottom':'10',
+                       'margin-top':'50',
+                       'width':'40%',
+                       'float':'right'}
             ),
         ],
-            className='container',
-            style={'margin': 10}
+            className='row',
         ),
         html.Hr(),
-        html.Div([
-            html.H3('Survey Questions'
-            ), 
+        html.Div([ 
             html.Div([
+                html.H3('Survey Questions'
+                ),
                 html.P('The DLR socio-demographic survey was updated in 2000. Select the surveys that you want to search.'),
                 html.Div([
                     dcc.Checklist(
@@ -118,8 +121,7 @@ app.layout = html.Div([
                                 {'label': '2000 - 2014', 'value': 3}
                                 ],
                         values=[3]
-                    ),              
-                    html.P(),   
+                    )
                 ],
                     className='container',
                     style={'margin': '10'}
@@ -130,10 +132,10 @@ app.layout = html.Div([
                         placeholder='search term',
                         type='text',
                         value=''
-                    ),              
-                    html.P(),
+                    )
                 ],
-                    className='four colmns'
+                    className='container',
+                    style={'margin': '10'}
                 ),
                 dt.DataTable(
                     id='output-search-word-questions',
@@ -143,12 +145,45 @@ app.layout = html.Div([
                     sortable=True,
                     selected_row_indices=[],)
             ],
-                className='six columns'
+                className='columns',
+                style={'margin':10,
+                       'width':'40%',
+                       'float':'right'}
+            ),
+            html.Div([
+                html.H3('Question Response Summary'
+                ),
+                html.P('Select a question and set of locations to see the distribution of responses.'),
+                html.Div([
+                    dcc.RadioItems(
+                        id = 'input-summarise',
+                        options=[
+                                {'label': 'stats', 'value': 'stats'},
+                                {'label': 'count', 'value': 'count'}
+                                ],
+                        value='count',
+                        labelStyle={'display': 'inline-block'}
+                    )
+                ],
+                    className='container',
+                    style={'margin': '10'}
+                ),
+                dt.DataTable(
+                    id='output-locqu-summary',
+                    rows=[{}], # initialise the rows
+                    row_selectable=False,
+                    filterable=True,
+                    sortable=True,
+                    column_widths=40,
+                    selected_row_indices=[],)
+            ],
+                className='columns',
+                style={'margin':10,
+                       'width':'55%',
+                       'float':'left'}
             )
         ],
-            className='container',
-            style={'margin': 10,
-                   'padding': 0}
+            className='row'
         ),
         html.Hr(),        
         html.Div([
@@ -209,16 +244,15 @@ app.layout = html.Div([
         Output('output-location-list','rows'),
         [Input('input-years-explore','value')]
         )
-def update_locations(user_selection):
+def update_locations(years_explore):
     ids = socios.loadID()
     dff = pd.DataFrame()
-    for u in range(user_selection[0], user_selection[1]+1):
+    for u in range(years_explore[0], years_explore[1]+1):
         df = ids[ids.Year.astype(int) == u].groupby(['Year','LocName'])['id'].count().reset_index()
         dff = dff.append(df)
     dff.reset_index(inplace=True, drop=True)
     dff.rename(columns={'LocName':'Location', 'id':'# households'}, inplace=True)
     return dff.to_dict('records', OrderedDict)
-
             
 @app.callback(
         Output('output-search-word-questions','rows'),
@@ -234,6 +268,38 @@ def update_questions(search_word, surveys):
     dff = df.loc[df['QuestionaireID'].isin(surveys)]
     questions = pd.DataFrame(dff['Question'])
     return questions.to_dict('records')
+
+@app.callback(
+        Output('output-locqu-summary','rows'),
+        [Input('output-location-list','selected_row_indices'),
+         Input('output-location-list','rows'),
+         Input('output-search-word-questions','selected_row_indices'),
+         Input('output-search-word-questions','rows'),
+         Input('input-summarise', 'value')]
+        )
+
+def update_locqu_summary(loc_select, loc_rows, qu_select, qu_rows, summarise):
+
+    locations = pd.DataFrame(loc_rows).iloc[loc_select]
+    years = locations.Year.unique()
+    ids = socios.loadID()
+    idselect = ids.loc[(ids.Year.isin(years)) & (ids.LocName.isin(locations.Location.unique())), 'id']
+    
+    searchterms = list(pd.DataFrame(qu_rows).loc[qu_select, 'Question'])
+    
+    d = pd.DataFrame()
+    for y in years.astype(int):
+        df = socios.buildFeatureFrame(searchterms, y)[0]
+        d = d.append(df)
+
+    locqu = d[d.AnswerID.isin(idselect)]
+    
+    if summarise == 'count':
+        locqu_summary = locqu.groupby(locqu.columns[1:]).count()
+    elif summarise == 'stats':
+        locqu_summary = locqu.iloc[:,1:].describe().T
+    
+    return locqu_summary.to_dict('records', OrderedDict)
 
 # Run app from script. Go to 127.0.0.1:8050 to view
 if __name__ == '__main__':
