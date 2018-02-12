@@ -119,7 +119,7 @@ def loadTable(name, query=None, columns=None):
         resources = ckan.action.package_show(id='dlr-database-tables-94-14')        
         for i in range(0, len(resources['resources'])):
             if resources['resources'][i]['name'] == name:
-                print('... fetching table from energydata.uct.ac.za')
+                print('... fetching ' + name + ' from energydata.uct.ac.za')
                 r_id = resources['resources'][i]['id']
                 d = ckan.action.datastore_search(resource_id=r_id, q=query, fields=columns, limit=1000000)['records']
                 table = pd.DataFrame(d)

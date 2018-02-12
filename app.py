@@ -295,7 +295,17 @@ def update_locqu_summary(loc_select, loc_rows, qu_select, qu_rows, summarise):
     locqu = d[d.AnswerID.isin(idselect)]
     
     if summarise == 'count':
-        locqu_summary = locqu.groupby(locqu.columns[1:]).count()
+        locqu_summary = pd.DataFrame()
+        for c in locqu.columns[1:]:
+            l = locqu[c].value_counts()
+            locqu_summary = locqu_summary.append(l)
+            
+#        locqu_summary.columns = pd.MultiIndex.from_product([['Values'], locqu_summary.columns])
+        locqu_sum_cols = ['count ' + str(i) for i in locqu_summary.columns]
+        locqu_summary = locqu_summary.reset_index()
+        locqu_summary.columns = ['Question'] + locqu_sum_cols
+#        locqu_summary.columns = locqu_summary.columns.set_levels(['Values',              'Questions'],level=0)
+            
     elif summarise == 'stats':
         locqu_summary = locqu.iloc[:,1:].describe().T
     
