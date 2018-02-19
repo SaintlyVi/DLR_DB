@@ -11,6 +11,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 import dash_table_experiments as dt
 from dash.dependencies import Input, Output#, State
+import plotly.graph_objs as go
 
 import pandas as pd
 import os
@@ -25,6 +26,9 @@ erc_logo = os.path.join(image_dir, 'erc_logo.jpg')
 erc_encoded = base64.b64encode(open(erc_logo, 'rb').read())
 sanedi_logo = os.path.join(image_dir, 'sanedi_logo.jpg')
 sanedi_encoded = base64.b64encode(open(sanedi_logo, 'rb').read())
+site_ref = pd.read_csv('data/site_reference.csv')
+
+mapbox_access_token = 'pk.eyJ1Ijoic2FpbnRseWJpIiwiYSI6ImNqZHVhZTBwaTE2azAzMnA1N3drdjJoOG4ifQ.vEKiNdLqEJHGOytXgPJBpA'
 
 app = dash.Dash()
 
@@ -65,10 +69,47 @@ app.layout = html.Div([
                    'margin-bottom':'40'}
         ), 
         html.Div([
+            html.H3('Survey Locations'
+            ),
             html.Div([
-                html.H3('Survey Locations'
-                ),
                 html.Div([
+                    dcc.Graph(
+                        figure=go.Figure(
+                            data=go.Data([
+                                    go.Scattermapbox(
+                                        lat=site_ref.Lat,
+                                        lon=site_ref.Long,
+                                        mode='markers',
+                                        marker=go.Marker(
+                                            size=9
+                                        ),
+                                        text=site_ref.GroupName,
+                                    )
+                            ]),
+                            layout = go.Layout(
+                                    autosize=True,
+                                    hovermode='closest',
+                                    mapbox=dict(
+                                        accesstoken=mapbox_access_token,
+                                        bearing=0,
+                                        center=dict(
+                                            lat=site_ref[site_ref.GPSName=='Ikgomotseng'] ['Lat'].unique()[0],
+                                            lon=site_ref[site_ref.GPSName=='Ikgomotseng']['Long'].unique()[0]
+                                        ),
+                                        pitch=0,
+                                        zoom=4
+                                    ),
+                                    margin = go.Margin(
+                                            l = 20,
+                                            r = 20,
+                                            t = 30,
+                                            b = 30
+                                    )
+                                ),
+                        ),
+                        style={'height': 450},
+                        id='my-graph'
+                    ),
                     dcc.RangeSlider(
                         id = 'input-years-explore',
                         marks={i: i for i in range(1994, 2015, 2)},
@@ -77,14 +118,14 @@ app.layout = html.Div([
                         step=1,
                         value=[2011, 2011],
                         dots = True
-                    )                        
+                    )       
                 ],
-                    className='ten columns'
+                    className='eleven columns'
                 ),
             ],
                 className='columns',
                 style={'margin-bottom':'10',
-                       'width':'55%',
+                       'width':'50%',
                        'float':'left'}
             ),
             html.Div([
@@ -100,7 +141,7 @@ app.layout = html.Div([
             ],
                 className='columns',
                 style={'margin-bottom':'10',
-                       'margin-top':'50',
+                       'margin-top':'30',
                        'width':'40%',
                        'float':'right'}
             ),
@@ -148,7 +189,7 @@ app.layout = html.Div([
                 className='columns',
                 style={'margin':10,
                        'width':'40%',
-                       'float':'right'}
+                       'float':'left'}
             ),
             html.Div([
                 html.H3('Question Response Summary'
@@ -179,8 +220,8 @@ app.layout = html.Div([
             ],
                 className='columns',
                 style={'margin':10,
-                       'width':'55%',
-                       'float':'left'}
+                       'width':'50%',
+                       'float':'right'}
             )
         ],
             className='row'
