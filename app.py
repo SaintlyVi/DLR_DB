@@ -171,7 +171,7 @@ app.layout = html.Div([
                 dt.DataTable(
                     id='output-locqu-summary',
                     rows=[{}], # initialise the rows
-                    row_selectable=False,
+                    row_selectable=True,
                     filterable=True,
                     sortable=True,
                     column_widths=40,

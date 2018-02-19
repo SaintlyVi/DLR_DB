@@ -32,10 +32,8 @@ import pandas as pd
 import numpy as np
 
 import features.feature_socios as socios
-from observations.obs_processing import loadProfiles, loadTables
+from observations.obs_processing import loadProfiles, loadTable
 from support import InputError
-
-tables = loadTables()
 
 #investigating one location
 def aggTs(year, unit, interval, dir_name='H', locstring=None):
@@ -82,15 +80,15 @@ def getProfilePower(year, dir_name='H'):
     This function retrieves and computes kW and kVA readings for all profiles in a year.
     """
     #get list of AnswerIDs in variable year
-    a_id = socios.loadID(year, id_name = 'AnswerID')
+    a_id = socios.loadID(year, id_name = 'AnswerID')['id']
     
     #get dataframe of linkages between AnswerIDs and ProfileIDs
-    links = tables.get('links')
+    links = loadTable('links')
     year_links = links[links.AnswerID.isin(a_id)]
     year_links = year_links.loc[year_links.ProfileID != 0, ['AnswerID','ProfileID']]    
     
     #get profile metadata (recorder ID, recording channel, recorder type, units of measurement)
-    profiles = tables.get('profiles')
+    profiles = loadTable('profiles')
     #add AnswerID information to profiles metadata
     profile_meta = year_links.merge(profiles, left_on='ProfileID', right_on='ProfileId').drop('ProfileId', axis=1)        
     VI_profile_meta = profile_meta.loc[(profile_meta['Unit of measurement'] == 2), :] #select current profiles only
