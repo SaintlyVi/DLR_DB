@@ -26,9 +26,15 @@ erc_logo = os.path.join(image_dir, 'erc_logo.jpg')
 erc_encoded = base64.b64encode(open(erc_logo, 'rb').read())
 sanedi_logo = os.path.join(image_dir, 'sanedi_logo.jpg')
 sanedi_encoded = base64.b64encode(open(sanedi_logo, 'rb').read())
-site_ref = pd.read_csv('data/site_reference.csv')
 
-mapbox_access_token = 'pk.eyJ1Ijoic2FpbnRseWJpIiwiYSI6ImNqZHVhZTBwaTE2azAzMnA1N3drdjJoOG4ifQ.vEKiNdLqEJHGOytXgPJBpA'
+# Load datasets
+site_ref = pd.read_csv('data/site_reference.csv')
+ids = socios.loadID()
+ids_summary = ids.groupby(['Year','LocName','GroupID'])['id'].count().reset_index()
+ids_summary.rename(columns={'GroupID':'GroupId', 'id':'# households'}, inplace=True)
+loc_summary = site_ref.merge(ids_summary[['GroupId','# households']], on='GroupId')
+
+mapbox_access_token = 'pk.eyJ1Ijoic2FpbnRseXZpIiwiYSI6ImNqZHZpNXkzcjFwejkyeHBkNnp3NTkzYnQifQ.Rj_C-fOaZXZTVhTlliofMA'
 
 app = dash.Dash()
 
@@ -74,49 +80,18 @@ app.layout = html.Div([
             html.Div([
                 html.Div([
                     dcc.Graph(
-                        figure=go.Figure(
-                            data=go.Data([
-                                    go.Scattermapbox(
-                                        lat=site_ref.Lat,
-                                        lon=site_ref.Long,
-                                        mode='markers',
-                                        marker=go.Marker(
-                                            size=9
-                                        ),
-                                        text=site_ref.GroupName,
-                                    )
-                            ]),
-                            layout = go.Layout(
-                                    autosize=True,
-                                    hovermode='closest',
-                                    mapbox=dict(
-                                        accesstoken=mapbox_access_token,
-                                        bearing=0,
-                                        center=dict(
-                                            lat=site_ref[site_ref.GPSName=='Ikgomotseng'] ['Lat'].unique()[0],
-                                            lon=site_ref[site_ref.GPSName=='Ikgomotseng']['Long'].unique()[0]
-                                        ),
-                                        pitch=0,
-                                        zoom=4
-                                    ),
-                                    margin = go.Margin(
-                                            l = 20,
-                                            r = 20,
-                                            t = 30,
-                                            b = 30
-                                    )
-                                ),
-                        ),
                         style={'height': 450},
-                        id='my-graph'
+                        id='map'
                     ),
-                    dcc.RangeSlider(
-                        id = 'input-years-explore',
+                    dcc.Slider(
+                        id = 'input-year',
                         marks={i: i for i in range(1994, 2015, 2)},
                         min=1994,
                         max=2014,
                         step=1,
-                        value=[2011, 2011],
+                        included=False,
+                        value= 2011,
+                        updatemode='drag',
                         dots = True
                     )       
                 ],
@@ -283,16 +258,10 @@ app.layout = html.Div([
 #Define outputs
 @app.callback(
         Output('output-location-list','rows'),
-        [Input('input-years-explore','value')]
+        [Input('input-year','value')]
         )
-def update_locations(years_explore):
-    ids = socios.loadID()
-    dff = pd.DataFrame()
-    for u in range(years_explore[0], years_explore[1]+1):
-        df = ids[ids.Year.astype(int) == u].groupby(['Year','LocName'])['id'].count().reset_index()
-        dff = dff.append(df)
-    dff.reset_index(inplace=True, drop=True)
-    dff.rename(columns={'LocName':'Location', 'id':'# households'}, inplace=True)
+def update_locations(input_year):
+    dff = loc_summary[loc_summary.Year.astype(int) == input_year]
     return dff.to_dict('records', OrderedDict)
             
 @app.callback(
@@ -310,6 +279,47 @@ def update_questions(search_word, surveys):
     questions = pd.DataFrame(dff['Question'])
     return questions.to_dict('records')
 
+
+@app.callback(
+        Output('map','figure'),
+        [Input('input-year','value')]
+        )
+def update_map(input_year):
+    figure=go.Figure(
+                            data=go.Data([
+                                    go.Scattermapbox(
+                                        lat=site_ref.loc[site_ref.Year==input_year, 'Lat'],
+                                        lon=site_ref.loc[site_ref.Year==input_year, 'Long'],
+                                        mode='markers',
+                                        marker=go.Marker(
+                                            size=9
+                                        ),
+                                        text=site_ref.GroupName,
+                                    )
+                            ]),
+                            layout = go.Layout(
+                                    autosize=True,
+                                    hovermode='closest',
+                                    mapbox=dict(
+                                        accesstoken=mapbox_access_token,
+                                        bearing=0,
+                                        center=dict(
+                                            lat=site_ref[site_ref.GPSName=='Ikgomotseng'] ['Lat'].unique()[0],
+                                            lon=site_ref[site_ref.GPSName=='Ikgomotseng']['Long'].unique()[0]
+                                        ),
+                                        pitch=0,
+                                        zoom=4
+                                    ),
+                                    margin = go.Margin(
+                                            l = 20,
+                                            r = 20,
+                                            t = 30,
+                                            b = 30
+                                    )
+                                ),
+                        )
+    return figure
+
 @app.callback(
         Output('output-locqu-summary','rows'),
         [Input('output-location-list','selected_row_indices'),
@@ -318,12 +328,10 @@ def update_questions(search_word, surveys):
          Input('output-search-word-questions','rows'),
          Input('input-summarise', 'value')]
         )
-
 def update_locqu_summary(loc_select, loc_rows, qu_select, qu_rows, summarise):
 
     locations = pd.DataFrame(loc_rows).iloc[loc_select]
     years = locations.Year.unique()
-    ids = socios.loadID()
     idselect = ids.loc[(ids.Year.isin(years)) & (ids.LocName.isin(locations.Location.unique())), 'id']
     
     searchterms = list(pd.DataFrame(qu_rows).loc[qu_select, 'Question'])
