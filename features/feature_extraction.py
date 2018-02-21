@@ -105,7 +105,7 @@ def saveData(yearstart, yearend, spec_file, output_name='evidence'):
             evidence = generateData(year, spec_file)
             status = 1      
             message = 'Success!'
-            print('Success! Saved to feature_data/' + file_name)
+            print('Success! Saved to data/feature_data/' + root_name + '/' + file_name)
 
         except InputError as e:
             pass            

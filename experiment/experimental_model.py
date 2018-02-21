@@ -23,12 +23,22 @@ def readClasses(year, dir_name):
     try:
         dir_path = os.path.join(cdata_dir, dir_name)
         file_name = [s for s in os.listdir(dir_path) if str(year) in s][0]
-        classes = pd.read_csv(os.path.join(dir_path, file_name), header=None, names=['AnswerID','class'])        
+        classes = pd.read_csv(os.path.join(dir_path, file_name), header=0, index_col=0)
         return classes
     
     except IndexError:
         print('No classes inferred for '+ str(year))
         raise
+        
+def selectClasses(year, dir_name, threshold='max'):
+    """
+    This function sets the inferred class for each AnswerID.
+    """    
+    df = readClasses(year, dir_name)
+    if threshold == 'max':
+        inferredclass = df.idxmax(axis=1) #USER MUST BE ABLE TO CHANGE THIS
+    
+    return inferredclass
 
 def yearsElectrified(year):
     """
@@ -66,7 +76,7 @@ def observedMaxDemand(profilepowerdata, year, classes_dir):
     maxdemand['hour'] = maxdemand['Datefield'].dt.hour                                 
     md = maxdemand[['AnswerID','RecorderID',power_col ,'month','daytype','hour']] 
 
-    classes = readClasses(year, classes_dir)
+    classes = selectClasses(year, classes_dir)
     yearselect = yearsElectrified(year)        
     meta = pd.merge(classes, yearselect, on='AnswerID')
     profiles = pd.merge(md, meta, on='AnswerID')  
@@ -83,7 +93,7 @@ def observedDemandSummary(annual_monthly_demand_data, year, classes_dir):
 
     interval = annual_monthly_demand_data.interval[0]
 
-    classes = readClasses(year, classes_dir)
+    classes = selectClasses(year, classes_dir)
     yearselect = yearsElectrified(year)
     
     meta = pd.merge(classes, yearselect, on='AnswerID')
@@ -127,7 +137,7 @@ def observedHourlyProfiles(aggdaytype_demand_data, year, classes_dir):
         Years Electrified
     """
     
-    classes = readClasses(year, classes_dir)
+    classes = selectClasses(year, classes_dir)
     yearselect = yearsElectrified(year)
     
     meta = pd.merge(classes, yearselect, on='AnswerID')

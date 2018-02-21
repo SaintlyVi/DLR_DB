@@ -20,9 +20,9 @@ import plotly.graph_objs as go
 from plotly import tools
 offline.init_notebook_mode(connected=True)
 
-from experiment.algorithms.bn import inferCustomerClasses
-    
-def plotClassDist(model, evidence_dir, year):
+from experiment.experimental_model import readClasses
+
+def plotClassDist(year, class_dir):
     """
     This function plots the probability distribution over all the inferred classes for all the AnswerIDs 
     in a given year.
@@ -30,9 +30,9 @@ def plotClassDist(model, evidence_dir, year):
     colors = cl.flipper()['div']['5']['RdGy']
     scl = [[0,colors[2]],[0.25,colors[3]],[0.5,colors[4]],[0.75,colors[1]],[1,colors[0]]]
  
-    df, bn = inferCustomerClasses(model, evidence_dir, year)
+    df = readClasses(year, class_dir)
     melt = df.reset_index().melt(id_vars='AnswerID')
-    melt['tixnames'] = melt.apply(lambda x: 'AnswerID: '+ x['AnswerID']+'<br />class: '+ x['variable']+'<br />likelihood: '+"{0:.3f}".format(x['value']), axis=1)
+    melt['tixnames'] = melt.apply(lambda x: 'AnswerID: '+ str(x['AnswerID'])+'<br />class: '+ x['variable']+'<br />likelihood: '+"{0:.3f}".format(x['value']), axis=1)
     trace = go.Heatmap(z=melt.value,
                        x=melt.AnswerID,
                        y=melt.variable,
@@ -65,7 +65,7 @@ def plotClassDist(model, evidence_dir, year):
     
     return offline.iplot({"data":data, "layout":layout})
 
-def plotClassYearRange(yearstart, yearend, model, evidence_dir):
+def plotClassYearRange(yearstart, yearend, class_dir):
     """
     This function creates subplots of the probability distribution over all the inferred classes 
     for a range of years.
@@ -93,9 +93,9 @@ def plotClassYearRange(yearstart, yearend, model, evidence_dir):
             scl_switch=False
         
         try:
-            df, bn = inferCustomerClasses(model, evidence_dir, y)
+            df = readClasses(y, class_dir)
             melt = df.reset_index().melt(id_vars='AnswerID')
-            melt['tixnames'] = melt.apply(lambda x: 'AnswerID: '+ x['AnswerID']+'<br />class: '+ x['variable']+'<br />likelihood: '+"{0:.3f}".format(x['value']), axis=1)
+            melt['tixnames'] = melt.apply(lambda x: 'AnswerID: '+ str(x['AnswerID'])+'<br />class: '+ x['variable']+'<br />likelihood: '+"{0:.3f}".format(x['value']), axis=1)
             trace = go.Heatmap(z=melt.value,
                                x=melt.AnswerID,
                                y=melt.variable,
@@ -116,7 +116,8 @@ def plotClassYearRange(yearstart, yearend, model, evidence_dir):
         r += 1
     
     fig['layout'].update(showlegend=False, title='Probability Distribution of Customer Classes from' + str(yearstart)+'-'+str(yearend),
-      height=350+300*(nrow-1))
+      height=350+300*(nrow-1),
+      margin=dict(l=140))
 
     for k in np.arange(1, yearend+1, 3):
           fig['layout'].update({'yaxis{}'.format(k): go.YAxis(type = 'category',

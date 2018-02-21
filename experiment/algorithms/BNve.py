@@ -88,8 +88,7 @@ def inferCustomerClasses(param_file, evidence_dir, year):
 
 def saveClasses(yearstart, yearend, param_file, evidence_dir):
     """
-    This function saves the inferred class for each AnswerID in a csv file. 
-    Requires a dataframe created with inferCustomerClasses() as input.
+    This function saves the inferred probability distribution over each class for each AnswerID in a csv file. 
     """
     
     loglines = []
@@ -100,23 +99,21 @@ def saveClasses(yearstart, yearend, param_file, evidence_dir):
             dir_path = os.path.join(cdata_dir, param_file)
             os.makedirs(dir_path , exist_ok=True)
             file_path = os.path.join(dir_path, 'classes_'+str(year)+'.csv')  
-
             classes = inferCustomerClasses(param_file, evidence_dir, year)
-            inferredclass = classes.idxmax(axis=1)                        
             
             status = 1      
             message = 'Success!'
-            print('Success! Saving to class_data/' + param_file + '/classes_'+str(year)+'.csv' )            
+            print('Success! Saving to data/class_data/' + param_file + '/classes_'+str(year)+'.csv' )            
 
         except InputError as e:
             pass
-            inferredclass = pd.DataFrame()
+            classes = pd.DataFrame()
             status = 0 
             message = e.message
             print(e)
             print('Saving empty file') 
 
-        inferredclass.to_csv(file_path)
+        classes.to_csv(file_path)
                        
         l = ['classInference', year, status, message, param_file, evidence_dir+'_spec']
         loglines.append(l)
