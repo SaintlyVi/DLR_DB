@@ -100,7 +100,7 @@ def getProfilePower(year, dir_name='H'):
     if year <= 2009: #pre-2009 recorder type is set up so that up to 12 current profiles share one voltage profile
         #get list of ProfileIDs in variable year
         p_id = socios.loadID(year, id_name = 'ProfileID')
-        year_profiles = profiles[profiles.ProfileId.isin(p_id)]        
+        year_profiles = profiles[profiles.ProfileId.isin(p_id.id)]        
         vchan = year_profiles.loc[year_profiles['Unit of measurement']==1, ['ProfileId','RecorderID']] #get metadata for voltage profiles
 
         iprofile = iprofile.merge(vchan, on='RecorderID', suffixes=('_i','_v'))

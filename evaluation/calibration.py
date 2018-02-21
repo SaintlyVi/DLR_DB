@@ -8,7 +8,6 @@ Created on Wed Nov 15 14:09:59 2017
 import pandas as pd
 import numpy as np
 
-from experiment.experimental_model import experimentalModel
 from support import writeLog
 
 def uncertaintyStats(submodel):
@@ -59,7 +58,7 @@ def dataIntegrity(submodels, min_answerid, min_obsratio):
                                           'unit':unit}, ignore_index=True) 
         
     validmodels.set_index('submodel_name', drop=True, inplace=True)
-        
+
     return validmodels
 
 def modelSimilarity(ex_submodel, ex_ts, valid_new_submodel, new_ts, submod_type):
@@ -89,16 +88,15 @@ def modelSimilarity(ex_submodel, ex_ts, valid_new_submodel, new_ts, submod_type)
     
     return eucliddist, simveccount, merged_sub
 
-def logCalibration(bm_model, year, experiment_dir, min_answerid = 2, min_obsratio = 0.85):
+def logCalibration(bm_model, year, exp_model, min_answerid = 2, min_obsratio = 0.85):
     """
     This function logs the evaluation results of the run.
     
     ex_model = [demand_summary, hourly_profiles, ds_val_col_name, hp_val_col_name]
     """
     #Generate data model
-    dm = experimentalModel(year, experiment_dir)
-    ods = dm[0]
-    ohp = dm[1]
+    ods = pd.read_csv('data/experimental_model/'+exp_model+'/demand_summary_'+year+'.csv')
+    ohp = pd.read_csv('data/experimental_model/'+exp_model+'/hourly_profiles_'+year+'.csv')
     
     #Check data integrity
     ods.name = 'demand_summary'
@@ -127,9 +125,9 @@ def logCalibration(bm_model, year, experiment_dir, min_answerid = 2, min_obsrati
     hp_vuc = validmodels.at['hourly_profiles','valid_unit_count']
     hp_unit = validmodels.at['hourly_profiles','unit']
     
-    loglineds = [year, experiment_dir, ods.name, min_answerid, min_obsratio, ds_uix, ds_vuc,
+    loglineds = [year, exp_model, ods.name, min_answerid, min_obsratio, ds_uix, ds_vuc,
                  ds_unit, euclid_ds, count_ds]
-    loglinehp = [year, experiment_dir, ohp.name, min_answerid, min_obsratio, hp_uix, hp_vuc, 
+    loglinehp = [year, exp_model, ohp.name, min_answerid, min_obsratio, hp_uix, hp_vuc, 
                  hp_unit, euclid_hp, count_hp]
     
     log_lines = pd.DataFrame([loglineds, loglinehp], columns = ['year','experiment',

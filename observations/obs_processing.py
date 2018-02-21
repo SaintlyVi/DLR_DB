@@ -159,7 +159,7 @@ def csvTables():
 #            print('Successfully saved to ' + path)        
     return
         
-def shapeProfiles(year, unit):
+def shapeProfiles(year, unit, dir_name):
     """
     This function reshapes a year's unit profiles into a dataframe indexed by date, with profile IDs as columns and units read as values.
     annualunitprofile variable should be a pandas data frame constructed with the loadProfiles() function.
@@ -168,7 +168,7 @@ def shapeProfiles(year, unit):
     The function returns [shaped_profile_df, year, unit]; a tuple containing the shaped dataframe indexed by hour with aggregated unit values for all profiles, the year and unit concerned.
     
     """
-    data, year, unit = loadProfiles(year, unit)
+    data, year, unit = loadProfiles(year, unit, dir_name)
     
     data.loc[(data.Unitsread.notnull())&(data.Valid != 1), 'Unitsread'] = np.nan
     data.ProfileID = data.ProfileID.astype(str)
@@ -180,7 +180,7 @@ def shapeProfiles(year, unit):
     
     return profile_matrix, year, unit, valid_matrix
 
-def nanAnalysis(year, unit, threshold = 0.95):
+def nanAnalysis(year, unit, dir_name, threshold = 0.95):
     """
     This function displays information about the missing values for all customers in a load profile unit year.
     threshold - float between 0 and 1: user defined value that specifies the percentage of observed hours that must be valid for the profile to be considered useable.
@@ -190,7 +190,7 @@ def nanAnalysis(year, unit, threshold = 0.95):
         * the percentage of profiles and measurement days with full observational data above the threshold value.
     """
     
-    data, year, unit, valid_matrix = shapeProfiles(year, unit)
+    data, year, unit, valid_matrix = shapeProfiles(year, unit, dir_name)
 
     #prep data
     fullrows = data.count(axis=1)/data.shape[1]

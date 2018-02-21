@@ -38,6 +38,9 @@ def selectClasses(year, dir_name, threshold='max'):
     if threshold == 'max':
         inferredclass = df.idxmax(axis=1) #USER MUST BE ABLE TO CHANGE THIS
     
+    inferredclass = inferredclass.reset_index()
+    inferredclass.rename(columns={0:'class'}, inplace=True)
+    
     return inferredclass
 
 def yearsElectrified(year):
@@ -208,7 +211,7 @@ def saveExpModel(year, experiment, algorithm, run):
     for k, v in {'demand_summary':ods, 'hourly_profiles':ohp}.items():
         try:
             file_path = os.path.join(dir_path, k + '_'+ str(year) + '.csv')          
-            v.to_csv(file_path)          
+            v.to_csv(file_path, index=False)          
             status = 1
             message = 'Success!'
             print('Successfully saved to' + file_path)

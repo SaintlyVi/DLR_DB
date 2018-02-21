@@ -17,7 +17,7 @@ import plotly.graph_objs as go
 import plotly as py
 offline.init_notebook_mode(connected=True) #set for plotly offline plotting
 
-import expertmod.excore as expert
+import benchmark.bm0 as bm0
 from support import image_dir
 
 def plotAnswerIDCount(submodel):
@@ -119,23 +119,23 @@ def plotHourlyProfiles(customer_class, model_cat, daytype='Weekday', years_elect
     
     if model_cat == 'expert':
         if model_dir is None:        
-            df = expert.expertHourlyProfiles()
+            df = bm0.bmHourlyProfiles()
         else:
-            df = expert.expertHourlyProfiles(model_dir)
+            df = bm0.bmHourlyProfiles(model_dir)
         df.columns = ['YearsElectrified', 'mean_monthly_kw', 'month', 'daytype', 'hour', 
-                      'kva_mean', 'kva_std', 'class']
+                      'kw_mean', 'kw_std', 'class']
     elif model_cat == 'data':
         if data is None:
             return(print('Specify the observed hourly load profile dataframe to be used for this graphic.'))
         else:
             df = data[['class', 'YearsElectrified', 'month', 'daytype', 
-                         'hour', 'kva_mean', 'kva_std']]
+                         'hour', 'kw_mean', 'kw_std']]
   
     df = df[(df['daytype']==daytype) & (df['YearsElectrified']==years_electrified) & (df['class']==customer_class)]
     if df.empty:
         return(print('Cannot retrieve data for the given submodel parameters. Please specify a different submodel.'))
     else:
-        maxdemand = df['kva_mean'].max()
+        maxdemand = df['kw_mean'].max()
     
     #generate plot data
     traces = []
@@ -144,7 +144,7 @@ def plotHourlyProfiles(customer_class, model_cat, daytype='Weekday', years_elect
     months = np.flipud(df['month'].unique())
     count = 0
     for m in months:
-        z_raw = df.loc[df['month'] == m, 'kva_mean']
+        z_raw = df.loc[df['month'] == m, 'kw_mean']
         z_raw = z_raw.reset_index(drop=True)
         x = []
         y = []
@@ -156,7 +156,7 @@ def plotHourlyProfiles(customer_class, model_cat, daytype='Weekday', years_elect
         hovertext = list() #modify text box on hover
         for yi, yy in y:
             hovertext.append(list())
-            hovertext[-1].append('{}h00<br />{:.3f} kVA'.format(yy, z[yi][0]))
+            hovertext[-1].append('{}h00<br />{:.3f} kW'.format(yy, z[yi][0]))
             
         traces.append(dict(
             z=z,
@@ -188,7 +188,7 @@ def plotHourlyProfiles(customer_class, model_cat, daytype='Weekday', years_elect
                         title = 'time of day',
                         tickvals = np.arange(0, 24, 2)),
                 zaxis=dict(
-                        title = 'demand (kVA)',
+                        title = 'demand (kW)',
                         tickvals = np.arange(0, ceil(maxdemand*10)/10, 0.1),
                         rangemode = "tozero")
                 )
@@ -203,7 +203,7 @@ def plotProfileSimilarity(merged_hp, customer_class, daytype):
     daytype = one of [Weekday, Saturday, Sunday]
     """
     
-    d = merged_hp.loc[(merged_hp['daytype']==daytype) & (merged_hp['class']==customer_class)][['YearsElectrified', 'month', 'hour', 'Mean [kVA]', 'kva_mean', 'kva_std']]
+    d = merged_hp.loc[(merged_hp['daytype']==daytype) & (merged_hp['class']==customer_class)][['YearsElectrified', 'month', 'hour', 'Mean [kVA]', 'kw_mean', 'kw_std']]
     d['tix'] = 12*24*(d.YearsElectrified-1) + 24*(d.month-1) + d.hour
     d['tixnames'] = d.apply(lambda xd: 'Year '+str(int(xd.YearsElectrified))+
         '<br />Month '+str(int(xd.month))+'<br />'+str(int(xd.hour))+'h00', axis=1)
@@ -235,7 +235,7 @@ def plotProfileSimilarity(merged_hp, customer_class, daytype):
             )
     trace2 = go.Scatter(
         x=d['tix'],
-        y=d['kva_mean'],
+        y=d['kw_mean'],
         fill='tonexty',
         fillcolor='rgb(255, 204, 255)',
         mode='lines',
@@ -246,7 +246,7 @@ def plotProfileSimilarity(merged_hp, customer_class, daytype):
             )
     trace3 = go.Scatter(
         x=d['tix'],
-        y=d['kva_std'] + d['kva_mean'],
+        y=d['kw_std'] + d['kw_mean'],
         mode='lines',
         name='data model std dev',
         line=dict(
@@ -255,7 +255,7 @@ def plotProfileSimilarity(merged_hp, customer_class, daytype):
         hoverinfo='none'
             )
     
-    y4 = [(y>0)*y for y in d['kva_mean'] - d['kva_std']]
+    y4 = [(y>0)*y for y in d['kw_mean'] - d['kw_std']]
     trace4 = go.Scatter(
         x=d['tix'],
         y=y4,
@@ -274,11 +274,11 @@ def plotProfileSimilarity(merged_hp, customer_class, daytype):
                 margin = dict(t=150,r=150,b=50,l=150),
                 height = 400,
                 yaxis = dict(
-                        title = 'mean hourly demand (kVA)',
-                        ticksuffix=' kVA'),
+                        title = 'mean hourly demand (kW)',
+                        ticksuffix=' kW'),
                 xaxis = dict(                        
                         title = 'time electrified (years)',
-                        ticktext = list(range(0, 16)),
+                        ticktext = list(range(1, 16)),
                         tickvals = np.arange(0, (15*12*24)+1, 12*24),
                         rangeslider=dict(),)
                         )
@@ -424,13 +424,13 @@ def multiplotDemandSimilarity(merged_ds):
 
 def plotMaxDemandSpread(md):
 
-    table = pd.pivot_table(md, values='Unitsread_kva', index=['month','hour'],aggfunc='count')
+    table = pd.pivot_table(md, values='Unitsread_kw', index=['month','hour'],aggfunc='count')
     table.reset_index(inplace=True)
     
     data = [go.Heatmap(
         x=table['month'],
         y=table['hour'], 
-        z = table['Unitsread_kva'],
+        z = table['Unitsread_kw'],
         colorscale=[[0.0, cl.flipper()['seq']['3']['Oranges'][0]],
                     [1.0, cl.flipper()['seq']['3']['Oranges'][-1]]]
         )]
@@ -456,10 +456,10 @@ def plotMonthlyMaxDemand(md):
         trace = dict(
             type = 'scatter',
             x=d['month'],
-            y=d['Unitsread_kva'],
+            y=d['Unitsread_kw'],
             mode = 'markers', 
             name = c,
-            marker = dict(size = d['Unitsread_kva']*3
+            marker = dict(size = d['Unitsread_kw']*3
             ))
     
         data.append(trace)
@@ -475,10 +475,10 @@ def plotHourlyMaxDemand(md):
         trace = dict(
             type = 'scatter',
             x=d['hour'],
-            y=d['Unitsread_kva'],
+            y=d['Unitsread_kw'],
             mode = 'markers', 
             name = c,
-            marker = dict(size = d['Unitsread_kva']*3
+            marker = dict(size = d['Unitsread_kw']*3
             ))
     
         data.append(trace)
