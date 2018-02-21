@@ -19,7 +19,7 @@ offline.init_notebook_mode(connected=True) #set for plotly offline plotting
 
 from support import dpet_dir, image_dir
 
-def expertDemandSummary(model_dir = dpet_dir):
+def bmDemandSummary(model_dir = dpet_dir):
     """
     Retrieves demand summary expert model stored in csv files in model_dir. File names must end with '_summary.csv' .
     """
@@ -42,7 +42,7 @@ def expertDemandSummary(model_dir = dpet_dir):
     
     return summary
 
-def expertHourlyProfiles(model_dir = dpet_dir):
+def bmHourlyProfiles(model_dir = dpet_dir):
     """
     Retrieves hourly profiles expert model stored in csv files in model_dir. File names must end with '_hourly.csv' .
     """
@@ -79,21 +79,21 @@ def benchmarkModel():
     """
     Fetch data for existing/expert DPET model.
     """
-    hp = expertHourlyProfiles()
-    ds = expertDemandSummary()
+    hp = bmHourlyProfiles()
+    ds = bmDemandSummary()
     dsts = 'Energy [kWh]'
     hpts = 'Mean [kVA]'
     
     return ds, hp, dsts, hpts
 
 
-def plotExpDemandSummary(customer_class, model_dir = dpet_dir):
+def plotBmDemandSummary(customer_class, model_dir = dpet_dir):
     """
     This function plots the average monthly energy consumption for a specified customer class from 
     1 to 15 years since electrification. Data is based on the DPET model.
     """
     
-    summary = expertDemandSummary(model_dir)
+    summary = bmDemandSummary(model_dir)
     df = summary[summary['class']==customer_class][['YearsElectrified','Energy [kWh]']] 
     data = [go.Bar(
                 x=df['YearsElectrified'],
@@ -121,7 +121,7 @@ def plotExpDemandSummary(customer_class, model_dir = dpet_dir):
     
     return offline.iplot({"data":data, "layout":layout}, filename=os.path.join(image_dir,'demand_summary_'+customer_class+'.png'))
 
-def plot15YearExpDemandSummary(model_dir = dpet_dir):
+def plot15YearBmDemandSummary(model_dir = dpet_dir):
     """
     This function plots the average monthly energy consumption for all customer classes from
     1 to 15 years since electrification. Data is based on the DPET model.
@@ -129,7 +129,7 @@ def plot15YearExpDemandSummary(model_dir = dpet_dir):
     
     clrs = ['Greens','RdPu','Blues','YlOrRd','Purples','Reds', 'Greys']
     
-    summary = expertDemandSummary(model_dir)
+    summary = bmDemandSummary(model_dir)
     df = summary[['class','YearsElectrified','Energy [kWh]']].sort_values(by='Energy [kWh]')
     data = []
     
@@ -168,12 +168,12 @@ def plot15YearExpDemandSummary(model_dir = dpet_dir):
     
     return offline.iplot({"data":data, "layout":layout}, filename=os.path.join(image_dir,'15year_demand_summary'+'.png'))
 
-def plotExpHourlyProfiles(customer_class, daytype='Weekday', yearstart=1, yearend=15, model_dir=dpet_dir):
+def plotBmHourlyProfiles(customer_class, daytype='Weekday', yearstart=1, yearend=15, model_dir=dpet_dir):
     """
     This function plots the hourly load profiles for a specified customer class, day type and year range since electrification. Data is based on the DPET model.
     """
     
-    df = expertHourlyProfiles(model_dir)
+    df = bmHourlyProfiles(model_dir)
     maxdemand = df['Mean [kVA]'].max() #get consistent max demand & color scale across classes
     df = df[(df['daytype']==daytype) & (df['class']==customer_class)]
     
