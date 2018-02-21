@@ -168,9 +168,9 @@ def plot15YearBmDemandSummary(model_dir = dpet_dir):
     
     return offline.iplot({"data":data, "layout":layout}, filename=os.path.join(image_dir,'15year_demand_summary'+'.png'))
 
-def plotBmHourlyProfiles(customer_class, daytype='Weekday', yearstart=1, yearend=15, model_dir=dpet_dir):
+def plotBmHourlyProfiles(customer_class, year_list, daytype='Weekday', model_dir=dpet_dir):
     """
-    This function plots the hourly load profiles for a specified customer class, day type and year range since electrification. Data is based on the DPET model.
+    This function plots the hourly load profiles for a specified customer class, day type and list of years since electrification. Data is based on the DPET model.
     """
     
     df = bmHourlyProfiles(model_dir)
@@ -182,15 +182,18 @@ def plotBmHourlyProfiles(customer_class, daytype='Weekday', yearstart=1, yearend
     scl = [[0,colors[0]],[0.25,colors[1]],[0.5,colors[2]],[0.75,colors[3]],[1,colors[4]]]
     
     #set subplot parameters
-    ncol = 3
-    nrow = ceil((yearend-yearstart)/ncol)
+    if len(year_list) < 3:
+        ncol = len(year_list)
+    else:
+        ncol = 3
+    nrow = ceil(len(year_list)/ncol)
     fig = py.tools.make_subplots(rows=nrow, cols=ncol, 
-                    subplot_titles=['Year ' + str(x) for x in range(yearstart, yearend+1)], 
+                    subplot_titles=['Year ' + str(x) for x in year_list], 
                     horizontal_spacing = 0.1, print_grid=False)
     r = 1 #initiate row
     c = 1 #initiate column
     
-    for yr in range(yearstart, yearend+1):
+    for yr in year_list:
         if c == ncol + 1: 
             c = 1
         ro = ceil(r/ncol)
@@ -242,10 +245,10 @@ def plotBmHourlyProfiles(customer_class, daytype='Weekday', yearstart=1, yearend
         r += 1
 
     fig['layout'].update(showlegend=False, 
-      title='<b>'+customer_class+'</b> mean estimated <b>'+daytype+'</b> energy demand (kVA) <br />' + str(yearstart)+'-'+str(yearend)+' years after electrification',
+      title='<b>'+customer_class+'</b> mean estimated <b>'+daytype+'</b> energy demand (kVA) <br />' + ', '.join(map(str, year_list[:-1])) + ' and ' + str(year_list[-1]) + ' years after electrification',
       height=350+300*(nrow-1))
     
-    for k in range(1, (yearend-yearstart)+2):
+    for k in range(1, len(year_list)+2):
           fig['layout'].update({'yaxis{}'.format(k): go.YAxis(type = 'category',
                                                               ticktext = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],#data.month.unique(),
                                                               tickvals = np.arange(1, 13, 1),
