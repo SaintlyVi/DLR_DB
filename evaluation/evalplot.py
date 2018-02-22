@@ -267,7 +267,7 @@ def plotProfileSimilarity(merged_hp, customer_class, daytype):
         hoverinfo='none'
             )
     
-    data = [trace0, trace1, trace2, trace3, trace4]
+    data = [trace0, trace1, trace2]#, trace3, trace4]
     
     layout = go.Layout(showlegend=True, 
                 title=daytype + ' load profile model similarity for ' + customer_class + ' customers ',

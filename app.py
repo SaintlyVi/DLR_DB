@@ -261,7 +261,7 @@ app.layout = html.Div([
         [Input('input-year','value')]
         )
 def update_locations(input_year):
-    dff = loc_summary[loc_summary.Year.astype(int) == input_year]
+    dff = loc_summary.loc[loc_summary.Year.astype(int) == input_year, ['Year', 'GPSName', '# households']]
     return dff.to_dict('records', OrderedDict)
             
 @app.callback(
@@ -286,38 +286,38 @@ def update_questions(search_word, surveys):
         )
 def update_map(input_year):
     figure=go.Figure(
-                            data=go.Data([
-                                    go.Scattermapbox(
-                                        lat=site_ref.loc[site_ref.Year==input_year, 'Lat'],
-                                        lon=site_ref.loc[site_ref.Year==input_year, 'Long'],
-                                        mode='markers',
-                                        marker=go.Marker(
-                                            size=9
-                                        ),
-                                        text=site_ref.GroupName,
-                                    )
-                            ]),
-                            layout = go.Layout(
-                                    autosize=True,
-                                    hovermode='closest',
-                                    mapbox=dict(
-                                        accesstoken=mapbox_access_token,
-                                        bearing=0,
-                                        center=dict(
-                                            lat=site_ref[site_ref.GPSName=='Ikgomotseng'] ['Lat'].unique()[0],
-                                            lon=site_ref[site_ref.GPSName=='Ikgomotseng']['Long'].unique()[0]
-                                        ),
-                                        pitch=0,
-                                        zoom=4
-                                    ),
-                                    margin = go.Margin(
-                                            l = 20,
-                                            r = 20,
-                                            t = 30,
-                                            b = 30
-                                    )
-                                ),
-                        )
+        data=go.Data([
+                go.Scattermapbox(
+                    lat=site_ref.loc[site_ref.Year==input_year, 'Lat'],
+                    lon=site_ref.loc[site_ref.Year==input_year, 'Long'],
+                    mode='markers',
+                    marker=go.Marker(
+                        size=9
+                    ),
+                    text=site_ref.loc[site_ref.Year==input_year,'GPSName'],
+                )
+        ]),
+        layout = go.Layout(
+                autosize=True,
+                hovermode='closest',
+                mapbox=dict(
+                    accesstoken=mapbox_access_token,
+                    bearing=0,
+                    center=dict(
+                        lat=site_ref[site_ref.GPSName=='Ikgomotseng'] ['Lat'].unique()[0],
+                        lon=site_ref[site_ref.GPSName=='Ikgomotseng']['Long'].unique()[0]
+                    ),
+                    pitch=0,
+                    zoom=4
+                ),
+                margin = go.Margin(
+                        l = 20,
+                        r = 20,
+                        t = 30,
+                        b = 30
+                )
+            ),
+    )
     return figure
 
 @app.callback(

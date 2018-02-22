@@ -227,4 +227,4 @@ def saveExpModel(year, experiment, algorithm, run):
                                              'run', 'status','message'])
     writeLog(logs,'log_modelRun')
     
-    return ods, ohp, md, adtd, amd, aggpp, pp
+    return
