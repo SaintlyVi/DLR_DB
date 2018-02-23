@@ -12,7 +12,6 @@ import dash_html_components as html
 import dash_table_experiments as dt
 from dash.dependencies import Input, Output#, State
 import plotly.graph_objs as go
-
 import pandas as pd
 import os
 import base64
@@ -37,6 +36,7 @@ loc_summary = site_ref.merge(ids_summary[['GroupId','# households']], on='GroupI
 mapbox_access_token = 'pk.eyJ1Ijoic2FpbnRseXZpIiwiYSI6ImNqZHZpNXkzcjFwejkyeHBkNnp3NTkzYnQifQ.Rj_C-fOaZXZTVhTlliofMA'
 
 app = dash.Dash()
+app.config['suppress_callback_exceptions']=True
 
 external_css = ["https://fonts.googleapis.com/css?family=Overpass:300,300i",
                 "https://cdn.rawgit.com/plotly/dash-app-stylesheets/dab6f937fd5548cebf4c6dc7e93a10ac438f5efb/dash-technical-charting.css"]
@@ -80,17 +80,18 @@ app.layout = html.Div([
             html.Div([
                 html.Div([
                     dcc.Graph(
+                        animate=True,
                         style={'height': 450},
                         id='map'
                     ),
-                    dcc.Slider(
-                        id = 'input-year',
+                    dcc.RangeSlider(
+                        id = 'input-years',
                         marks={i: i for i in range(1994, 2015, 2)},
                         min=1994,
                         max=2014,
                         step=1,
-                        included=False,
-                        value= 2011,
+                        included=True,
+                        value= [1994, 2014],
                         updatemode='drag',
                         dots = True
                     )       
@@ -215,7 +216,8 @@ app.layout = html.Div([
                     max=2014,
                     step=1,
                     value=[2011, 2011],
-                    dots = True
+#                    dots = True,
+#                    included=True
                 )
             ],
                 className='seven columns',
@@ -258,10 +260,14 @@ app.layout = html.Div([
 #Define outputs
 @app.callback(
         Output('output-location-list','rows'),
-        [Input('input-year','value')]
+        [Input('input-years','value')]
         )
-def update_locations(input_year):
-    dff = loc_summary.loc[loc_summary.Year.astype(int) == input_year, ['Year', 'GPSName', '# households']]
+def update_locations(input_years):
+    dff = pd.DataFrame()
+    for y in range(input_years[0], input_years[1]+1):
+        df = loc_summary.loc[loc_summary.Year.astype(int) == y, ['Year', 'GPSName', '# households']]
+        dff = dff.append(df)
+    dff.reset_index(inplace=True, drop=True)
     return dff.to_dict('records', OrderedDict)
             
 @app.callback(
@@ -279,24 +285,31 @@ def update_questions(search_word, surveys):
     questions = pd.DataFrame(dff['Question'])
     return questions.to_dict('records')
 
-
 @app.callback(
-        Output('map','figure'),
-        [Input('input-year','value')]
+        Output('map','figure'),        
+        [Input('input-years','value')]
         )
-def update_map(input_year):
+def update_map(input_years):
+
+    traces = []
+    for y in range(input_years[0],input_years[1]):
+        lat = site_ref.loc[site_ref.Year==y, 'Lat']
+        lon = site_ref.loc[site_ref.Year==y, 'Long']
+        text = site_ref.loc[site_ref.Year==y,'GPSName']
+#        marker_size = site_ref.loc[site_ref.Year==y,'# households']
+        trace=go.Scattermapbox(
+                name=y,
+                lat=lat,
+                lon=lon,
+                mode='markers',
+                marker=go.Marker(
+                    size=12
+                ),
+                text=text,
+            )
+        traces.append(trace)
     figure=go.Figure(
-        data=go.Data([
-                go.Scattermapbox(
-                    lat=site_ref.loc[site_ref.Year==input_year, 'Lat'],
-                    lon=site_ref.loc[site_ref.Year==input_year, 'Long'],
-                    mode='markers',
-                    marker=go.Marker(
-                        size=9
-                    ),
-                    text=site_ref.loc[site_ref.Year==input_year,'GPSName'],
-                )
-        ]),
+        data=go.Data(traces),
         layout = go.Layout(
                 autosize=True,
                 hovermode='closest',
@@ -308,18 +321,20 @@ def update_map(input_year):
                         lon=site_ref[site_ref.GPSName=='Ikgomotseng']['Long'].unique()[0]
                     ),
                     pitch=0,
-                    zoom=4
+                    zoom=4.2,
+                    style='light'
                 ),
                 margin = go.Margin(
-                        l = 20,
-                        r = 20,
-                        t = 30,
+                        l = 10,
+                        r = 10,
+                        t = 20,
                         b = 30
-                )
-            ),
+                ),
+                showlegend=False
+            )
     )
     return figure
-
+   
 @app.callback(
         Output('output-locqu-summary','rows'),
         [Input('output-location-list','selected_row_indices'),
