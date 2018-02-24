@@ -79,7 +79,7 @@ def modelSimilarity(ex_submodel, ex_ts, valid_new_submodel, new_ts, submod_type)
     else:
         return(print('Valid submod_type is one of [ds, hp] -> ds=demand_summary, hp=hourly_profiles.'))
     
-    merged_sub = ex_submodel.merge(valid_new_submodel, on=index_cols)
+    merged_sub = ex_submodel.merge(valid_new_submodel, how='left', on=index_cols)
     simvec = merged_sub[new_ts] - merged_sub[ex_ts]
     simvec.dropna(inplace=True)
     simveccount = len(simvec)
