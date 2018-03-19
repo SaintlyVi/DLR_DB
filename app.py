@@ -107,8 +107,10 @@ app.layout = html.Div([
             html.Div([
                 dt.DataTable(
                     id='output-location-list',
+#                    rows=df.to_dict('records'),
+#                    columns=(df.columns),
                     rows=[{}], # initialise the rows
-                    row_selectable=True,
+                    row_selectable=False,
                     filterable=True,
                     sortable=True,
                     column_widths=100,
@@ -287,15 +289,26 @@ def update_questions(search_word, surveys):
 
 @app.callback(
         Output('map','figure'),        
-        [Input('input-years','value')]
+        [Input('output-location-list','rows')]#Input('input-years','value')]
         )
-def update_map(input_years):
+#def update_map(input_years):
+#
+#    traces = []
+#    for y in range(input_years[0],input_years[1]):
+def update_map(input_locations):
 
+    loc_list = pd.DataFrame(input_locations)
+    keys=['Year','GPSName']
+    i_loc = loc_list.set_index(keys).index
+    i_site = site_ref.set_index(keys).index
+    
+    georef = site_ref[i_site.isin(i_loc)]
+        
     traces = []
-    for y in range(input_years[0],input_years[1]):
-        lat = site_ref.loc[site_ref.Year==y, 'Lat']
-        lon = site_ref.loc[site_ref.Year==y, 'Long']
-        text = site_ref.loc[site_ref.Year==y,'GPSName']
+    for y in range(georef.Year.min(), georef.Year.max()+1):
+        lat = georef.loc[(georef.Year==y), 'Lat']
+        lon = georef.loc[(georef.Year==y), 'Long']
+        text = georef.loc[(georef.Year==y), 'GPSName']
 #        marker_size = site_ref.loc[site_ref.Year==y,'# households']
         trace=go.Scattermapbox(
                 name=y,
