@@ -15,7 +15,6 @@ import plotly.graph_objs as go
 import pandas as pd
 import os
 import base64
-from collections import OrderedDict
 
 import features.feature_socios as socios 
 from support import dlrdb_dir
@@ -111,9 +110,11 @@ app.layout = html.Div([
 #                    columns=(df.columns),
                     rows=[{}], # initialise the rows
                     row_selectable=False,
+                    columns = ['Year','GPSName','# households'],
                     filterable=True,
                     sortable=True,
                     column_widths=100,
+                    min_height = 450,
                     resizable=True,
                     selected_row_indices=[],)     
             ],
@@ -270,7 +271,7 @@ def update_locations(input_years):
         df = loc_summary.loc[loc_summary.Year.astype(int) == y, ['Year', 'GPSName', '# households']]
         dff = dff.append(df)
     dff.reset_index(inplace=True, drop=True)
-    return dff.to_dict('records', OrderedDict)
+    return dff.to_dict('records')
             
 @app.callback(
         Output('output-search-word-questions','rows'),
@@ -386,7 +387,7 @@ def update_locqu_summary(loc_select, loc_rows, qu_select, qu_rows, summarise):
     elif summarise == 'stats':
         locqu_summary = locqu.iloc[:,1:].describe().T
     
-    return locqu_summary.to_dict('records', OrderedDict)
+    return locqu_summary.to_dict('records')
 
 # Run app from script. Go to 127.0.0.1:8050 to view
 if __name__ == '__main__':
