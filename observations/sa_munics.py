@@ -41,5 +41,5 @@ geo_meta = pd.DataFrame(g, columns = ['Province','Municipality','District'])
 geo_meta.loc[geo_meta.Province == 'GT', 'Province'] = 'GP'
 
 site_geo = pd.concat([site_ref, geo_meta], axis = 1)
-site_geo.to_csv('data/site_geo.csv')
+site_geo.to_csv('data/site_geo.csv', index=False)
 

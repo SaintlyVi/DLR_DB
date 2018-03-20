@@ -27,6 +27,7 @@ sanedi_encoded = base64.b64encode(open(sanedi_logo, 'rb').read())
 
 # Load datasets
 site_geo = pd.read_csv('data/site_geo.csv')
+site_geo.rename(columns={'GPSName':'Location'}, inplace=True)
 ids = socios.loadID()
 ids_summary = ids.groupby(['Year','LocName','GroupID'])['id'].count().reset_index()
 ids_summary.rename(columns={'GroupID':'GroupId', 'id':'# households'}, inplace=True)
@@ -56,7 +57,7 @@ app.layout = html.Div([
                 html.H2('South African Domestic Load Research',
                         style={'textAlign': 'center'}
                 ),
-                html.H1('Data eXplorer',
+                html.H1('Data Explorer',
                         style={'textAlign':'center'}
                 )                    
             ],
@@ -109,13 +110,16 @@ app.layout = html.Div([
                     id='output-location-list',
                     rows=[{}], # initialise the rows
                     row_selectable=False,
-                    columns = ['Year','Province','Municipality','GPSName','# households'],
+                    columns = ['Year','Province','Municipality','Location','# households'],
                     filterable=True,
                     sortable=True,
                     column_widths=100,
                     min_height = 450,
                     resizable=True,
-                    selected_row_indices=[],)     
+                    selected_row_indices=[],),
+                html.P('"# households" is the number of households surveyed at that location',
+                       style={'font-style': 'italic'}
+                       )     
             ],
                 className='columns',
                 style={'margin-bottom':'10',
@@ -170,14 +174,14 @@ app.layout = html.Div([
                        'float':'left'}
             ),
             html.Div([
-                html.H3('Response Summary'
+                html.H3('Survey Responses Overview'
                 ),
                 html.P('Select a question and set of locations to see the distribution of responses.'),
                 html.Div([
                     dcc.RadioItems(
                         id = 'input-summarise',
                         options=[
-                                {'label': 'stats', 'value': 'stats'},
+                                {'label': 'mean', 'value': 'mean'},
                                 {'label': 'count', 'value': 'count'}
                                 ],
                         value='count',
@@ -267,7 +271,7 @@ app.layout = html.Div([
 def update_locations(input_years):
     dff = pd.DataFrame()
     for y in range(input_years[0], input_years[1]+1):
-        df = loc_summary.loc[loc_summary.Year.astype(int) == y, ['Year','Province','Municipality','GPSName', '# households']]
+        df = loc_summary.loc[loc_summary.Year.astype(int) == y, ['Year','Province','Municipality','Location', '# households']]
         dff = dff.append(df)
     dff.reset_index(inplace=True, drop=True)
     return dff.to_dict('records')
@@ -289,26 +293,23 @@ def update_questions(search_word, surveys):
 
 @app.callback(
         Output('map','figure'),        
-        [Input('output-location-list','rows')]#Input('input-years','value')]
+        [Input('output-location-list','rows')]
         )
-#def update_map(input_years):
-#
-#    traces = []
-#    for y in range(input_years[0],input_years[1]):
+
 def update_map(input_locations):
 
     loc_list = pd.DataFrame(input_locations)
-    keys=['Year','GPSName']
+    keys=['Year','Location']
     i_loc = loc_list.set_index(keys).index
-    i_site = site_geo.set_index(keys).index
+    i_site = loc_summary.set_index(keys).index
     
-    georef = site_geo[i_site.isin(i_loc)]
+    georef = loc_summary[i_site.isin(i_loc)]
         
     traces = []
     for y in range(georef.Year.min(), georef.Year.max()+1):
         lat = georef.loc[(georef.Year==y), 'Lat']
         lon = georef.loc[(georef.Year==y), 'Long']
-        text = georef.loc[(georef.Year==y), 'GPSName'] + ', ' + georef.loc[(georef.Year==y), 'Municipality']
+        text = georef.loc[(georef.Year==y), 'Location'] + ', ' + georef.loc[(georef.Year==y), 'Municipality']
 #        marker_size = site_geo.loc[site_geo.Year==y,'# households']
         trace=go.Scattermapbox(
                 name=y,
@@ -330,8 +331,8 @@ def update_map(input_locations):
                     accesstoken=mapbox_access_token,
                     bearing=0,
                     center=dict(
-                        lat=site_geo[site_geo.GPSName=='Ikgomotseng'] ['Lat'].unique()[0],
-                        lon=site_geo[site_geo.GPSName=='Ikgomotseng']['Long'].unique()[0]
+                        lat=site_geo[site_geo.Location=='Ikgomotseng'] ['Lat'].unique()[0],
+                        lon=site_geo[site_geo.Location=='Ikgomotseng']['Long'].unique()[0]
                     ),
                     pitch=0,
                     zoom=4.2,
@@ -350,42 +351,41 @@ def update_map(input_locations):
    
 @app.callback(
         Output('output-locqu-summary','rows'),
-        [Input('output-location-list','selected_row_indices'),
+        [#Input('output-location-list','selected_row_indices'),
          Input('output-location-list','rows'),
          Input('output-search-word-questions','selected_row_indices'),
          Input('output-search-word-questions','rows'),
-         Input('input-summarise', 'value')]
+         Input('input-summarise', 'value')
+         ]
         )
-def update_locqu_summary(loc_select, loc_rows, qu_select, qu_rows, summarise):
+def update_locqu_summary(loc_rows, qu_selected_ix, qu_rows, summarise):
 
-    locations = pd.DataFrame(loc_rows).iloc[loc_select]
+    locations = pd.DataFrame(loc_rows)
     years = locations.Year.unique()
-    idselect = ids.loc[(ids.Year.isin(years)) & (ids.LocName.isin(locations.Location.unique())), 'id']
+    idselect = ids.loc[(ids.Year.isin(years)) & (ids.LocName.isin(locations.Location.unique())), ['id','Year','LocName']]
+    idselect.reset_index(inplace=True, drop=True)
     
-    searchterms = list(pd.DataFrame(qu_rows).loc[qu_select, 'Question'])
+    searchterms = list(pd.DataFrame(qu_rows).loc[qu_selected_ix, 'Question'])
     
     d = pd.DataFrame()
     for y in years.astype(int):
         df = socios.buildFeatureFrame(searchterms, y)[0]
         d = d.append(df)
 
-    locqu = d[d.AnswerID.isin(idselect)]
+    locqu = idselect.merge(d, how='left',left_on='id',right_on='AnswerID')
+    locqu.drop('id', axis=1, inplace=True)
+    aggcols = locqu.columns[3::]
+    group_locqu = locqu.groupby(by=['Year','LocName'])[aggcols].describe()
+ 
     
-    if summarise == 'count':
-        locqu_summary = pd.DataFrame()
-        for c in locqu.columns[1:]:
-            l = locqu[c].value_counts()
-            locqu_summary = locqu_summary.append(l)
+    if summarise == 'mean':
+        locqu_summary = group_locqu.iloc[:, (group_locqu.columns.get_level_values(1)=='mean')|(group_locqu.columns.get_level_values(1)=='50%')|(group_locqu.columns.get_level_values(1)=='std')]
+        locqu_summary.reset_index(inplace=True)
             
-#        locqu_summary.columns = pd.MultiIndex.from_product([['Values'], locqu_summary.columns])
-        locqu_sum_cols = ['count ' + str(i) for i in locqu_summary.columns]
-        locqu_summary = locqu_summary.reset_index()
-        locqu_summary.columns = ['Question'] + locqu_sum_cols
-#        locqu_summary.columns = locqu_summary.columns.set_levels(['Values',              'Questions'],level=0)
-            
-    elif summarise == 'stats':
-        locqu_summary = locqu.iloc[:,1:].describe().T
-    
+    elif summarise == 'count':
+        locqu_summary = group_locqu.iloc[:, (group_locqu.columns.get_level_values(1)=='count')]
+        locqu_summary.reset_index(inplace=True)
+        
     return locqu_summary.to_dict('records')
 
 # Run app from script. Go to 127.0.0.1:8050 to view
