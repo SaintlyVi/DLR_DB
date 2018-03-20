@@ -26,11 +26,11 @@ sanedi_logo = os.path.join(image_dir, 'sanedi_logo.jpg')
 sanedi_encoded = base64.b64encode(open(sanedi_logo, 'rb').read())
 
 # Load datasets
-site_ref = pd.read_csv('data/site_reference.csv')
+site_geo = pd.read_csv('data/site_geo.csv')
 ids = socios.loadID()
 ids_summary = ids.groupby(['Year','LocName','GroupID'])['id'].count().reset_index()
 ids_summary.rename(columns={'GroupID':'GroupId', 'id':'# households'}, inplace=True)
-loc_summary = site_ref.merge(ids_summary[['GroupId','# households']], on='GroupId')
+loc_summary = site_geo.merge(ids_summary[['GroupId','# households']], on='GroupId')
 
 mapbox_access_token = 'pk.eyJ1Ijoic2FpbnRseXZpIiwiYSI6ImNqZHZpNXkzcjFwejkyeHBkNnp3NTkzYnQifQ.Rj_C-fOaZXZTVhTlliofMA'
 
@@ -95,22 +95,21 @@ app.layout = html.Div([
                         dots = True
                     )       
                 ],
-                    className='eleven columns'
+                    className='Eleven columns'
                 ),
             ],
                 className='columns',
                 style={'margin-bottom':'10',
+                       'margin-left':'0',
                        'width':'50%',
                        'float':'left'}
             ),
             html.Div([
                 dt.DataTable(
                     id='output-location-list',
-#                    rows=df.to_dict('records'),
-#                    columns=(df.columns),
                     rows=[{}], # initialise the rows
                     row_selectable=False,
-                    columns = ['Year','GPSName','# households'],
+                    columns = ['Year','Province','Municipality','GPSName','# households'],
                     filterable=True,
                     sortable=True,
                     column_widths=100,
@@ -121,7 +120,7 @@ app.layout = html.Div([
                 className='columns',
                 style={'margin-bottom':'10',
                        'margin-top':'30',
-                       'width':'40%',
+                       'width':'45%',
                        'float':'right'}
             ),
         ],
@@ -171,7 +170,7 @@ app.layout = html.Div([
                        'float':'left'}
             ),
             html.Div([
-                html.H3('Question Response Summary'
+                html.H3('Response Summary'
                 ),
                 html.P('Select a question and set of locations to see the distribution of responses.'),
                 html.Div([
@@ -268,7 +267,7 @@ app.layout = html.Div([
 def update_locations(input_years):
     dff = pd.DataFrame()
     for y in range(input_years[0], input_years[1]+1):
-        df = loc_summary.loc[loc_summary.Year.astype(int) == y, ['Year', 'GPSName', '# households']]
+        df = loc_summary.loc[loc_summary.Year.astype(int) == y, ['Year','Province','Municipality','GPSName', '# households']]
         dff = dff.append(df)
     dff.reset_index(inplace=True, drop=True)
     return dff.to_dict('records')
@@ -301,16 +300,16 @@ def update_map(input_locations):
     loc_list = pd.DataFrame(input_locations)
     keys=['Year','GPSName']
     i_loc = loc_list.set_index(keys).index
-    i_site = site_ref.set_index(keys).index
+    i_site = site_geo.set_index(keys).index
     
-    georef = site_ref[i_site.isin(i_loc)]
+    georef = site_geo[i_site.isin(i_loc)]
         
     traces = []
     for y in range(georef.Year.min(), georef.Year.max()+1):
         lat = georef.loc[(georef.Year==y), 'Lat']
         lon = georef.loc[(georef.Year==y), 'Long']
-        text = georef.loc[(georef.Year==y), 'GPSName']
-#        marker_size = site_ref.loc[site_ref.Year==y,'# households']
+        text = georef.loc[(georef.Year==y), 'GPSName'] + ', ' + georef.loc[(georef.Year==y), 'Municipality']
+#        marker_size = site_geo.loc[site_geo.Year==y,'# households']
         trace=go.Scattermapbox(
                 name=y,
                 lat=lat,
@@ -331,8 +330,8 @@ def update_map(input_locations):
                     accesstoken=mapbox_access_token,
                     bearing=0,
                     center=dict(
-                        lat=site_ref[site_ref.GPSName=='Ikgomotseng'] ['Lat'].unique()[0],
-                        lon=site_ref[site_ref.GPSName=='Ikgomotseng']['Long'].unique()[0]
+                        lat=site_geo[site_geo.GPSName=='Ikgomotseng'] ['Lat'].unique()[0],
+                        lon=site_geo[site_geo.GPSName=='Ikgomotseng']['Long'].unique()[0]
                     ),
                     pitch=0,
                     zoom=4.2,
