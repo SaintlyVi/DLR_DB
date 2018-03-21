@@ -11,8 +11,9 @@ NB 2014 AnswerIDs have not been matched to ProfileIDs
 
 import pandas as pd  
 import os
+import feather
 
-from support import cdata_dir, emdata_dir, writeLog
+from support import cdata_dir, emdata_dir, writeLog, profiles_dir
 import features.feature_socios as socios
 import features.feature_ts as ts
     
@@ -65,7 +66,7 @@ def yearsElectrified(year):
 
 def observedMaxDemand(profilepowerdata, year, classes_dir):
     """
-    This function selects the maximum demand in kVA for each Answer ID in a year and returns it with its time of occurence.    
+    This function selects the maximum demand in kVA for each AnswerID in a year and returns it with its time of occurence.    
     """
     if year <= 2009:
         power_col = 'kw_calculated'
@@ -173,6 +174,38 @@ def observedHourlyProfiles(aggdaytype_demand_data, year, classes_dir):
 
     return profiles.reset_index()
 
+def preRun(year, interval='M'):
+    """
+    This function generates the aggregate input data required for building the experimental model
+    """
+    
+    write_path= {}
+    for i in ['pp', 'aggpp_' + interval, 'a' + interval + 'd', 'adtd']: 
+        path = os.path.join(profiles_dir, 'aggProfiles', i)
+        os.makedirs(path, exist_ok=True)
+        write_path[i] = os.path.join(path, i + '_' + str(year) + '.feather')
+
+    try:        
+        pp = ts.getProfilePower(year)
+        feather.write_dataframe(pp, write_path['pp'])
+        print(str(year) + ': successfully saved profile power file')
+        
+        aggpp = ts.aggProfilePower(pp, interval)
+        feather.write_dataframe(aggpp, write_path['aggpp_' + interval])
+        print(str(year) + ': successfully saved aggregate ' + interval + ' profile power file')
+        
+        aid = ts.annualIntervalDemand(aggpp)
+        feather.write_dataframe(aid, write_path['a' + interval + 'd'])
+        print(str(year) + ': successfully saved aggregate ' + interval + ' demand file')
+        
+        adtd = ts.aggDaytypeDemand(pp)
+        feather.write_dataframe(adtd, write_path['adtd'])
+        print(str(year) + ': successfully saved average daytype demand file')
+        
+    except Exception as e:
+        print(e)
+        raise
+
 def generateRun(year, experiment, algorithm, run):
     """
     This function generates the experimental model from observations.
@@ -181,10 +214,19 @@ def generateRun(year, experiment, algorithm, run):
     classes_dir = experiment+'_'+algorithm+'_'+str(run)
 
     try:
+#TODO fetch feather files for data dir
         pp = ts.getProfilePower(year)
         aggpp = ts.aggProfilePower(pp, 'M')
         amd = ts.annualIntervalDemand(aggpp)
         adtd = ts.aggDaytypeDemand(pp)
+    except:
+        print('The input files did not exist or were incomplete. Recreating them now.')
+        preRun(year)
+        print('Please regenerate this run.')
+
+#TODO have to match AnswerID to ProfileID --- think of doing this in socios.loadID
+        
+    try:
         md = observedMaxDemand(pp, year, classes_dir)
         ods = observedDemandSummary(amd, year, classes_dir)
         ohp = observedHourlyProfiles(adtd, year, classes_dir)

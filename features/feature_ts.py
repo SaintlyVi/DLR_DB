@@ -79,19 +79,14 @@ def getProfilePower(year, dir_name='H'):
     """
     This function retrieves and computes kW and kVA readings for all profiles in a year.
     """
-    #get list of AnswerIDs in variable year
-    a_id = socios.loadID(year, id_name = 'AnswerID')['id']
-    
-    #get dataframe of linkages between AnswerIDs and ProfileIDs
-    links = loadTable('links')
-    year_links = links[links.AnswerID.isin(a_id)]
-    year_links = year_links.loc[year_links.ProfileID != 0, ['AnswerID','ProfileID']]    
+    #get list of ProfileIDs in variable year
+    p_id = socios.loadID(year, id_name = 'ProfileID')['id']
     
     #get profile metadata (recorder ID, recording channel, recorder type, units of measurement)
     profiles = loadTable('profiles')
-    #add AnswerID information to profiles metadata
-    profile_meta = year_links.merge(profiles, left_on='ProfileID', right_on='ProfileId').drop('ProfileId', axis=1)        
-    VI_profile_meta = profile_meta.loc[(profile_meta['Unit of measurement'] == 2), :] #select current profiles only
+#    #add AnswerID information to profiles metadata
+#    profile_meta = year_links.merge(profiles, left_on='ProfileID', right_on='ProfileId').drop('ProfileId', axis=1)        
+#    VI_profile_meta = profile_meta.loc[(profile_meta['Unit of measurement'] == 2), :] #select current profiles only
         
     #get profile data for year
     iprofile = loadProfiles(year, 'A', dir_name)[0]    
@@ -99,8 +94,7 @@ def getProfilePower(year, dir_name='H'):
     
     if year <= 2009: #pre-2009 recorder type is set up so that up to 12 current profiles share one voltage profile
         #get list of ProfileIDs in variable year
-        p_id = socios.loadID(year, id_name = 'ProfileID')
-        year_profiles = profiles[profiles.ProfileId.isin(p_id.id)]        
+        year_profiles = profiles[profiles.ProfileId.isin(p_id)]        
         vchan = year_profiles.loc[year_profiles['Unit of measurement']==1, ['ProfileId','RecorderID']] #get metadata for voltage profiles
 
         iprofile = iprofile.merge(vchan, on='RecorderID', suffixes=('_i','_v'))
@@ -132,7 +126,27 @@ def getProfilePower(year, dir_name='H'):
     power['kw_calculated'] = power.Unitsread_v*power.Unitsread_i*0.001
     power['valid_calculated'] = power.Valid_i * power.Valid_v
 
-    output = power.merge(VI_profile_meta.loc[:,['AnswerID','ProfileID']], left_on='ProfileID_i', right_on='ProfileID').drop(['ProfileID','Valid_i','Valid_v'], axis=1)
+    return power
+
+def matchAIDToPID(year, pp):
+#TODO    still needs checking
+
+    a_id = socios.loadID(year, id_name = 'AnswerID')['id']
+#    p_id = socios.loadID(year, id_name = 'ProfileID')['id']
+
+    #get dataframe of linkages between AnswerIDs and ProfileIDs
+    links = loadTable('links')
+#    year_links = links[links.ProfileID.isin(p_id)]
+    year_links = links[links.AnswerID.isin(a_id)]
+    year_links = year_links.loc[year_links.ProfileID != 0, ['AnswerID','ProfileID']]        
+    
+    #get profile metadata (recorder ID, recording channel, recorder type, units of measurement)
+    profiles = loadTable('profiles')
+    #add AnswerID information to profiles metadata
+    profile_meta = year_links.merge(profiles, left_on='ProfileID', right_on='ProfileId').drop('ProfileId', axis=1)        
+    VI_profile_meta = profile_meta.loc[(profile_meta['Unit of measurement'] == 2), :] #select current profiles only
+
+    output = pp.merge(VI_profile_meta.loc[:,['AnswerID','ProfileID']], left_on='ProfileID_i', right_on='ProfileID').drop(['ProfileID','Valid_i','Valid_v'], axis=1)
     output = output[output.columns.sort_values()]
     output.fillna({'valid_calculated':0}, inplace=True)
     
@@ -140,7 +154,7 @@ def getProfilePower(year, dir_name='H'):
 
 def aggProfilePower(profilepowerdata, interval):
     """
-    This function returns the aggregated mean or total load profile for all AnswerIDs for a year.
+    This function returns the aggregated mean or total load profile for all ProfileID_i (current) for a year.
     Interval should be 'D' for calendar day frequency, 'M' for month end frequency or 'A' for annual frequency. Other interval options are described here: http://pandas.pydata.org/pandas-docs/stable/timeseries.html#offset-aliases
     
     The aggregate function for kW and kW_calculated is sum().
@@ -150,7 +164,7 @@ def aggProfilePower(profilepowerdata, interval):
     data = profilepowerdata.set_index('Datefield')
     
     try:
-        aggprofile = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({
+        aggprofile = data.groupby(['RecorderID','ProfileID_i']).resample(interval).agg({
                 'Unitsread_i': np.mean, 
                 'Unitsread_v': np.mean, 
                 'Unitsread_kw': np.sum,
@@ -159,7 +173,7 @@ def aggProfilePower(profilepowerdata, interval):
                 'valid_calculated': np.sum})
     
     except:
-        aggprofile = data.groupby(['RecorderID','AnswerID']).resample(interval).agg({
+        aggprofile = data.groupby(['RecorderID','ProfileID_i']).resample(interval).agg({
                 'Unitsread_i': np.mean, 
                 'Unitsread_v': np.mean, 
                 'kw_calculated': np.sum,  
@@ -182,7 +196,7 @@ def annualIntervalDemand(aggprofilepowerdata):
     interval = aggprofilepowerdata.interval[0]
     
     try:
-        aggdemand = aggprofilepowerdata.groupby(['RecorderID','AnswerID']).agg({
+        aggdemand = aggprofilepowerdata.groupby(['RecorderID','ProfileID_i']).agg({
                 'Unitsread_kw': ['mean', 'std'], 
                 'Unitsread_kva': ['mean', 'std'],
                 'valid_calculated':'sum',
@@ -196,7 +210,7 @@ def annualIntervalDemand(aggprofilepowerdata):
                 'valid_calculated_sum':'valid_hours'}, inplace=True)
 
     except:
-        aggdemand = aggprofilepowerdata.groupby(['RecorderID','AnswerID']).agg({
+        aggdemand = aggprofilepowerdata.groupby(['RecorderID','ProfileID_i']).agg({
                 'kw_calculated': ['mean', 'std'], 
                 'valid_calculated':'sum',
                 'interval_hours':'sum'})        
@@ -213,7 +227,7 @@ def annualIntervalDemand(aggprofilepowerdata):
 
 def aggDaytypeDemand(profilepowerdata):   
     """
-    This function generates an hourly load profile for each AnswerID.
+    This function generates an hourly load profile for each ProfileID_i.
     The model contains aggregate hourly kW readings for the parameters:
         Month
         Daytype [Weekday, Sunday, Monday]
@@ -229,7 +243,7 @@ def aggDaytypeDemand(profilepowerdata):
     data['total_hours'] = 1    
     
     try:
-        daytypedemand = data.groupby(['AnswerID', 'month', 'daytype', 'hour']).agg({
+        daytypedemand = data.groupby(['ProfileID_i', 'month', 'daytype', 'hour']).agg({
                 'Unitsread_kw': ['mean', 'std'], 
                 'Unitsread_kva': ['mean', 'std'],
                 'valid_calculated':'sum', 
@@ -243,7 +257,7 @@ def aggDaytypeDemand(profilepowerdata):
                 'valid_calculated_sum':'valid_hours'}, inplace=True)
 
     except: #for years < 2009 where only V and I were observed
-        daytypedemand = data.groupby(['AnswerID', 'month', 'daytype', 'hour']).agg({
+        daytypedemand = data.groupby(['ProfileID_i', 'month', 'daytype', 'hour']).agg({
                 'kw_calculated': ['mean', 'std'],
                 'valid_calculated':'sum', 
                 'total_hours':'sum'})
