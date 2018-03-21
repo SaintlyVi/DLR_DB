@@ -178,6 +178,7 @@ def preRun(year, interval='M'):
     """
     This function generates the aggregate input data required for building the experimental model
     """
+#TODO consider saving as csv files too
     
     write_path= {}
     for i in ['pp', 'aggpp_' + interval, 'a' + interval + 'd', 'adtd']: 

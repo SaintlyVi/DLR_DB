@@ -129,7 +129,7 @@ def getProfilePower(year, dir_name='H'):
     return power
 
 def matchAIDToPID(year, pp):
-#TODO    still needs checking
+#TODO    still needs checking --- think about integrating with socios.loadID -> all PIDs and the 0 where there is no corresponding AID
 
     a_id = socios.loadID(year, id_name = 'AnswerID')['id']
 #    p_id = socios.loadID(year, id_name = 'ProfileID')['id']
