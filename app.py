@@ -17,6 +17,7 @@ import os
 import base64
 
 import features.feature_socios as socios 
+import features.feature_ts as ts
 from support import dlrdb_dir
 
 image_dir = os.path.join(dlrdb_dir,'img')
@@ -34,6 +35,12 @@ ids_summary.rename(columns={'GroupID':'GroupId', 'id':'# households'}, inplace=T
 loc_summary = site_geo.merge(ids_summary[['GroupId','# households']], on='GroupId')
 
 mapbox_access_token = 'pk.eyJ1Ijoic2FpbnRseXZpIiwiYSI6ImNqZHZpNXkzcjFwejkyeHBkNnp3NTkzYnQifQ.Rj_C-fOaZXZTVhTlliofMA'
+
+# Get load profile data from disk
+data = pd.DataFrame()
+for y in range(1994, 2015):
+    d = ts.readAggProfiles(y, 'adtd')
+    data = data.append(d)
 
 app = dash.Dash()
 app.config['suppress_callback_exceptions']=True

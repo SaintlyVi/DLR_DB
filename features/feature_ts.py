@@ -30,10 +30,13 @@ process
 
 import pandas as pd
 import numpy as np
+import feather
+from pathlib import Path
+import os
 
 import features.feature_socios as socios
 from observations.obs_processing import loadProfiles, loadTable
-from support import InputError
+from support import InputError, profiles_dir, validYears
 
 #investigating one location
 def aggTs(year, unit, interval, dir_name='H', locstring=None):
@@ -270,3 +273,61 @@ def aggDaytypeDemand(profilepowerdata):
     daytypedemand['valid_obs_ratio'] = daytypedemand['valid_hours'] / daytypedemand['total_hours_sum']
         
     return daytypedemand.reset_index()
+
+def generateAggProfiles(year, interval='M'):
+    """
+    This function generates the aggregate input data required for building the experimental model
+    """
+    
+    feather_path= {}
+    csv_path= {}
+    for i in ['pp', 'aggpp_' + interval, 'a' + interval + 'd', 'adtd']: 
+        path = os.path.join(profiles_dir, 'aggProfiles', i)
+        os.makedirs(path, exist_ok=True)
+        feather_path[i] = os.path.join(path, 'feather', i + '_' + str(year) + '.feather')
+        csv_path[i] = os.path.join(path, 'csv', i + '_' + str(year) + '.csv')
+
+    try:        
+        pp = getProfilePower(year)
+        feather.write_dataframe(pp, feather_path['pp'])
+        pp.to_csv(csv_path['pp'])
+        print(str(year) + ': successfully saved profile power file')
+        
+        aggpp = aggProfilePower(pp, interval)
+        feather.write_dataframe(aggpp, feather_path['aggpp_' + interval])
+        aggpp.to_csv(csv_path['aggpp'])
+        print(str(year) + ': successfully saved aggregate ' + interval + ' profile power file')
+        
+        aid = annualIntervalDemand(aggpp)
+        feather.write_dataframe(aid, feather_path['a' + interval + 'd'])
+        aid.to_csv(csv_path['a' + interval + 'd'])
+        print(str(year) + ': successfully saved aggregate ' + interval + ' demand file')
+        
+        adtd = aggDaytypeDemand(pp)
+        feather.write_dataframe(adtd, feather_path['adtd'])
+        adtd.to_csv(csv_path['adtd'])
+        print(str(year) + ': successfully saved average daytype demand file')
+        
+    except Exception as e:
+        print(e)
+        raise
+
+def readAggProfiles(year, aggfunc = 'adtd'):
+    """
+    This function fetches aggregate load profile data from disk. aggfunc can be one of pp, aggpp_M, aMd, adtd
+    """
+    validYears(year) 
+    try:       
+        path = Path(os.path.join(profiles_dir, 'aggProfiles', aggfunc, 'feather'))
+        for child in path.iterdir():
+            n = child.name
+            nu = n.split('.')[0].split('_')[-1]
+            if int(nu)==year:
+                df = feather.read_dataframe(str(child))
+                return df
+            else:
+                pass        
+    except FileNotFoundError:
+        print('The input files did not exist or were incomplete. Recreating them now.')
+        generateAggProfiles(year)
+        print('Please regenerate this run.')
