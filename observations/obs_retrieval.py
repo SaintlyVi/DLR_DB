@@ -35,7 +35,11 @@ import pyodbc
 import feather
 import os
 
-from support import rawprofiles_dir, table_dir, obs_dir, InputError, writeLog, validYears
+import shapefile as shp
+from shapely.geometry import Point
+from shapely.geometry import shape
+
+from support import rawprofiles_dir, table_dir, obs_dir, InputError, writeLog, validYears, data_dir
 
 def getObs(db_cnx, tablename = None, querystring = 'SELECT * FROM tablename', chunksize = 10000):
     """
@@ -68,6 +72,34 @@ def getObs(db_cnx, tablename = None, querystring = 'SELECT * FROM tablename', ch
             return df
         except Exception:
             raise
+            
+def geoMeta():
+    """
+    This function generates geographic metadata for groups by combining GroupID Lat, Long co-ords with municipal boundaries dataset
+    """
+    # Download the SHP, DBF and SHX files from http://energydata.uct.ac.za/dataset/2016-municipal-boundaries-south-africa
+    munic2016 = os.path.join(data_dir, 'obs_datasets', 'geo_meta', '2016-Boundaries-Local','Local_Municipalities_2016') 
+    site_ref = pd.read_csv(os.path.join(data_dir, 'obs_datasets', 'geo_meta', 'DLR Site coordinates.csv'))
+    #response = requests.get(ckanurl)
+    
+    sf = shp.Reader(munic2016)
+    all_shapes = sf.shapes() # get all the polygons
+    all_records = sf.records()
+    
+    g = list()
+    
+    for i in range(0, len(site_ref)):
+        for j in range(0, len(all_shapes)):
+            boundary = all_shapes[j]
+            if Point(tuple([site_ref.loc[i,'Long'],site_ref.loc[i,'Lat']])).within(shape(boundary)):
+                g.append([all_records[j][k] for k in (1, 5, 9)])
+                
+    geo_meta = pd.DataFrame(g, columns = ['Province','Municipality','District'])
+    geo_meta.loc[geo_meta.Province == 'GT', 'Province'] = 'GP'
+    
+    site_geo = pd.concat([site_ref, geo_meta], axis = 1)
+    site_geo = site_geo[['GPSName','Lat','Long','Province','Municipality','District']].drop_duplicates()
+    site_geo.to_csv(os.path.join(data_dir, 'obs_datasets', 'geo_meta', 'site_geo.csv'), index=False)
 
 def getGroups(db_cnx, year = None):
     """
@@ -107,13 +139,24 @@ def getGroups(db_cnx, year = None):
     allgroups = prettyg.set_index(['GroupID_1','GroupID_2','GroupID_3']).sort_index()
     allgroups['LocName'] = allgroups['Location'].apply(lambda x:x.partition(' ')[2])
     
+    
+    #add geographic metadata: lat, long municipality, district, province
+    try:
+        geo_meta = pd.read_csv(os.path.join(data_dir, 'obs_datasets', 'geo_meta', 'site_geo.csv'))
+    except:
+        geoMeta()
+        geo_meta = pd.read_csv(os.path.join(data_dir, 'obs_datasets', 'geo_meta', 'site_geo.csv'))
+        
+    output = allgroups.merge(geo_meta[['GPSName','Lat','Long','Province','Municipality','District']], left_on='LocName', right_on='GPSName', how='left')
+    output.drop(columns='GPSName', inplace=True)
+    
     if year is None:
-        return allgroups
+        return output
+
     #filter dataframe on year
     else:
-        validYears(year)
-        stryear = str(year)
-        return allgroups[allgroups['Year']== stryear] 
+        validYears(year) #check if year is valid
+        return output[output.Year.astype(int) == year] 
 
 def getProfileID(db_cnx, year = None):
     """

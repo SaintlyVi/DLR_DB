@@ -155,14 +155,13 @@ def recorderLocations(year = 2014):
     if year > 2009:
         stryear = str(year)
         groups = loadTable('groups')
-        groups['loc'] = groups['Location'].apply(lambda x:x.partition(' ')[2])
         recorderids = loadTable('recorderinstall')
         
         reclocs = groups.merge(recorderids, left_on='GroupID', right_on='GROUP_ID')
         reclocs['recorder_abrv'] = reclocs['RECORDER_ID'].apply(lambda x:x[:3])
-        yearlocs = reclocs.loc[reclocs['Year']== stryear,['GroupID','loc','recorder_abrv']].drop_duplicates()
+        yearlocs = reclocs.loc[reclocs['Year']== stryear,['GroupID','LocName','recorder_abrv']].drop_duplicates()
         
-        locations = yearlocs.sort_values('loc')
+        locations = yearlocs.sort_values('LocName')
         return locations 
     
     else:
