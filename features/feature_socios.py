@@ -15,24 +15,59 @@ import pandas as pd
 from observations.obs_processing import loadTable
 from support import validYears
 
-def loadID(year = None, id_name = 'AnswerID'):
+
+def matchAIDToPID(year, pp):
+#TODO    still needs checking --- think about integrating with socios.loadID -> all PIDs and the 0 where there is no corresponding AID
+
+    a_id = loadID(year, id_name = 'AnswerID')['id']
+#    p_id = socios.loadID(year, id_name = 'ProfileID')['id']
+
+    #get dataframe of linkages between AnswerIDs and ProfileIDs
+    links = loadTable('links')
+#    year_links = links[links.ProfileID.isin(p_id)]
+    year_links = links[links.AnswerID.isin(a_id)]
+    year_links = year_links.loc[year_links.ProfileID != 0, ['AnswerID','ProfileID']]        
+    
+    #get profile metadata (recorder ID, recording channel, recorder type, units of measurement)
+    profiles = loadTable('profiles')
+    #add AnswerID information to profiles metadata
+    profile_meta = year_links.merge(profiles, left_on='ProfileID', right_on='ProfileId').drop('ProfileId', axis=1)        
+    VI_profile_meta = profile_meta.loc[(profile_meta['Unit of measurement'] == 2), :] #select current profiles only
+
+#THIS IS NB!!
+    output = pp.merge(VI_profile_meta.loc[:,['AnswerID','ProfileID']], left_on='ProfileID_i', right_on='ProfileID').drop(['ProfileID','Valid_i','Valid_v'], axis=1)
+    output = output[output.columns.sort_values()]
+    output.fillna({'valid_calculated':0}, inplace=True)
+    
+    return output
+
+def loadID():
     """
     This function subsets Answer or Profile IDs by year. Tables variable can be constructred with loadTables() function. Year input can be number or string. id_name is AnswerID or ProfileID. 
     """
     groups = loadTable('groups')
     links = loadTable('links')
-    links = links[(links.GroupID != 0) & (links[id_name] != 0)]
-    join = links.merge(groups, on='GroupID')    
+    profiles = loadTable('profiles')
+    
+#    a_id = links[(links.GroupID != 0) & (links['AnswerID'] != 0)].drop(columns=['ConsumerID','lock','ProfileID'])
+    p_id = links[(links.GroupID != 0) & (links['ProfileID'] != 0)].drop(columns=['ConsumerID','lock','AnswerID'])
+    ap = links[links.GroupID==0].drop(columns=['ConsumerID','lock','GroupID'])
+    
+    profile_meta = profiles.merge(p_id, how='left', left_on='ProfileId', right_on='ProfileID').drop(columns=['ProfileId','lock'])
+
+    x = profile_meta.merge(ap, how='outer', on = 'ProfileID')    
+    join = x.merge(groups, on='GroupID', how='left')
+
+    #Wrangling data into right format    
     all_ids = join[join['Survey'] != 'Namibia'] # take Namibia out
-    clean_ids = all_ids.drop_duplicates(id_name)[['Year', 'LocName', 'GroupID', id_name]]
-    clean_ids.columns = ['Year', 'LocName', 'GroupID', 'id']
-    clean_ids.Year = clean_ids.Year.astype(int)
-    if year is None:
-        return clean_ids
-    else:   
-        validYears(year) #check if year input is valid
-        ids = clean_ids[clean_ids.Year == int(year)]
-        return ids
+    all_ids = all_ids.dropna(subset=['GroupID','Year'])
+    all_ids.Year = all_ids.Year.astype(int)
+    all_ids.GroupID = all_ids.GroupID.astype(int)
+    all_ids.AnswerID.fillna(0, inplace=True)
+    all_ids.AnswerID = all_ids.AnswerID.astype(int)
+    all_ids.ProfileID = all_ids.ProfileID.astype(int)
+        
+    return all_ids
 
 def loadQuestions(dtype = None):
     """
@@ -108,8 +143,10 @@ def buildFeatureFrame(searchlist, year):
     
     """
     year = int(year)
-    data = pd.DataFrame(loadID(year, 'AnswerID')['id']) #get AnswerIDs for year
-    data.columns = ['AnswerID']
+    ids = loadID()
+    data = ids.loc[ids.Year == year, ['AnswerID', 'ProfileID', 'Year', 'LocName', 'Province','Municipality', 'District', 'Unit of measurement']] #get AnswerIDs for year
+    data = data[data.AnswerID!=0]
+
     questions = pd.DataFrame() #construct dataframe with feature questions
 
     if isinstance(searchlist, list):

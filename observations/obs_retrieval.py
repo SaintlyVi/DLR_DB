@@ -39,7 +39,7 @@ import shapefile as shp
 from shapely.geometry import Point
 from shapely.geometry import shape
 
-from support import rawprofiles_dir, table_dir, obs_dir, InputError, writeLog, validYears, data_dir
+from support import rawprofiles_dir, table_dir, obs_dir, writeLog, validYears, data_dir
 
 def getObs(db_cnx, tablename = None, querystring = 'SELECT * FROM tablename', chunksize = 10000):
     """

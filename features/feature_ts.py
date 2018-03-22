@@ -83,13 +83,10 @@ def getProfilePower(year, dir_name='H'):
     This function retrieves and computes kW and kVA readings for all profiles in a year.
     """
     #get list of ProfileIDs in variable year
-    p_id = socios.loadID(year, id_name = 'ProfileID')['id']
+    p_id = socios.loadID()['ProfileID']
     
     #get profile metadata (recorder ID, recording channel, recorder type, units of measurement)
     profiles = loadTable('profiles')
-#    #add AnswerID information to profiles metadata
-#    profile_meta = year_links.merge(profiles, left_on='ProfileID', right_on='ProfileId').drop('ProfileId', axis=1)        
-#    VI_profile_meta = profile_meta.loc[(profile_meta['Unit of measurement'] == 2), :] #select current profiles only
         
     #get profile data for year
     iprofile = loadProfiles(year, 'A', dir_name)[0]    
@@ -130,30 +127,6 @@ def getProfilePower(year, dir_name='H'):
     power['valid_calculated'] = power.Valid_i * power.Valid_v
 
     return power
-
-def matchAIDToPID(year, pp):
-#TODO    still needs checking --- think about integrating with socios.loadID -> all PIDs and the 0 where there is no corresponding AID
-
-    a_id = socios.loadID(year, id_name = 'AnswerID')['id']
-#    p_id = socios.loadID(year, id_name = 'ProfileID')['id']
-
-    #get dataframe of linkages between AnswerIDs and ProfileIDs
-    links = loadTable('links')
-#    year_links = links[links.ProfileID.isin(p_id)]
-    year_links = links[links.AnswerID.isin(a_id)]
-    year_links = year_links.loc[year_links.ProfileID != 0, ['AnswerID','ProfileID']]        
-    
-    #get profile metadata (recorder ID, recording channel, recorder type, units of measurement)
-    profiles = loadTable('profiles')
-    #add AnswerID information to profiles metadata
-    profile_meta = year_links.merge(profiles, left_on='ProfileID', right_on='ProfileId').drop('ProfileId', axis=1)        
-    VI_profile_meta = profile_meta.loc[(profile_meta['Unit of measurement'] == 2), :] #select current profiles only
-
-    output = pp.merge(VI_profile_meta.loc[:,['AnswerID','ProfileID']], left_on='ProfileID_i', right_on='ProfileID').drop(['ProfileID','Valid_i','Valid_v'], axis=1)
-    output = output[output.columns.sort_values()]
-    output.fillna({'valid_calculated':0}, inplace=True)
-    
-    return output
 
 def aggProfilePower(profilepowerdata, interval):
     """
