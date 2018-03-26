@@ -35,7 +35,7 @@ from pathlib import Path
 import os
 
 import features.feature_socios as socios
-from observations.obs_processing import loadProfiles, loadTable
+from observations.obs_processing import loadProfiles
 from support import InputError, profiles_dir, validYears
 
 #investigating one location
@@ -86,7 +86,7 @@ def getProfilePower(year, dir_name='H'):
     p_id = socios.loadID()['ProfileID']
     
     #get profile metadata (recorder ID, recording channel, recorder type, units of measurement)
-    profiles = loadTable('profiles')
+    profiles = socios.loadTable('profiles')
         
     #get profile data for year
     iprofile = loadProfiles(year, 'A', dir_name)[0]    

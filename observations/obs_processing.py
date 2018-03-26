@@ -13,13 +13,11 @@ from glob import glob
 import os
 from pathlib import Path
 
-import ckanapi
-
 import plotly as py
 from plotly.offline import offline
 import plotly.graph_objs as go
 
-from support import rawprofiles_dir, profiles_dir, table_dir, writeLog, validYears
+from support import rawprofiles_dir, profiles_dir, writeLog, validYears
 
 def reduceRawProfiles(year, unit, interval):
     """
@@ -97,41 +95,7 @@ def loadProfiles(year, unit, dir_name):
     data.drop_duplicates(inplace=True)
     
     return data, year, unit
-
-def loadTable(name, query=None, columns=None):
-    """
-    This function loads all feather tables in filepath into workspace.
-    
-    """
-    dir_path = os.path.join(table_dir, 'feather')
-    
-    try:
-        file = os.path.join(dir_path, name +'.feather')
-        d = feather.read_dataframe(file)
-        if columns is None:
-            table = d
-        else:
-            table = d[columns]
-            
-    except:
-        #fetch tables from energydata.uct.ac.za
-        ckan = ckanapi.RemoteCKAN('http://energydata.uct.ac.za/', get_only=True)
-        resources = ckan.action.package_show(id='dlr-database-tables-94-14')        
-        for i in range(0, len(resources['resources'])):
-            if resources['resources'][i]['name'] == name:
-                print('... fetching ' + name + ' from energydata.uct.ac.za')
-                r_id = resources['resources'][i]['id']
-                d = ckan.action.datastore_search(resource_id=r_id, q=query, fields=columns, limit=1000000)['records']
-                table = pd.DataFrame(d)
-                table = table.iloc[:,:-1]
-            else:
-                pass
-    try: 
-        return table
-
-    except UnboundLocalError:
-        return('Could not find table with name '+name)    
-       
+      
 def shapeProfiles(year, unit, dir_name):
     """
     This function reshapes a year's unit profiles into a dataframe indexed by date, with profile IDs as columns and units read as values.

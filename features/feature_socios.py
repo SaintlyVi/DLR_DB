@@ -11,8 +11,45 @@ Answer query script: This script contains functions to query and manipulate DLR 
 
 import numpy as np
 import pandas as pd
+import os
+import feather
+import ckanapi
 
-from observations.obs_processing import loadTable
+from support import table_dir
+
+def loadTable(name, query=None, columns=None):
+    """
+    This function loads all feather tables in filepath into workspace.
+    
+    """
+    dir_path = os.path.join(table_dir, 'feather')
+    
+    try:
+        file = os.path.join(dir_path, name +'.feather')
+        d = feather.read_dataframe(file)
+        if columns is None:
+            table = d
+        else:
+            table = d[columns]
+            
+    except:
+        #fetch tables from energydata.uct.ac.za
+        ckan = ckanapi.RemoteCKAN('http://energydata.uct.ac.za/', get_only=True)
+        resources = ckan.action.package_show(id='dlr-database-tables-94-14')        
+        for i in range(0, len(resources['resources'])):
+            if resources['resources'][i]['name'] == name:
+                print('... fetching ' + name + ' from energydata.uct.ac.za')
+                r_id = resources['resources'][i]['id']
+                d = ckan.action.datastore_search(resource_id=r_id, q=query, fields=columns, limit=1000000)['records']
+                table = pd.DataFrame(d)
+                table = table.iloc[:,:-1]
+            else:
+                pass
+    try: 
+        return table
+
+    except UnboundLocalError:
+        return('Could not find table with name '+name)    
 
 def matchAIDToPID(year, pp):
 #TODO    still needs checking --- think about integrating with socios.loadID -> all PIDs and the 0 where there is no corresponding AID
