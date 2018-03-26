@@ -274,6 +274,11 @@ def writeTables(names, dataframes):
     The getObs() and getGroups() functions can be used to construct the dataframes.
     
     """
+    #create data directories
+    os.makedirs(os.path.join(table_dir, 'feather') , exist_ok=True)
+    os.makedirs(os.path.join(table_dir, 'csv') , exist_ok=True)
+
+    #get data        
     datadict = dict(zip(names, dataframes))
     for k in datadict.keys():
         if datadict[k].size == datadict[k].count().sum():
@@ -281,9 +286,13 @@ def writeTables(names, dataframes):
         else:  
             data = datadict[k].fillna(np.nan) #feather doesn't write None type
         
-        os.makedirs(os.path.join(table_dir, 'feather') , exist_ok=True)
-        path = os.path.join(table_dir, 'feather', k + '.feather')
-        feather.write_dataframe(data, path)
+        feather_path = os.path.join(table_dir, 'feather', k + '.feather')
+        feather.write_dataframe(data, feather_path)
+        
+        csv_path = os.path.join(table_dir, 'csv', k + '.csv')
+        data.to_csv(csv_path, index=False)
+        print('successfully saved table '  + k)
+        
     return
 
 def saveTables(db_cnx):

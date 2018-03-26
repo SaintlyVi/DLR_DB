@@ -255,10 +255,11 @@ def generateAggProfiles(year, interval='M'):
     feather_path= {}
     csv_path= {}
     for i in ['pp', 'aggpp_' + interval, 'a' + interval + 'd', 'adtd']: 
-        path = os.path.join(profiles_dir, 'aggProfiles', i)
-        os.makedirs(path, exist_ok=True)
-        feather_path[i] = os.path.join(path, 'feather', i + '_' + str(year) + '.feather')
-        csv_path[i] = os.path.join(path, 'csv', i + '_' + str(year) + '.csv')
+        ipath = os.path.join(profiles_dir, 'aggProfiles', i)
+        feather_path[i] = os.path.join(ipath, 'feather', i + '_' + str(year) + '.feather')
+        csv_path[i] = os.path.join(ipath, 'csv', i + '_' + str(year) + '.csv')
+        os.makedirs(os.path.join(ipath, 'feather'), exist_ok=True)
+        os.makedirs(os.path.join(ipath, 'csv'), exist_ok=True)
 
     try:        
         pp = getProfilePower(year)
@@ -268,7 +269,7 @@ def generateAggProfiles(year, interval='M'):
         
         aggpp = aggProfilePower(pp, interval)
         feather.write_dataframe(aggpp, feather_path['aggpp_' + interval])
-        aggpp.to_csv(csv_path['aggpp'])
+        aggpp.to_csv(csv_path['aggpp_' + interval])
         print(str(year) + ': successfully saved aggregate ' + interval + ' profile power file')
         
         aid = annualIntervalDemand(aggpp)

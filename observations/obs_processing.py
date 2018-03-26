@@ -126,39 +126,12 @@ def loadTable(name, query=None, columns=None):
                 table = table.iloc[:,:-1]
             else:
                 pass
-
     try: 
         return table
 
     except UnboundLocalError:
         return('Could not find table with name '+name)    
-
-def csvTables():
-    """
-    This function fetches tables saved as feather objects and saves them as csv files.
-    """
-
-    os.makedirs(os.path.join(table_dir, 'csv') , exist_ok=True)
-    
-    #get data
-    feather_path = os.path.join(table_dir, 'feather')
-    names = [f.rpartition('.')[0] for f in os.listdir(feather_path)]
-
-    for n in names:    
-        table = loadTable(n)
-        path = os.path.join(table_dir, 'csv', n + '.csv')
-        table.to_csv(path, index=False)
-        print('Successfully saved to ' + path)
-        
-        #generate list of filenames
-#        filenames = [os.path.join(dir_path, 'csv', x + '.csv') for x in list(tables.keys())]
-#        
-#        for name, path in zip(list(tables.keys()), filenames):
-#            df = tables[name]
-#            df.to_csv(path, index=False)
-#            print('Successfully saved to ' + path)        
-    return
-        
+       
 def shapeProfiles(year, unit, dir_name):
     """
     This function reshapes a year's unit profiles into a dataframe indexed by date, with profile IDs as columns and units read as values.
