@@ -264,22 +264,22 @@ def generateAggProfiles(year, interval='M'):
     try:        
         pp = getProfilePower(year)
         feather.write_dataframe(pp, feather_path['pp'])
-        pp.to_csv(csv_path['pp'])
+        pp.to_csv(csv_path['pp'], index=False)
         print(str(year) + ': successfully saved profile power file')
         
         aggpp = aggProfilePower(pp, interval)
         feather.write_dataframe(aggpp, feather_path['aggpp_' + interval])
-        aggpp.to_csv(csv_path['aggpp_' + interval])
+        aggpp.to_csv(csv_path['aggpp_' + interval], index=False)
         print(str(year) + ': successfully saved aggregate ' + interval + ' profile power file')
         
         aid = annualIntervalDemand(aggpp)
         feather.write_dataframe(aid, feather_path['a' + interval + 'd'])
-        aid.to_csv(csv_path['a' + interval + 'd'])
+        aid.to_csv(csv_path['a' + interval + 'd'], index=False)
         print(str(year) + ': successfully saved aggregate ' + interval + ' demand file')
         
         adtd = aggDaytypeDemand(pp)
         feather.write_dataframe(adtd, feather_path['adtd'])
-        adtd.to_csv(csv_path['adtd'])
+        adtd.to_csv(csv_path['adtd'], index=False)
         print(str(year) + ': successfully saved average daytype demand file')
         
     except Exception as e:
@@ -302,6 +302,4 @@ def readAggProfiles(year, aggfunc = 'adtd'):
             else:
                 pass        
     except FileNotFoundError:
-        print('The input files did not exist or were incomplete. Recreating them now.')
-        generateAggProfiles(year)
-        print('Please regenerate this run.')
+        print('The input files did not exist or were incomplete.')

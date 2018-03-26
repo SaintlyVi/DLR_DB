@@ -17,13 +17,11 @@ import os
 import base64
 
 import features.feature_socios as socios 
-import features.feature_ts as ts
-from support import dlrdb_dir
+from app_support import appData
 
-image_dir = os.path.join(dlrdb_dir,'img')
-erc_logo = os.path.join(image_dir, 'erc_logo.jpg')
+erc_logo = os.path.join('img', 'erc_logo.jpg')
 erc_encoded = base64.b64encode(open(erc_logo, 'rb').read())
-sanedi_logo = os.path.join(image_dir, 'sanedi_logo.jpg')
+sanedi_logo = os.path.join('img', 'sanedi_logo.jpg')
 sanedi_encoded = base64.b64encode(open(sanedi_logo, 'rb').read())
 
 # Load datasets
@@ -36,11 +34,8 @@ loc_summary = site_geo.merge(ids_summary[['GroupId','# households']], on='GroupI
 
 mapbox_access_token = 'pk.eyJ1Ijoic2FpbnRseXZpIiwiYSI6ImNqZHZpNXkzcjFwejkyeHBkNnp3NTkzYnQifQ.Rj_C-fOaZXZTVhTlliofMA'
 
-# Get load profile data from disk
-data = pd.DataFrame()
-for y in range(1994, 2015):
-    d = ts.readAggProfiles(y, 'adtd')
-    data = data.append(d)
+# Get load profile data from diskapp
+data = appData()
 
 app = dash.Dash()
 app.config['suppress_callback_exceptions']=True

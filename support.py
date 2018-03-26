@@ -26,9 +26,12 @@ dpet_dir = os.path.join(data_dir, 'benchmark_model', 'dpet')
 emdata_dir = os.path.join(data_dir, 'experimental_model')
 table_dir = os.path.join(data_dir, 'obs_datasets', 'tables')
 profiles_dir = os.path.join(data_dir, 'obs_datasets', 'profiles')
-rawprofiles_dir = os.path.join(profiles_dir, 'raw')
 fdata_dir = os.path.join(data_dir, 'feature_data')
 cdata_dir = os.path.join(data_dir, 'class_data')
+
+# level4 data
+rawprofiles_dir = os.path.join(profiles_dir, 'raw')
+aggprofiles_dir = os.path.join(profiles_dir, 'aggProfiles')
 
 class InputError(ValueError):
     """Exception raised for errors in the input.

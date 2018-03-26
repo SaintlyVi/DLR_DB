@@ -13,8 +13,6 @@ import numpy as np
 import pandas as pd
 
 from observations.obs_processing import loadTable
-from support import validYears
-
 
 def matchAIDToPID(year, pp):
 #TODO    still needs checking --- think about integrating with socios.loadID -> all PIDs and the 0 where there is no corresponding AID
