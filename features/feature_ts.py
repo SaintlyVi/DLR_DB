@@ -324,8 +324,15 @@ def generateSeasonADTD(year):
     #read data
     df = readAggProfiles(year, 'adtd')
     df['season'] = df['month'].map(lambda x: season(x)).astype('category')
-    seasons = df.groupby(['ProfileID_i', 'season', 'daytype', 'hour'])['kw_mean','kw_std','total_hours_sum','valid_hours','valid_obs_ratio'].mean().reset_index()
     
+    seasons = df.groupby(['ProfileID_i', 'season', 'daytype', 'hour']).agg({
+                'kw_mean': 'mean', 
+                'kw_std': 'mean',
+                'valid_hours':'sum',
+                'valid_obs_ratio':'mean',
+                'total_hours_sum':'sum'})    
+#    seasons = df.groupby(['ProfileID_i', 'season', 'daytype', 'hour'])['kw_mean','kw_std','total_hours_sum','valid_hours','valid_obs_ratio'].mean().reset_index()
+#    
     #write data to file
     feather.write_dataframe(seasons, feather_path)
     seasons.to_csv(csv_path, index=False)
