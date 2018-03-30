@@ -12,12 +12,12 @@ import os
 
 from support import aggprofiles_dir
 
-def profiles2ckan(year_start, year_end):
+def profiles2ckan(year_start, year_end, directory, package_name):
     
     apikey = input('Enter your APIKEY from http://energydata.uct.ac.za/user/YOUR_USERNAME: ')
     ckan = ckanapi.RemoteCKAN('http://energydata.uct.ac.za/', apikey=apikey)
      
-    path = Path(os.path.join(aggprofiles_dir, 'adtd', 'csv'))
+    path = Path(os.path.join(aggprofiles_dir, directory, 'csv'))
     for child in path.iterdir():
         n = child.name
         filename = n.split('.')[0]
@@ -25,7 +25,7 @@ def profiles2ckan(year_start, year_end):
         for y in range(year_start, year_end + 1):  
             if int(nu)==y:
                 file_upload = ckan.call_action('resource_create',
-                                 {'package_id': 'dlr-average-day-type-demand-profiles', 'name':filename},
+                                 {'package_id': package_name, 'name':filename},
                                  files={'upload': open(str(child), 'rb')})
                 view = ckan.call_action('resource_view_create',
     {'resource_id': file_upload['id'], 'title':'Data', 'view_type':'recline_view'})

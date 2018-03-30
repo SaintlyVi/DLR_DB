@@ -252,6 +252,7 @@ def generateAggProfiles(year, interval='M'):
     This function generates the aggregate input data required for building the experimental model
     """
     
+    #generate folder structure and file names
     feather_path= {}
     csv_path= {}
     for i in ['pp', 'aggpp_' + interval, 'a' + interval + 'd', 'adtd']: 
@@ -302,4 +303,33 @@ def readAggProfiles(year, aggfunc = 'adtd'):
             else:
                 pass        
     except FileNotFoundError:
-        print('The input files did not exist or were incomplete.')
+        print('The input files did not exist or were incomplete.')        
+
+def season(month):
+    if month in [5,6,7,8]:
+        season = 'high'
+    else:
+        season = 'low'
+    return season
+
+def generateSeasonADTD(year):
+
+    #generate folder structure and file names    
+    path = os.path.join(profiles_dir, 'aggProfiles', 'adtd_season')
+    feather_path = os.path.join(path, 'feather', 'adtd_season' + '_' + str(year) + '.feather')
+    csv_path = os.path.join(path, 'csv', 'adtd_season' + '_' + str(year) + '.csv')
+    os.makedirs(os.path.join(path, 'feather'), exist_ok=True)
+    os.makedirs(os.path.join(path, 'csv'), exist_ok=True)
+    
+    #read data
+    df = readAggProfiles(year, 'adtd')
+    df['season'] = df['month'].map(lambda x: season(x)).astype('category')
+    seasons = df.groupby(['ProfileID_i', 'season', 'daytype', 'hour'])['kw_mean','kw_std','total_hours_sum','valid_hours','valid_obs_ratio'].mean().reset_index()
+    
+    #write data to file
+    feather.write_dataframe(seasons, feather_path)
+    seasons.to_csv(csv_path, index=False)
+    print(str(year) + ': successfully saved seasonal average daytype demand file')    
+    
+    return 
+
