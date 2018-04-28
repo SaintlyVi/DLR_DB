@@ -11,7 +11,6 @@ import pandas as pd
 import feather
 from glob import glob
 import os
-from pathlib import Path
 
 import plotly as py
 from plotly.offline import offline
@@ -26,26 +25,27 @@ def reduceRawProfiles(year, unit, interval):
     
     """
     validYears(year) #check if year input is valid
-    p = Path(os.path.join(rawprofiles_dir, str(year)))
+    p = os.path.join(rawprofiles_dir, str(year))
     
     #initialise empty dataframe to concatenate annual timeseries
     ts = pd.DataFrame()
 
     #iterate through all data files to combine 5min monthly into hourly reduced annual timeseries
-    for child in p.iterdir():  
+    for child in next(os.walk(p))[1]:  
         try:
-            childpath = glob(os.path.join(child, '*_' + unit + '.feather'))[0]
+            childpath = glob(os.path.join(p, child, '*_' + unit + '.feather'))[0]
             data = feather.read_dataframe(childpath)
             data.Datefield = np.round(data.Datefield.astype(np.int64), -9).astype('datetime64[ns]')
             data['Valid'] = data['Valid'].map(lambda x: x.strip()).map({'Y':1, 'N':0})
             data['Valid'].fillna(0, inplace=True)
+            data['ProfileID'] = data['ProfileID'].astype(int)
             if unit in ['A','V','Hz','kVA','kW']:
-                hourlydata = data.groupby(['RecorderID', 'ProfileID']).resample(interval, on='Datefield').mean()
+                aggdata = data.groupby(['RecorderID', 'ProfileID']).resample(interval, on='Datefield').mean()
             else:
                 print("Unit must be one of 'A', 'V', 'kVA', 'Hz', 'kW'")
-            hourlydata.reset_index(inplace=True)
-            hourlydata = hourlydata.loc[:, hourlydata.columns != 'Active']
-            ts = ts.append(hourlydata)
+            aggdata = aggdata.loc[:, ['Unitsread', 'Valid']]
+            aggdata.reset_index(inplace=True)
+            ts = ts.append(aggdata)
             print(child, unit)
         except:
             print('Could not add data for ' + str(child) + ' ' + unit) #skip if feather file does not exist 
@@ -94,7 +94,7 @@ def loadProfiles(year, unit, dir_name):
                                                str(year)+'_'+unit+'.feather'))
     data.drop_duplicates(inplace=True)
     
-    return data, year, unit
+    return data
       
 def shapeProfiles(year, unit, dir_name):
     """
@@ -105,7 +105,7 @@ def shapeProfiles(year, unit, dir_name):
     The function returns [shaped_profile_df, year, unit]; a tuple containing the shaped dataframe indexed by hour with aggregated unit values for all profiles, the year and unit concerned.
     
     """
-    data, year, unit = loadProfiles(year, unit, dir_name)
+    data = loadProfiles(year, unit, dir_name)
     
     data.loc[(data.Unitsread.notnull())&(data.Valid != 1), 'Unitsread'] = np.nan
     data.ProfileID = data.ProfileID.astype(str)

@@ -13,7 +13,6 @@ import numpy as np
 import pandas as pd
 import os
 import feather
-import ckanapi
 
 from support import table_dir
 
@@ -23,28 +22,14 @@ def loadTable(name, query=None, columns=None):
     
     """
     dir_path = os.path.join(table_dir, 'feather')
-    
-    try:
-        file = os.path.join(dir_path, name +'.feather')
-        d = feather.read_dataframe(file)
-        if columns is None:
-            table = d
-        else:
-            table = d[columns]
+
+    file = os.path.join(dir_path, name +'.feather')
+    d = feather.read_dataframe(file)
+    if columns is None:
+        table = d
+    else:
+        table = d[columns]
             
-    except:
-        #fetch tables from energydata.uct.ac.za
-        ckan = ckanapi.RemoteCKAN('http://energydata.uct.ac.za/', get_only=True)
-        resources = ckan.action.package_show(id='dlr-database-tables-94-14')        
-        for i in range(0, len(resources['resources'])):
-            if resources['resources'][i]['name'] == name:
-                print('... fetching ' + name + ' from energydata.uct.ac.za')
-                r_id = resources['resources'][i]['id']
-                d = ckan.action.datastore_search(resource_id=r_id, q=query, fields=columns, limit=1000000)['records']
-                table = pd.DataFrame(d)
-                table = table.iloc[:,:-1]
-            else:
-                pass
     try: 
         return table
 
@@ -86,10 +71,10 @@ def loadID():
     
 #    a_id = links[(links.GroupID != 0) & (links['AnswerID'] != 0)].drop(columns=['ConsumerID','lock','ProfileID'])
     p_id = links[(links.GroupID != 0) & (links['ProfileID'] != 0)].drop(columns=['ConsumerID','lock','AnswerID'])
-    ap = links[links.GroupID==0].drop(columns=['ConsumerID','lock','GroupID'])
-    
     profile_meta = profiles.merge(p_id, how='left', left_on='ProfileId', right_on='ProfileID').drop(columns=['ProfileId','lock'])
 
+    ap = links[links.GroupID==0].drop(columns=['ConsumerID','lock','GroupID'])
+    
     x = profile_meta.merge(ap, how='outer', on = 'ProfileID')    
     join = x.merge(groups, on='GroupID', how='left')
 
@@ -118,93 +103,104 @@ def loadQuestions(dtype = None):
         qu = qu[qu.Datatype == dtype]
     return qu
 
-def loadAnswers(dtype = None):
+def loadAnswers():
     """
     This function returns all answer IDs and their question responses for a selected data type. If dtype is None, answer IDs and their corresponding questionaire IDs are returned instead.
     
     """
-    if dtype is None:
-        ans = loadTable('answers', columns=['AnswerID', 'QuestionaireID'])
-    elif dtype == 'blob':
-        ans = loadTable('answers_blob_anonymised')
-        ans.fillna(np.nan, inplace = True)
-    elif dtype == 'char':
-        ans = loadTable('answers_char_anonymised').drop(labels='lock', axis=1)
-    elif dtype == 'num':
-        ans = loadTable('answers_number_anonymised').drop(labels='lock', axis=1)
-    return ans
+    answer_meta = loadTable('answers', columns=['AnswerID', 'QuestionaireID'])
 
-def searchQuestions(searchterm = '', qnairid = None, dtype = None):
+    blob = loadTable('answers_blob_anonymised').drop(labels='lock', axis=1)
+    blob = blob.merge(answer_meta, how='left', on='AnswerID')
+    blob.fillna(np.nan, inplace = True)
+    
+    char = loadTable('answers_char_anonymised').drop(labels='lock', axis=1)
+    char = char.merge(answer_meta, how='left', on='AnswerID')
+    char.fillna(np.nan, inplace = True)
+
+    num = loadTable('answers_number_anonymised').drop(labels='lock', axis=1)
+    num = num.merge(answer_meta, how='left', on='AnswerID')
+    num.fillna(np.nan, inplace = True)
+
+    return {'blob':blob, 'char':char, 'num':num}
+
+def searchQuestions(search = None):
     """
     Searches questions for a search term, taking questionaire ID and question data type (num, blob, char) as input. 
     A single search term can be specified as a string, or a list of search terms as list.
     
-    """
-    if isinstance(searchterm, list):
-        pass
+    """       
+    questions = loadTable('questions').drop(labels='lock', axis=1)
+    questions.Datatype = questions.Datatype.astype('category')
+    questions.Datatype.cat.categories = ['blob','char','num']
+        
+    if search is None:
+        searchterm = ''
     else:
-        searchterm = [searchterm]
-    searchterm = [s.lower() for s in searchterm]
-    qcons = loadTable('qconstraints').drop(labels='lock', axis=1)
-    qu = loadQuestions(dtype)
-    qdf = qu.join(qcons, 'QuestionID', rsuffix='_c') #join question constraints to questions table
-    qnairids = list(loadTable('questionaires')['QuestionaireID']) #get list of valid questionaire IDs
-    if qnairid is None: #gets all relevant queries
-        pass
-    elif qnairid in qnairids: #check that ID is valid if provided
-        qdf = qdf[qdf.QuestionaireID == qnairid] #subset dataframe to relevant ID
-    else:
-        return print('Please select a valid QuestionaireID', qnairids)
+        searchterm = search.replace(' ', '+')
+
+    trantab = str.maketrans({'(':'', ')':'', ' ':'', '/':''})
     
-    result = qdf.loc[qdf.Question.str.lower().str.contains('|'.join(searchterm)), ['Question', 'Datatype','QuestionaireID', 'ColumnNo', 'Lower', 'Upper']]
+    result = questions.loc[questions.Question.str.translate(trantab).str.contains(searchterm, case=False), ['Question', 'Datatype','QuestionaireID', 'ColumnNo']]
     return result
 
-def searchAnswers(searchterm = '', qnairid = 3, dtype = 'num'):
+def searchAnswers(search):
     """
     This function returns the answers IDs and responses for a list of search terms
     
     """
-    allans = loadAnswers() #get answer IDs for questionaire IDs
-    ans = loadAnswers(dtype) #retrieve all responses for data type
-    questions = searchQuestions(searchterm, qnairid, dtype) #get column numbers for query
-    result = ans[ans.AnswerID.isin(allans[allans.QuestionaireID == qnairid]['AnswerID'])] #subset responses by answer IDs
-    result = result.iloc[:, [0] +  list(questions['ColumnNo'])]
-    
-    return [result, questions[['ColumnNo','Question']]]
+    answers = loadAnswers()
 
-def buildFeatureFrame(searchlist, year):
+    questions = searchQuestions(search) #get column numbers for query
+    
+    result = pd.DataFrame(columns=['AnswerID','QuestionaireID'])
+    for dt in questions.Datatype.unique():
+        ans = answers[dt]
+        for i in questions.QuestionaireID.unique():            
+            select = questions.loc[(questions.Datatype == dt)&(questions.QuestionaireID==i)]            
+            fetchcolumns=['AnswerID'] + ['QuestionaireID'] + list(select.ColumnNo.astype(str))
+            newcolumns = ['AnswerID'] + ['QuestionaireID'] + list(select.Question.astype(str).str.lower())
+            
+            df = ans.loc[ans['QuestionaireID']==i,fetchcolumns]           
+            df.columns = newcolumns
+            
+            result = result.merge(df, how='outer')
+            
+    return result
+
+def buildFeatureFrame(searchlist, questionaires, cols=None):
     """
     This function creates a dataframe containing the data for a set of selected features for a given year.
     
     """
-    year = int(year)
-    ids = loadID()
-    data = ids.loc[ids.Year == year, ['AnswerID', 'ProfileID', 'Year', 'LocName', 'Province','Municipality', 'District', 'Unit of measurement']] #get AnswerIDs for year
-    data = data[data.AnswerID!=0]
-
-    questions = pd.DataFrame() #construct dataframe with feature questions
-
     if isinstance(searchlist, list):
         pass
     else:
         searchlist = [searchlist]
         
+    if isinstance(questionaires, list):
+        pass
+    else:
+        questionaires = [questionaires]
+    
+    #generate feature frame
+    result = pd.DataFrame(columns=['AnswerID','QuestionaireID'])        
     for s in searchlist:
-        try:
-            if year <= 1999:
-                d, q = searchAnswers(s, qnairid = 6, dtype = 'num')
-            else:
-                d, q = searchAnswers(s, qnairid = 3, dtype = 'num')
-                d.columns = ['AnswerID', s]
-            q['searchterm'] = s
-            newdata = d[d.AnswerID.isin(data.AnswerID)]
-            data = pd.merge(data, newdata, on = 'AnswerID')
-            questions = pd.concat([questions, q])
-        except:
-            pass
-    questions.reset_index(drop=True, inplace=True)
+        d = searchAnswers(s)
+        ans = d[d.QuestionaireID.isin(questionaires)]
+        ans = ans.dropna(axis=1, how='all')
         
-    return data, questions
+        result = result.merge(ans, how='outer')
+    
+    #set feature frame column names
+    if cols != None:
+        if isinstance(cols, list):
+            pass
+        else:
+            cols = [cols]
+        result.columns = ['AnswerID','QuestionaireID'] + cols
+        
+    return result
 
 def checkAnswer(answerid, features):
     """
