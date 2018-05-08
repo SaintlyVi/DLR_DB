@@ -87,7 +87,7 @@ def generateData(year, spec_file):
             return evidence
 
     except:
-            raise #InputError(year, 'The input year is out of range of the specification.') 
+            raise InputError(year, 'The input year is out of range of the specification.') 
        
 def saveData(yearstart, yearend, spec_file, output_name='evidence'):
     """
