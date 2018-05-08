@@ -8,6 +8,7 @@ Created on Sun Jul 23 13:59:37 2017
 import pandas as pd
 import json
 import os
+from glob import glob
 import numpy as np
 
 from support import feature_dir, fdata_dir, InputError, writeLog, validYears
@@ -19,16 +20,20 @@ def generateData(year, spec_file):
     
     """
     #Get feature specficiations
-    file_path = os.path.join(feature_dir, 'specification', spec_file + '.txt')
-    with open(file_path, 'r') as f:
-        featurespec = json.load(f)
-    
-    year_range = featurespec['year_range']
-    
-    if year >= int(year_range[0]) and year <= int(year_range[1]):
-        
-        validYears(year) #check if year input is valid
-        
+#    file_path = os.path.join(feature_dir, 'specification', spec_file + '.txt')
+    files = glob(os.path.join(feature_dir, 'specification', spec_file + '*' + '.txt'))
+    try:
+        for file_path in files:
+                with open(file_path, 'r') as f:
+                    featurespec = json.load(f)        
+                year_range = featurespec['year_range']
+                
+                if year >= int(year_range[0]) and year <= int(year_range[1]):            
+                    validYears(year) #check if year input is valid
+                    break
+                else:
+                    continue
+            
         searchlist = featurespec['searchlist']
         features = featurespec['features']
         transform = featurespec['transform']
@@ -37,8 +42,8 @@ def generateData(year, spec_file):
         cut = featurespec['cut']
         
         #Get data and questions from socio-demographic survey responses
-        data, questions = socios.buildFeatureFrame(searchlist, year)
-
+        data = socios.buildFeatureFrame(searchlist, year, cols=searchlist)
+    
         if len(data) is 0:
             raise InputError(year, 'No survey data collected for this year')
         
@@ -63,10 +68,10 @@ def generateData(year, spec_file):
                     data[c] = data[c].map("{:.0f}".format, na_action='ignore')
             
             data.set_index('AnswerID', inplace=True) #set AnswerID column as index
-
+    
             for c in data.columns: #remove nan as BN inference cannot deal with them
                 data[c].replace(np.nan, '', regex=True, inplace=True)
-
+    
             
             #Convert dataframe into a dict formatted for use as evidence in libpgm BN inference
             featuredict = data.to_dict('index') 
@@ -80,10 +85,10 @@ def generateData(year, spec_file):
             evidence = dict(zip(featuredict.keys(), e))
             
             return evidence
-        
-    else:
-        raise InputError(year, 'The input year is out of range of the specification.') 
-        
+
+    except:
+            raise #InputError(year, 'The input year is out of range of the specification.') 
+       
 def saveData(yearstart, yearend, spec_file, output_name='evidence'):
     """
     This function saves an evidence dataset with observations in the data directory.

@@ -36,6 +36,34 @@ def loadTable(name, query=None, columns=None):
     except UnboundLocalError:
         return('Could not find table with name '+name)    
 
+def loadID():
+    """
+    This function subsets Answer or Profile IDs by year. Tables variable can be constructred with loadTables() function. Year input can be number or string. id_name is AnswerID or ProfileID. 
+    """
+    groups = loadTable('groups')
+    links = loadTable('links')
+    profiles = loadTable('profiles')
+    
+#    a_id = links[(links.GroupID != 0) & (links['AnswerID'] != 0)].drop(columns=['ConsumerID','lock','ProfileID'])
+    p_id = links[(links.GroupID != 0) & (links['ProfileID'] != 0)].drop(columns=['ConsumerID','lock','AnswerID'])
+    profile_meta = profiles.merge(p_id, how='left', left_on='ProfileId', right_on='ProfileID').drop(columns=['ProfileId','lock'])
+
+    ap = links[links.GroupID==0].drop(columns=['ConsumerID','lock','GroupID'])
+    
+    x = profile_meta.merge(ap, how='outer', on = 'ProfileID')    
+    join = x.merge(groups, on='GroupID', how='left')
+
+    #Wrangling data into right format    
+    all_ids = join[join['Survey'] != 'Namibia'] # remove Namibia 
+    all_ids = all_ids.dropna(subset=['GroupID','Year'])
+    all_ids.Year = all_ids.Year.astype(int)
+    all_ids.GroupID = all_ids.GroupID.astype(int)
+    all_ids.AnswerID.fillna(0, inplace=True)
+    all_ids.AnswerID = all_ids.AnswerID.astype(int)
+    all_ids.ProfileID = all_ids.ProfileID.astype(int)
+        
+    return all_ids
+
 def matchAIDToPID(year, pp):
 #TODO    still needs checking --- think about integrating with socios.loadID -> all PIDs and the 0 where there is no corresponding AID
 
@@ -60,34 +88,6 @@ def matchAIDToPID(year, pp):
     output.fillna({'valid_calculated':0}, inplace=True)
     
     return output
-
-def loadID():
-    """
-    This function subsets Answer or Profile IDs by year. Tables variable can be constructred with loadTables() function. Year input can be number or string. id_name is AnswerID or ProfileID. 
-    """
-    groups = loadTable('groups')
-    links = loadTable('links')
-    profiles = loadTable('profiles')
-    
-#    a_id = links[(links.GroupID != 0) & (links['AnswerID'] != 0)].drop(columns=['ConsumerID','lock','ProfileID'])
-    p_id = links[(links.GroupID != 0) & (links['ProfileID'] != 0)].drop(columns=['ConsumerID','lock','AnswerID'])
-    profile_meta = profiles.merge(p_id, how='left', left_on='ProfileId', right_on='ProfileID').drop(columns=['ProfileId','lock'])
-
-    ap = links[links.GroupID==0].drop(columns=['ConsumerID','lock','GroupID'])
-    
-    x = profile_meta.merge(ap, how='outer', on = 'ProfileID')    
-    join = x.merge(groups, on='GroupID', how='left')
-
-    #Wrangling data into right format    
-    all_ids = join[join['Survey'] != 'Namibia'] # take Namibia out
-    all_ids = all_ids.dropna(subset=['GroupID','Year'])
-    all_ids.Year = all_ids.Year.astype(int)
-    all_ids.GroupID = all_ids.GroupID.astype(int)
-    all_ids.AnswerID.fillna(0, inplace=True)
-    all_ids.AnswerID = all_ids.AnswerID.astype(int)
-    all_ids.ProfileID = all_ids.ProfileID.astype(int)
-        
-    return all_ids
 
 def loadQuestions(dtype = None):
     """
@@ -146,7 +146,7 @@ def searchQuestions(search = None):
 
 def searchAnswers(search):
     """
-    This function returns the answers IDs and responses for a list of search terms
+    This function returns the answer IDs and responses for a list of search terms
     
     """
     answers = loadAnswers()
@@ -168,7 +168,7 @@ def searchAnswers(search):
             
     return result
 
-def buildFeatureFrame(searchlist, questionaires, cols=None):
+def buildFeatureFrame(searchlist, year=None, cols=None):
     """
     This function creates a dataframe containing the data for a set of selected features for a given year.
     
@@ -177,28 +177,31 @@ def buildFeatureFrame(searchlist, questionaires, cols=None):
         pass
     else:
         searchlist = [searchlist]
-        
-    if isinstance(questionaires, list):
-        pass
+              
+    ids = loadID()
+    if year is None:
+        sub_ids = ids[ids.AnswerID!=0]
     else:
-        questionaires = [questionaires]
+        sub_ids = ids[(ids.AnswerID!=0)&(ids.Year==year)]
     
     #generate feature frame
     result = pd.DataFrame(columns=['AnswerID','QuestionaireID'])        
     for s in searchlist:
         d = searchAnswers(s)
-        ans = d[d.QuestionaireID.isin(questionaires)]
-        ans = ans.dropna(axis=1, how='all')
-        
+        ans = d[(d.AnswerID.isin(sub_ids.AnswerID)) & (d.QuestionaireID < 10)] # remove non-domestic results   
         result = result.merge(ans, how='outer')
+    result.dropna(axis=1, how='all', inplace=True)
     
     #set feature frame column names
     if cols != None:
-        if isinstance(cols, list):
-            pass
-        else:
-            cols = [cols]
-        result.columns = ['AnswerID','QuestionaireID'] + cols
+        try:
+            if isinstance(cols, list):
+                pass
+            else:
+                cols = [cols]
+            result.columns = ['AnswerID','QuestionaireID'] + cols
+        except ValueError:
+            raise
         
     return result
 
