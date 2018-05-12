@@ -1,7 +1,7 @@
 {
 "year_range" : ["1994","1999"],
 "features" : ["monthly_income", "water_access", "roof_material", "wall_material", "cb_size", "floor_area", "geyser_nr"],
-"searchlist" : ["income", "watersource", "geyser", "roof", "wall", "main switch", "floor area"],
+"searchlist" : ["income", "watersource", "roof", "wall", "main switch", "floor area", "geyser"],
 "transform": {
 	"monthly_income" : "x['income']",
 	"water_access" : "4 - x['watersource']",

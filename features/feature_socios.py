@@ -168,16 +168,23 @@ def searchAnswers(search):
             
     return result
 
-def buildFeatureFrame(searchlist, year=None, cols=None):
+def extractFeatures(searchlist, year=None, cols=None):
     """
-    This function creates a dataframe containing the data for a set of selected features for a given year.
+    This function extracts a set of selected features for a given year.
     
     """
+
     if isinstance(searchlist, list):
         pass
     else:
         searchlist = [searchlist]
-              
+        
+    if cols is None:
+        search = dict(zip(searchlist, searchlist))
+    else:
+        search = dict(zip(searchlist, cols))
+    
+    #filter AnswerIDs by year          
     ids = loadID()
     if year is None:
         sub_ids = ids[ids.AnswerID!=0]
@@ -186,23 +193,19 @@ def buildFeatureFrame(searchlist, year=None, cols=None):
     
     #generate feature frame
     result = pd.DataFrame(columns=['AnswerID','QuestionaireID'])        
-    for s in searchlist:
+    for s in search.keys():
         d = searchAnswers(s)
-        ans = d[(d.AnswerID.isin(sub_ids.AnswerID)) & (d.QuestionaireID < 10)] # remove non-domestic results   
-        result = result.merge(ans, how='outer')
-    result.dropna(axis=1, how='all', inplace=True)
-    
+        ans = d[(d.AnswerID.isin(sub_ids.AnswerID)) & (d.QuestionaireID < 10)] # remove non-domestic results 
+        ans = ans.dropna(axis=1, how='all')
     #set feature frame column names
-    if cols != None:
-        try:
-            if isinstance(cols, list):
-                pass
-            else:
-                cols = [cols]
-            result.columns = ['AnswerID','QuestionaireID'] + cols
-        except ValueError:
-            raise
-        
+        if len(ans.columns[2:])==1:
+            ans.columns = ['AnswerID','QuestionaireID'] + [search.get(s)]        
+
+        try:    
+            result = result.merge(ans, how='outer')
+        except Exception:
+            pass
+                          
     return result
 
 def checkAnswer(answerid, features):
@@ -215,7 +218,7 @@ def checkAnswer(answerid, features):
     groups = loadTable('groups')
     year = int(groups.loc[groups.GroupID == groupid, 'Year'].reset_index(drop=True)[0])
     
-    ans = buildFeatureFrame(features, year)[0].loc[buildFeatureFrame(features, year)[0]['AnswerID']==answerid]
+    ans = extractFeatures(features, year)[0].loc[extractFeatures(features, year)[0]['AnswerID']==answerid]
     return ans
 
 def recorderLocations(year = 2014):

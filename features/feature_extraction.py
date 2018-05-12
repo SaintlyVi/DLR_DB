@@ -14,13 +14,12 @@ import numpy as np
 from support import feature_dir, fdata_dir, InputError, writeLog, validYears
 import features.feature_socios as socios
 
-def generateData(year, spec_file):
+def generateFeatureSetSingle(year, spec_file):
     """
     This function generates a json formatted evidence text file compatible with the syntax for providing evidence the python library libpgm for the specified year. The function requires a json formatted text file with feature specifications as input.
     
     """
     #Get feature specficiations
-#    file_path = os.path.join(feature_dir, 'specification', spec_file + '.txt')
     files = glob(os.path.join(feature_dir, 'specification', spec_file + '*' + '.txt'))
     try:
         for file_path in files:
@@ -42,7 +41,11 @@ def generateData(year, spec_file):
         cut = featurespec['cut']
         
         #Get data and questions from socio-demographic survey responses
-        data = socios.buildFeatureFrame(searchlist, year, cols=searchlist)
+        data = socios.extractFeatures(searchlist, year, cols=searchlist)
+        missing_cols = list(set(searchlist) - set(data.columns))
+        data = data.append(pd.DataFrame(columns=missing_cols)) #add columns dropped during feature extraction
+        data.fillna(0, inplace=True) #fill na with 0 to allow for further processing
+        data['AnswerID'] = data.AnswerID.astype(int)
     
         if len(data) is 0:
             raise InputError(year, 'No survey data collected for this year')
@@ -50,7 +53,7 @@ def generateData(year, spec_file):
         else:
             #Transform and select BN nodes from dataframe 
             for k, v in transform.items():
-                data[k] = data.apply(lambda x: eval(v), axis=1)
+                data[k] = data.apply(lambda x: eval(v), axis=1)            
             data = data[['AnswerID'] + features]
             
             #Cut columns into datatypes that match factors of BN node variables    
@@ -63,71 +66,110 @@ def generateData(year, spec_file):
                 except KeyError:
                     data[k] = pd.cut(data[k], bins = bin_vals, labels = labels[k])                                  
                 
-            for c in data.columns:
-                if c not in bins.keys():
-                    data[c] = data[c].map("{:.0f}".format, na_action='ignore')
-            
             data.set_index('AnswerID', inplace=True) #set AnswerID column as index
+               
+        return data
     
-            for c in data.columns: #remove nan as BN inference cannot deal with them
-                data[c].replace(np.nan, '', regex=True, inplace=True)
-    
-            
-            #Convert dataframe into a dict formatted for use as evidence in libpgm BN inference
-            featuredict = data.to_dict('index') 
-            e = []
-            for f in featuredict.values(): 
-                d = dict()
-                for k, v in f.items():
-                    if v is not str(''):
-                        d[k] = v
-                e.append(d)  
-            evidence = dict(zip(featuredict.keys(), e))
-            
-            return evidence
-
     except:
-            raise InputError(year, 'The input year is out of range of the specification.') 
-       
-def saveData(yearstart, yearend, spec_file, output_name='evidence'):
+            raise InputError(year, 'Problem reading the spec file.')
+                 
+def generateFeatureSetMulti(spec_files, year_start=1994, year_end=2014):
+
+    if isinstance(spec_files, list):
+        pass
+    else:
+        spec_files = [spec_files]
+    
+    ff = pd.DataFrame()    
+    for spec in spec_files:
+        gg = pd.DataFrame()
+        for year in range(year_start, year_end+1):
+            try:
+                gg = gg.append(generateFeatureSetSingle(year, spec))
+            except Exception:
+                ## TODO this should be logged
+                print('Could not extract features for ' + str(year) + ' with spec ' + spec)
+            pass
+        ff = ff.merge(gg, left_index=True, right_index=True, how='outer')
+    return ff
+
+def features2dict(data):      
+    """            
+    This function converts a dataframe into a dict formatted for use as evidence in libpgm BN inference.
+    """
+    for c in data.columns:
+            data[c] = data[c].astype(int)
+            data[c].replace(np.nan, '', regex=True, inplace=True) #remove nan as BN inference cannot deal 
+    featuredict = data.to_dict('index') 
+    e = []
+    for f in featuredict.values(): 
+        d = dict()
+        for k, v in f.items():
+            if v is not str(''):
+                d[k] = v
+        e.append(d)  
+    evidence = dict(zip(featuredict.keys(), e))
+    
+    return evidence
+
+def checkFeatures(data, appliances):
+    """
+    This function error checks appliance features for records that indicate appliance usage but no ownership.
+    """
+    
+    err = pd.DataFrame()
+    for a in appliances:
+        try:
+            e = data.loc[(data[a]==0)&(data[a+'_use']>0), [a,a+'_use',a+'_broken']]
+            print(e)
+            err = err.append(e)
+        except:
+            pass
+        
+    return err
+
+def saveFeatures(spec_files, year_start, year_end):
     """
     This function saves an evidence dataset with observations in the data directory.
     
     """
     loglines = []
+
+    if isinstance(spec_files, list):
+        pass
+    else:
+        spec_files = [spec_files]
+        
+    #Save data to disk
+    root_name = '_'.join(spec_files)
+    file_name =  root_name + '_' + str(year_start) + str(year_end) + '.txt'
+    dir_path = os.path.join(fdata_dir, root_name)
+    os.makedirs(dir_path , exist_ok=True)
+    file_path = os.path.join(dir_path, file_name)
     
-    for year in range(yearstart, yearend + 1):
-        
-        #Save data to disk
-        root_name = spec_file.split('_')[0]
-        file_name =  root_name + '_' + output_name + '_' + str(year) + '.txt'
-        dir_path = os.path.join(fdata_dir, root_name)
-        os.makedirs(dir_path , exist_ok=True)
-        file_path = os.path.join(dir_path, file_name)
-        
-        try:
-            #Generate evidence data
-            evidence = generateData(year, spec_file)
-            status = 1      
-            message = 'Success!'
-            print('Success! Saved to data/feature_data/' + root_name + '/' + file_name)
+    try:
+        #Generate evidence data
+        evidence = generateFeatureSetMulti(spec_files, year_start, year_end)
+        status = 1      
+        message = 'Success!'
+        print('Success! Saved to data/feature_data/' + root_name + '/' + file_name) ## TODO this message must move
 
-        except InputError as e:
-            pass            
-            evidence = None
-            status = 0 
-            message = e.message
-            print(e)
-            print('Saving empty file')
+    except InputError as e:
+        pass            
+        evidence = None
+        status = 0 
+        message = e.message
+        print(e)
+        print('Saving empty file')
 
-        with open(file_path, 'w') as f:
-            json.dump(evidence, f)
-            
-        l = ['featureExtraction', year, status, message, spec_file, file_name]
-        loglines.append(l)
+    with open(file_path, 'w') as f:
+        json.dump(evidence, f)
         
-    logs = pd.DataFrame(loglines, columns = ['process','year','status','message',
-                                             'feature_specification', 'output_file'])
+    l = ['featureExtraction', year_start, year_end, status, message, spec_files, file_name]
+    loglines.append(l)
+        
+    logs = pd.DataFrame(loglines, columns = ['process','from year','to year','status','message',
+                                             'features', 'output_file'])
     writeLog(logs,'log_generateData')
             
     return
