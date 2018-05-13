@@ -39,9 +39,13 @@ def generateFeatureSetSingle(year, spec_file):
         bins = featurespec['bins']
         labels = featurespec['labels']
         cut = featurespec['cut']
+        if len(featurespec['geo'])==0:
+            geo = None
+        else:
+            geo = featurespec['geo']
         
         #Get data and questions from socio-demographic survey responses
-        data = socios.extractFeatures(searchlist, year, cols=searchlist)
+        data = socios.extractFeatures(searchlist, year, cols=searchlist, geo=geo)
         missing_cols = list(set(searchlist) - set(data.columns))
         data = data.append(pd.DataFrame(columns=missing_cols)) #add columns dropped during feature extraction
         data.fillna(0, inplace=True) #fill na with 0 to allow for further processing
@@ -53,9 +57,12 @@ def generateFeatureSetSingle(year, spec_file):
         else:
             #Transform and select BN nodes from dataframe 
             for k, v in transform.items():
-                data[k] = data.apply(lambda x: eval(v), axis=1)            
-            data = data[['AnswerID'] + features]
-            
+                data[k] = data.apply(lambda x: eval(v), axis=1)
+            try:
+                data = data[['AnswerID', geo] + features]
+            except:
+                data = data[['AnswerID'] + features]            
+
             #Cut columns into datatypes that match factors of BN node variables    
             for k, v in bins.items():
                 bin_vals = [int(b) for b in v]
@@ -65,9 +72,9 @@ def generateFeatureSetSingle(year, spec_file):
                                    include_lowest=eval(cut[k]['include_lowest']))
                 except KeyError:
                     data[k] = pd.cut(data[k], bins = bin_vals, labels = labels[k])                                  
-                
+            
             data.set_index('AnswerID', inplace=True) #set AnswerID column as index
-               
+
         return data
     
     except:
@@ -91,6 +98,9 @@ def generateFeatureSetMulti(spec_files, year_start=1994, year_end=2014):
                 print('Could not extract features for ' + str(year) + ' with spec ' + spec)
             pass
         ff = ff.merge(gg, left_index=True, right_index=True, how='outer')
+
+    ff = ff[~ff.index.duplicated(keep='first')] #problem with profile_id 8396, answer id 2000458
+    
     return ff
 
 def features2dict(data):      
@@ -142,28 +152,17 @@ def saveFeatures(spec_files, year_start, year_end):
         
     #Save data to disk
     root_name = '_'.join(spec_files)
-    file_name =  root_name + '_' + str(year_start) + str(year_end) + '.txt'
+    file_name =  root_name + '_' + str(year_start) + '+'+ str(year_end-year_start) + '.txt'
     dir_path = os.path.join(fdata_dir, root_name)
     os.makedirs(dir_path , exist_ok=True)
     file_path = os.path.join(dir_path, file_name)
-    
-    try:
-        #Generate evidence data
-        evidence = generateFeatureSetMulti(spec_files, year_start, year_end)
-        status = 1      
-        message = 'Success!'
-        print('Success! Saved to data/feature_data/' + root_name + '/' + file_name) ## TODO this message must move
 
-    except InputError as e:
-        pass            
-        evidence = None
-        status = 0 
-        message = e.message
-        print(e)
-        print('Saving empty file')
-
-    with open(file_path, 'w') as f:
-        json.dump(evidence, f)
+    #Generate evidence data
+    evidence = generateFeatureSetMulti(spec_files, year_start, year_end)
+    status = 1      
+    message = 'Success!'
+    evidence.to_json(file_path)
+    print('Success! Saved to data/feature_data/' + root_name + '/' + file_name) ## TODO this message must move
         
     l = ['featureExtraction', year_start, year_end, status, message, spec_files, file_name]
     loglines.append(l)

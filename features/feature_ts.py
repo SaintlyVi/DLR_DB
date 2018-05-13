@@ -50,7 +50,7 @@ def aggTs(year, unit, interval, dir_name='H', locstring=None):
     """
     #load data
     try:
-        data = loadProfiles(year, unit, dir_name)[0]
+        data = loadProfiles(year, unit, dir_name)
         data['ProfileID'] = data['ProfileID'].astype('category')
         data.set_index('Datefield', inplace=True)
         

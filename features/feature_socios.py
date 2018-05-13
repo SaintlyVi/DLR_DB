@@ -168,9 +168,10 @@ def searchAnswers(search):
             
     return result
 
-def extractFeatures(searchlist, year=None, cols=None):
+def extractFeatures(searchlist, year=None, cols=None, geo=None):
     """
     This function extracts a set of selected features for a given year.
+    'geo' adds location data and can be one of Municipality, District, Province or None
     
     """
 
@@ -190,6 +191,7 @@ def extractFeatures(searchlist, year=None, cols=None):
         sub_ids = ids[ids.AnswerID!=0]
     else:
         sub_ids = ids[(ids.AnswerID!=0)&(ids.Year==year)]
+        sub_ids = sub_ids.drop_duplicates(subset='AnswerID')
     
     #generate feature frame
     result = pd.DataFrame(columns=['AnswerID','QuestionaireID'])        
@@ -199,12 +201,17 @@ def extractFeatures(searchlist, year=None, cols=None):
         ans = ans.dropna(axis=1, how='all')
     #set feature frame column names
         if len(ans.columns[2:])==1:
-            ans.columns = ['AnswerID','QuestionaireID'] + [search.get(s)]        
+            ans.columns = ['AnswerID','QuestionaireID'] + [search.get(s)]
 
         try:    
             result = result.merge(ans, how='outer')
         except Exception:
             pass
+        
+    if geo is None:
+        pass
+    else:
+        result = result.merge(sub_ids[['AnswerID', geo]], how='left')
                           
     return result
 

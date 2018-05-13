@@ -15,10 +15,11 @@ import os
 import plotly as py
 from plotly.offline import offline
 import plotly.graph_objs as go
+offline.init_notebook_mode(connected=True)
 
 from support import rawprofiles_dir, profiles_dir, writeLog, validYears
 
-def reduceRawProfiles(year, unit, interval):
+def loadRawProfiles(year, unit):
     """
     This function uses a rolling window to reduce all raw load profiles to hourly mean values. Monthly load profiles are then concatenated into annual profiles and returned as a dictionary object.
     The data is structured as dict[unit:{year:[list_of_profile_ts]}]
@@ -29,30 +30,40 @@ def reduceRawProfiles(year, unit, interval):
     
     #initialise empty dataframe to concatenate annual timeseries
     ts = pd.DataFrame()
-
     #iterate through all data files to combine 5min monthly into hourly reduced annual timeseries
     for child in next(os.walk(p))[1]:  
         try:
             childpath = glob(os.path.join(p, child, '*_' + unit + '.feather'))[0]
             data = feather.read_dataframe(childpath)
-            data.Datefield = np.round(data.Datefield.astype(np.int64), -9).astype('datetime64[ns]')
-            data['Valid'] = data['Valid'].map(lambda x: x.strip()).map({'Y':1, 'N':0})
-            data['Valid'].fillna(0, inplace=True)
-            data['ProfileID'] = data['ProfileID'].astype(int)
-            if unit in ['A','V','Hz','kVA','kW']:
-                aggdata = data.groupby(['RecorderID', 'ProfileID']).resample(interval, on='Datefield').mean()
-            else:
-                print("Unit must be one of 'A', 'V', 'kVA', 'Hz', 'kW'")
-            aggdata = aggdata.loc[:, ['Unitsread', 'Valid']]
-            aggdata.reset_index(inplace=True)
-            ts = ts.append(aggdata)
+            ts = ts.append(data)
             print(child, unit)
         except:
-            print('Could not add data for ' + str(child) + ' ' + unit) #skip if feather file does not exist 
-        
-    ts.drop_duplicates(inplace=True)
+            print('Could not add data for ' + str(child) + ' ' + unit) #skip if feather file does not exist
+    ts.reset_index(inplace=True, drop=True)
+    ts.Datefield = np.round(ts.Datefield.astype(np.int64), -9).astype('datetime64[ns]')
+    ts['Valid'] = ts['Valid'].map(lambda x: x.strip()).map({'Y':1, 'N':0})
+    ts['Valid'].fillna(0, inplace=True)
+    ts['ProfileID'] = ts['ProfileID'].astype(int)
         
     return ts
+    
+def reduceRawProfiles(year, unit, interval):
+    """
+    This function uses a rolling window to reduce all raw load profiles to hourly mean values. Monthly load profiles are then concatenated into annual profiles and returned as a dictionary object.
+    The data is structured as dict[unit:{year:[list_of_profile_ts]}]
+    
+    """
+    ts = loadProfiles(year, unit, interval)
+    
+    if unit in ['A','V','Hz','kVA','kW']:
+        aggts = ts.groupby(['RecorderID', 'ProfileID']).resample(interval, on='Datefield').mean()
+    else:
+        print("Unit must be one of 'A', 'V', 'kVA', 'Hz', 'kW'")
+    aggts = aggts.loc[:, ['Unitsread', 'Valid']]
+    aggts.reset_index(inplace=True)
+    aggts.drop_duplicates(inplace=True)
+       
+    return aggts
 
 def saveReducedProfiles(yearstart, yearend, interval):
     """

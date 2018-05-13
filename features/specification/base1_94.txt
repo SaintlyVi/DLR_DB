@@ -1,13 +1,12 @@
 {
-"year_range" : ["2000","2014"],
-"features" : ["monthly_income", "water_access", "roof_material", "wall_material", "cb_size", "floor_area", "geyser_nr"],
-"searchlist" : ["earn per month", "watersource", "GeyserNumber", "GeyserBroken", "roof", "wall", "main switch", "floor area"],
+"year_range" : ["1994","1999"],
+"features" : ["monthly_income", "water_access", "roof_material", "wall_material", "cb_size", "floor_area"],
+"searchlist" : ["income", "watersource", "roof", "wall", "main switch", "floor area"],
 "transform": {
-	"monthly_income" : "x['earn per month']",
-	"water_access" : "x['watersource']",
-	"geyser_nr" : "np.subtract(x.GeyserNumber, x.GeyserBroken)",
-	"roof_material" : "x['roof']",
-	"wall_material" : "x['wall']",
+	"monthly_income" : "x['income']",
+	"water_access" : "4 - x['watersource']",
+	"roof_material" : "x['roof']+1",
+	"wall_material" : "x['wall']+1",
 	"cb_size" : "x['main switch']",
 	"floor_area" : "x['floor area']"
 	},
@@ -20,5 +19,6 @@
         },
 "cut" : {
 	"monthly_income":{"right":"False", "include_lowest":"True"}
-	}
+	},
+"geo" : "District"
 }
