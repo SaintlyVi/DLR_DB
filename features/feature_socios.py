@@ -64,6 +64,12 @@ def loadID():
         
     return all_ids
 
+def idsDuplicates():
+    ids = loadID()
+    i = ids[(ids.duplicated('AnswerID')==True)&(ids['AnswerID']!=0)]
+    ip = i.pivot_table(index='Year',columns='AnswerID',values='ProfileID',aggfunc='count')
+    return ip.T.describe()
+
 def matchAIDToPID(year, pp):
 #TODO    still needs checking --- think about integrating with socios.loadID -> all PIDs and the 0 where there is no corresponding AID
 
