@@ -45,10 +45,10 @@ def loadID():
     profiles = loadTable('profiles')
     
 #    a_id = links[(links.GroupID != 0) & (links['AnswerID'] != 0)].drop(columns=['ConsumerID','lock','ProfileID'])
-    p_id = links[(links.GroupID != 0) & (links['ProfileID'] != 0)].drop(columns=['ConsumerID','lock','AnswerID'])
-    profile_meta = profiles.merge(p_id, how='left', left_on='ProfileId', right_on='ProfileID').drop(columns=['ProfileId','lock'])
+    p_id = links[(links.GroupID != 0) & (links['ProfileID'] != 0)].drop(labels=['ConsumerID','lock','AnswerID'], axis=1)
+    profile_meta = profiles.merge(p_id, how='left', left_on='ProfileId', right_on='ProfileID').drop(labels=['ProfileId','lock'], axis=1)
 
-    ap = links[links.GroupID==0].drop(columns=['ConsumerID','lock','GroupID'])
+    ap = links[links.GroupID==0].drop(labels=['ConsumerID','lock','GroupID'], axis=1)
     
     x = profile_meta.merge(ap, how='outer', on = 'ProfileID')    
     join = x.merge(groups, on='GroupID', how='left')
