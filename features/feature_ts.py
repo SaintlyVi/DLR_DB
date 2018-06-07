@@ -353,3 +353,14 @@ def generateSeasonADTD(year):
     
     return 
 
+def dailyProfiles(year, unit, directory):
+    
+    data = loadProfiles(year, unit, directory)
+    data.drop(labels=['RecorderID'],axis=1,inplace=True)
+    data.loc[data['Valid']==0,'Unitsread'] = np.nan
+    df = data['Unitsread'].groupby([data.ProfileID, data.Datefield.dt.date, data.Datefield.dt.hour], sort=False).mean().unstack()
+    df.columns.name = 'hour'
+    
+    return df
+
+#totaldaily = p99['Unitsread'].groupby([p99.ProfileID, p99.Datefield.dt.date]).sum()
