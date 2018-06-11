@@ -358,9 +358,19 @@ def dailyProfiles(year, unit, directory):
     data = loadProfiles(year, unit, directory)
     data.drop(labels=['RecorderID'],axis=1,inplace=True)
     data.loc[data['Valid']==0,'Unitsread'] = np.nan
-    df = data['Unitsread'].groupby([data.ProfileID, data.Datefield.dt.date, data.Datefield.dt.hour], sort=False).mean().unstack()
+    df = data['Unitsread'].groupby([data.ProfileID, data.Datefield.dt.date, data.Datefield.dt.hour], sort=True).mean().unstack()
     df.columns.name = 'hour'
     
     return df
+
+def resampleProfiles(dailyprofiles, interval, aggfunc = 'mean'):
+    if interval is None:
+        return dailyprofiles
+    else:
+        df = dailyprofiles.reset_index()
+        df['Datefield'] = pd.to_datetime(df.Datefield)
+        df.set_index('Datefield', inplace=True)
+        output = df.groupby('ProfileID').resample(interval).agg(aggfunc).drop(labels=['ProfileID'],axis=1)
+        return output
 
 #totaldaily = p99['Unitsread'].groupby([p99.ProfileID, p99.Datefield.dt.date]).sum()
