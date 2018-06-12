@@ -6,6 +6,7 @@ Created on Thu Jun  7 12:04:39 2018
 @author: saintlyvi
 """
 
+import os
 import pandas as pd
 import numpy as np
 from sklearn.cluster import MiniBatchKMeans
@@ -16,6 +17,7 @@ import time
 
 from features.feature_ts import dailyProfiles, resampleProfiles
 from experiment.algorithms.cluster_metrics import davies_bouldin, mean_index_adequacy, cluster_dispersion_index
+from support import log_dir
 
 def progress(n_clusters, year, stats):
     """Report progress information, return a string."""
@@ -113,8 +115,8 @@ def kmeans_results(cluster_stats, cluster_centroids, year_range):
     
     for k in cluster_stats.keys():
         
-        eval_metrics = pd.DataFrame.from_dict([cluster_stats[k][y][i] for i in ['n_sample','dbi','mia','silhouette','batch_fit_time']] for y in year_range)
-        eval_metrics['year'] = year_range
+        eval_metrics = pd.DataFrame.from_dict([cluster_stats[k][y][i] for i in ['n_sample','dbi','mia','silhouette','batch_fit_time']] for y in list(range(year_range[0], year_range[1]+1)))
+        eval_metrics['year'] = list(range(year_range[0], year_range[1]+1))
         eval_metrics.columns = ['n_sample','dbi','mia','silhouette','batch_fit_time','year']
         eval_metrics['n_clusters'] = k
         eval_results = eval_results.append(eval_metrics)
@@ -134,6 +136,9 @@ def kmeans_results(cluster_stats, cluster_centroids, year_range):
 
     cluster_results.reset_index(drop=True, inplace=True)
     cluster_results = cluster_results.set_index(['n_clusters','year','k'])
+    
+    eval_results.to_csv(os.path.join(log_dir, str(k)+'_'+str(year_range[0])+'_'+str(year_range[0])+'eval_results.csv'))
+    cluster_results.to_csv(os.path.join(log_dir, str(k)+'_'+str(year_range[0])+'_'+str(year_range[0])+'cluster_results.csv'))
         
     return eval_results, cluster_results
     
