@@ -19,21 +19,18 @@ from features.feature_ts import dailyProfiles, resampleProfiles
 from experiment.algorithms.cluster_metrics import davies_bouldin, mean_index_adequacy, cluster_dispersion_index
 from support import log_dir
 
-def progress(n_clusters, year, stats):
+def progress(n_clusters, stats):
     """Report progress information, return a string."""
-    duration = time.time() - stats[year]['t0']
-    s = "%s | %s : " % (n_clusters, year)
+    duration = time.time() - stats['t0']
+    s = "%s : " % (n_clusters)
     s += "total %(total_sample)s profiles clustered; " % stats
-    s += "this batch %(n_sample)s profiles " % stats[year]
-    s += "\nsilhouette: %(silhouette).3f " % stats[year]
-    s += "\ndbi: %(dbi).3f " % stats[year]
-    s += "\nmia: %(mia).3f " % stats[year]
-    s += "\ncluster_sizes: [%s] " % ', '.join(map(str, stats[year]['cluster_sizes']))
-    s += "in %.2fs (%s profiles/s) \n" % (duration, stats[year]['n_sample'] / duration)
+    s += "this batch %(n_sample)s profiles " % stats
+    s += "\nsilhouette: %(silhouette).3f " % stats
+    s += "\ndbi: %(dbi).3f " % stats
+    s += "\nmia: %(mia).3f " % stats
+    s += "\ncluster_sizes: [%s] " % ', '.join(map(str, stats['cluster_size']))
+    s += "in %.2fs (%s profiles/s) \n" % (duration, stats['n_sample'] / duration)
     return s
-
-year_range = [1994,1995]
-range_n_clusters = range(8, 9, 1)
 
 def kmeans(year_range, range_n_clusters, **kwargs):
     """
@@ -44,102 +41,99 @@ def kmeans(year_range, range_n_clusters, **kwargs):
     cluster_centroids = {}
     cluster_stats = {}
     
-    for n_clusters in range_n_clusters:
+    X = pd.DataFrame()
+    
+    for y in range(year_range[0], year_range[1]+1):
+               
+    #1 Get minibatch
+        if 'interval' in kwargs: interval = kwargs['interval']
+        else: interval = None
+            
+        if 'aggfunc' in kwargs: aggfunc = kwargs['aggfunc']
+        else: aggfunc = 'mean'
+            
+        if 'unit' in kwargs: unit = kwargs['unit']
+        else: unit = 'A'
+            
+        if 'directory' in kwargs: directory = kwargs['directory']
+        else: directory = 'H'
+                 
+        data = resampleProfiles(dailyProfiles(y, unit, directory), interval, aggfunc)
+        Xbatch = data.dropna()
+        Xbatch.reset_index(inplace=True)
+        X = X.append(Xbatch)
+    X.set_index(['ProfileID','date'],inplace=True)
+    
+    #TODO 1a data preprocessing - normalise data 
+    
+    for n_clust in range_n_clusters:
         
-        cluster_centroids[n_clusters] = {}
-        cluster_stats[n_clusters] = {}
-        cluster_stats[n_clusters]['total_sample'] = 0    
+        cluster_centroids[n_clust] = {}
         
-        for y in range(year_range[0], year_range[1]+1):
-            
-            stats = {'n_sample': 0,
-                 'cluster_sizes': [],
-                 'silhouette': 0.0,
-                 'dbi': 0.0,
-                 'mia': 0.0,
-    #             'cdi': 0.0,
-                 't0': time.time(),
-                 'batch_fit_time': 0.0}
-            cluster_stats[n_clusters][y] = stats
-            
-        #1 Get minibatch
-            if 'interval' in kwargs: interval = kwargs['interval']
-            else: interval = None
-                
-            if 'aggfunc' in kwargs: aggfunc = kwargs['aggfunc']
-            else: aggfunc = 'mean'
-                
-            if 'unit' in kwargs: unit = kwargs['unit']
-            else: unit = 'A'
-                
-            if 'directory' in kwargs: directory = kwargs['directory']
-            else: directory = 'H'
-                     
-            data = resampleProfiles(dailyProfiles(y, unit, directory), interval, aggfunc)
-            Xbatch = data.dropna()
-        #TODO 1a data preprocessing - normalise data 
-            
+        stats = {'n_sample': 0,
+             'cluster_sizes': [],
+             'silhouette': 0.0,
+             'dbi': 0.0,
+             'mia': 0.0,
+#             'cdi': 0.0,
+             't0': time.time(),
+             'batch_fit_time': 0.0,
+             'total_sample': 0}
+        cluster_stats[n_clust] = stats
+        
+        clusterer = MiniBatchKMeans(n_clusters=n_clust, random_state=10)
+                    
         #2 Clustering
-            tick = time.time()
+        tick = time.time()
+        
+        # update estimator with examples in the current mini-batch
+        clusterer.fit(X)
+        cluster_labels = clusterer.predict(X)
             
-            # update estimator with examples in the current mini-batch
-            clusterer = MiniBatchKMeans(n_clusters=n_clusters, random_state=10)
-            clusterer.partial_fit(Xbatch)
-            cluster_labels = clusterer.predict(Xbatch)
+        try:
+            ## Calculate scores
+            cluster_centroids[n_clust] = clusterer.cluster_centers_
             
-            try:
-                ## Calculate scores
-                cluster_centroids[n_clusters][y] = clusterer.cluster_centers_
-                
-                cluster_stats[n_clusters]['total_sample'] += Xbatch.shape[0]
-                cluster_stats[n_clusters][y]['n_sample'] = Xbatch.shape[0]
-                cluster_stats[n_clusters][y]['silhouette'] = silhouette_score(Xbatch, cluster_labels, sample_size=10000)
-                cluster_stats[n_clusters][y]['dbi'] = davies_bouldin(Xbatch, cluster_labels)
-                cluster_stats[n_clusters][y]['mia'] = mean_index_adequacy(Xbatch, cluster_labels)
-        #        cluster_stats[n_clusters][y]['cdi'] =cluster_dispersion_index(Xbatch, cluster_labels) DON'T RUN LOCALLY!!
-                cluster_stats[n_clusters][y]['cluster_sizes'] = np.bincount(cluster_labels)
-                cluster_stats[n_clusters][y]['batch_fit_time'] += time.time() - tick
-            except:
-                pass
+            cluster_stats[n_clust]['total_sample'] += X.shape[0]
+            cluster_stats[n_clust]['n_sample'] = X.shape[0]
+            cluster_stats[n_clust]['silhouette'] = silhouette_score(X, cluster_labels, sample_size=10000)
+            cluster_stats[n_clust]['dbi'] = davies_bouldin(X, cluster_labels)
+            cluster_stats[n_clust]['mia'] = mean_index_adequacy(X, cluster_labels)
+    #        cluster_stats[n_clusters][y]['cdi'] =cluster_dispersion_index(Xbatch, cluster_labels) DON'T RUN LOCALLY!!
+            cluster_stats[n_clust]['cluster_size'] = np.bincount(cluster_labels)
+            cluster_stats[n_clust]['batch_fit_time'] += time.time() - tick
+        except:
+            pass
             
-            print(progress(n_clusters, y, cluster_stats[n_clusters]))
+        print(progress(n_clust, cluster_stats[n_clust]))
     
     return cluster_stats, cluster_centroids
         
-    #3 Plot Results
-
-def kmeans_results(cluster_stats, cluster_centroids, year_range):   
+def kmeans_results(cluster_stats, cluster_centroids):   
     
     cluster_results = pd.DataFrame()
     eval_results = pd.DataFrame()
     
-    for k in cluster_stats.keys():
-        
-        eval_metrics = pd.DataFrame.from_dict([cluster_stats[k][y][i] for i in ['n_sample','dbi','mia','silhouette','batch_fit_time']] for y in list(range(year_range[0], year_range[1]+1)))
-        eval_metrics['year'] = list(range(year_range[0], year_range[1]+1))
-        eval_metrics.columns = ['n_sample','dbi','mia','silhouette','batch_fit_time','year']
-        eval_metrics['n_clusters'] = k
-        eval_results = eval_results.append(eval_metrics)
-        
-        centroids = pd.DataFrame()
-        for y in year_range:
-            c = pd.DataFrame(cluster_centroids[k][y])
-            c['year'] = y
-            c['cluster_sizes'] = pd.DataFrame.from_dict(cluster_stats[k][y]['cluster_sizes'])
-            centroids = centroids.append(c)
-            
-        centroids.reset_index(inplace=True)
-        centroids.rename({'index':'k'}, axis=1, inplace=True)
-        centroids['n_clusters'] = k
-        
-        cluster_results = cluster_results.append(centroids)
-
-    cluster_results.reset_index(drop=True, inplace=True)
-    cluster_results = cluster_results.set_index(['n_clusters','year','k'])
+    eval_results = pd.DataFrame.from_dict([cluster_stats[k][i] for i in ['n_sample','dbi','mia','silhouette','batch_fit_time']] for k in cluster_stats.keys())
+    eval_results.columns = ['n_sample','dbi','mia','silhouette','batch_fit_time']
+    eval_results['n_clust'] = cluster_stats.keys()
     
-    eval_results.to_csv(os.path.join(log_dir, str(k)+'_'+str(year_range[0])+'_'+str(year_range[1])+'eval_results.csv'))
-    cluster_results.to_csv(os.path.join(log_dir, str(k)+'_'+str(year_range[0])+'_'+str(year_range[1])+'cluster_results.csv'))
+    for k in cluster_stats.keys():
+        c = pd.DataFrame(cluster_centroids[k])
+        c['n_clust'] = k
+        c['cluster_size'] = pd.DataFrame.from_dict(cluster_stats[k]['cluster_size'])
+        cluster_results = cluster_results.append(c)
+            
+    cluster_results.reset_index(inplace=True)
+    cluster_results.rename({'index':'k'}, axis=1, inplace=True)
+    
+    kfirst = list(cluster_stats.keys())[0]
+    klast = list(cluster_stats.keys())[-1]
+    it = int((klast-kfirst)/(len(list(cluster_stats.keys()))-1))
+    #3 Log Results
+    eval_results.to_csv(os.path.join(log_dir, str(kfirst)+'-'+str(klast)+'-'+str(it)+'_eval_results.csv'),index=False)
+    cluster_results.to_csv(os.path.join(log_dir, str(kfirst)+'-'+str(klast)+'-'+str(it) +'_cluster_results.csv'),index=False)
         
     return eval_results, cluster_results
     
-    #4 Log Results
+    #4 Plot Results
