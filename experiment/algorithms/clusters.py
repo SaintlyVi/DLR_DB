@@ -32,14 +32,7 @@ def progress(n_clusters, stats):
     s += "in %.2fs (%s profiles/s) \n" % (duration, stats['n_sample'] / duration)
     return s
 
-def kmeans(year_range, range_n_clusters, **kwargs):
-    """
-    This function applies the MiniBatchKmeans algorithm with a partial_fit over year_range for range_n_clusters.
-    returns cluster_stats and cluster_centroids
-    """
-    
-    cluster_centroids = {}
-    cluster_stats = {}
+def genX(year_range, **kwargs):
     
     X = pd.DataFrame()
     
@@ -64,14 +57,26 @@ def kmeans(year_range, range_n_clusters, **kwargs):
         X = X.append(Xbatch)
     X.set_index(['ProfileID','date'],inplace=True)
     
-    #TODO 1a data preprocessing - normalise data 
+    return X
+
+    
+#TODO 1a data preprocessing - normalise data 
+
+def kmeans(X, normalize, range_n_clusters, **kwargs):
+    """
+    This function applies the MiniBatchKmeans algorithm with a partial_fit over year_range for range_n_clusters.
+    returns cluster_stats and cluster_centroids
+    """
+    
+    cluster_centroids = {}
+    cluster_stats = {}  
     
     for n_clust in range_n_clusters:
         
         cluster_centroids[n_clust] = {}
         
         stats = {'n_sample': 0,
-             'cluster_sizes': [],
+             'cluster_size': [],
              'silhouette': 0.0,
              'dbi': 0.0,
              'mia': 0.0,
@@ -84,16 +89,14 @@ def kmeans(year_range, range_n_clusters, **kwargs):
         clusterer = MiniBatchKMeans(n_clusters=n_clust, random_state=10)
                     
         #2 Clustering
-        tick = time.time()
-        
+        tick = time.time()        
         # update estimator with examples in the current mini-batch
         clusterer.fit(X)
         cluster_labels = clusterer.predict(X)
             
         try:
             ## Calculate scores
-            cluster_centroids[n_clust] = clusterer.cluster_centers_
-            
+            cluster_centroids[n_clust] = clusterer.cluster_centers_          
             cluster_stats[n_clust]['total_sample'] += X.shape[0]
             cluster_stats[n_clust]['n_sample'] = X.shape[0]
             cluster_stats[n_clust]['silhouette'] = silhouette_score(X, cluster_labels, sample_size=10000)
@@ -109,7 +112,7 @@ def kmeans(year_range, range_n_clusters, **kwargs):
     
     return cluster_stats, cluster_centroids
         
-def kmeans_results(cluster_stats, cluster_centroids):   
+def kmeansResults(cluster_stats, cluster_centroids):   
     
     cluster_results = pd.DataFrame()
     eval_results = pd.DataFrame()
@@ -131,8 +134,8 @@ def kmeans_results(cluster_stats, cluster_centroids):
     klast = list(cluster_stats.keys())[-1]
     it = int((klast-kfirst)/(len(list(cluster_stats.keys()))-1))
     #3 Log Results
-    eval_results.to_csv(os.path.join(log_dir, str(kfirst)+'-'+str(klast)+'-'+str(it)+'_eval_results.csv'),index=False)
-    cluster_results.to_csv(os.path.join(log_dir, str(kfirst)+'-'+str(klast)+'-'+str(it) +'_cluster_results.csv'),index=False)
+    eval_results.to_csv(os.path.join(log_dir, str(kfirst)+'-'+str(klast)+'-'+str(it)+'_eval_kmeans.csv'),index=False)
+    cluster_results.to_csv(os.path.join(log_dir, str(kfirst)+'-'+str(klast)+'-'+str(it) +'_cluster_kmeans.csv'),index=False)
         
     return eval_results, cluster_results
     
