@@ -137,8 +137,8 @@ def kmeans_results(cluster_stats, cluster_centroids, year_range):
     cluster_results.reset_index(drop=True, inplace=True)
     cluster_results = cluster_results.set_index(['n_clusters','year','k'])
     
-    eval_results.to_csv(os.path.join(log_dir, str(k)+'_'+str(year_range[0])+'_'+str(year_range[0])+'eval_results.csv'))
-    cluster_results.to_csv(os.path.join(log_dir, str(k)+'_'+str(year_range[0])+'_'+str(year_range[0])+'cluster_results.csv'))
+    eval_results.to_csv(os.path.join(log_dir, str(k)+'_'+str(year_range[0])+'_'+str(year_range[1])+'eval_results.csv'))
+    cluster_results.to_csv(os.path.join(log_dir, str(k)+'_'+str(year_range[0])+'_'+str(year_range[1])+'cluster_results.csv'))
         
     return eval_results, cluster_results
     
