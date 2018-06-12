@@ -358,7 +358,9 @@ def dailyProfiles(year, unit, directory):
     data = loadProfiles(year, unit, directory)
     data.drop(labels=['RecorderID'],axis=1,inplace=True)
     data.loc[data['Valid']==0,'Unitsread'] = np.nan
-    df = data['Unitsread'].groupby([data.ProfileID, data.Datefield.dt.date, data.Datefield.dt.hour], sort=True).mean().unstack()
+    data['date'] = data.Datefield.dt.date
+    data['hour'] = data.Datefield.dt.hour
+    df = data['Unitsread'].groupby([data.ProfileID, data.date, data.hour], sort=True).mean().unstack()
     df.columns.name = 'hour'
     
     return df
