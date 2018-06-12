@@ -370,7 +370,7 @@ def resampleProfiles(dailyprofiles, interval, aggfunc = 'mean'):
         return dailyprofiles
     else:
         df = dailyprofiles.reset_index()
-        df['Datefield'] = pd.to_datetime(df.Datefield)
+        df['Datefield'] = pd.to_datetime(df.date)
         df.set_index('Datefield', inplace=True)
         output = df.groupby('ProfileID').resample(interval).agg(aggfunc).drop(labels=['ProfileID'],axis=1)
         return output
