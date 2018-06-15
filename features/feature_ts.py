@@ -39,44 +39,58 @@ from observations.obs_processing import loadProfiles
 from support import InputError, profiles_dir, validYears
 
 #investigating one location
-def aggTs(year, unit, interval, dir_name='H', locstring=None):
+def aggTs(year, unit, interval, mean=True, dir_name='H'):
     """
-    This function returns the aggregated mean or total load profile for all ProfileIDs for a year in a given location.
-    Use socios.recorderLocations() to get locstrings for locations of interest. 
-    Interval should be 'D' for calendar day frequency, 'M' for month end frequency or 'A' for annual frequency. Other interval options are described here: http://pandas.pydata.org/pandas-docs/stable/timeseries.html#offset-aliases
+    This function 
+        1. resamples each profile over interval 
+        2. gets interval mean (if True)
+    aggfunc must be a list and can be any standard statistical descriptor such as mean, std, describe, etc.
+    interval can be 'D' for calendar day frequency, 'M' for month end frequency or 'A' for annual frequency. See http://pandas.pydata.org/pandas-docs/stable/timeseries.html#offset-aliases for more.
     
     The aggregate function for kW and kVA is sum().
     The aggregate function for A, V and Hz is mean().
     """
     #load data
     try:
-        data = loadProfiles(year, unit, dir_name)[0]
+        data = loadProfiles(year, unit, dir_name)
         data['ProfileID'] = data['ProfileID'].astype('category')
         data.set_index('Datefield', inplace=True)
         
     except:
-        raise InputError(unit, "Invalid unit")
-    
-    #subset dataframe by location & remove invalid readings
-    if locstring is None:
-        loc = data
-    else:
-        loc = data[data.RecorderID.str.contains(locstring.upper())]
+        raise InputError(unit, "Invalid unit")      
         
     #specify aggregation function for different units    
     if unit in ['kW','kVA']:
-        aggregated = loc.groupby(['RecorderID','ProfileID']).resample(interval).sum()
+        aggregated = data.groupby('ProfileID').resample(interval).agg({
+                'Unitsread':'sum',
+                'Valid':'sum',
+                'RecorderID':'count'})
     elif unit in ['A', 'V', 'Hz']:
-        aggregated = loc.groupby(['RecorderID','ProfileID']).resample(interval).agg({
+        aggregated = data.groupby('ProfileID').resample(interval).agg({
                 'Unitsread':'mean',
-                'Valid':'sum'})
+                'Valid':'sum',
+                'RecorderID':'count'})
+
+    if mean is True:
+        aggregated['vu'] = aggregated.Unitsread*aggregated.Valid
+        tf = aggregated.groupby('ProfileID').sum()
+        tf['AnnualMean_'+interval+'_'+unit] = tf.vu/tf.Valid
+        tf['ValidHoursOfTotal'] = tf.Valid/tf.RecorderID
+        tf = tf[['AnnualMean_'+interval+'_'+unit, 'ValidHoursOfTotal']]
+    else:
+        tf = aggregated
+        tf.columns = ['Mean_'+interval+'_'+unit, 'ValidHours', 'TotalHours']
+
+    tf.reset_index(inplace=True)
+
+    ids = socios.loadID()
+    result = tf.merge(ids, on='ProfileID', how='left')    
+    result = result[list(tf.columns)+['AnswerID']]
     
-    aggregated.reset_index(inplace=True)    
+#    validhours = aggregated['Datefield'].apply(lambda x: (x - pd.date_range(end=x, periods=2, freq = interval)[0]) / np.timedelta64(1, 'h'))
+#    aggregated['Valid'] = aggregated['Valid']/validhours
     
-    validhours = aggregated['Datefield'].apply(lambda x: (x - pd.date_range(end=x, periods=2, freq = interval)[0]) / np.timedelta64(1, 'h'))
-    aggregated['Valid'] = aggregated['Valid']/validhours
-    
-    return aggregated
+    return result
 
 def getProfilePower(year, dir_name='H'):
     """
@@ -339,3 +353,26 @@ def generateSeasonADTD(year):
     
     return 
 
+def dailyProfiles(year, unit, directory):
+    
+    data = loadProfiles(year, unit, directory)
+    data.drop(labels=['RecorderID'],axis=1,inplace=True)
+    data.loc[data['Valid']==0,'Unitsread'] = np.nan
+    data['date'] = data.Datefield.dt.date
+    data['hour'] = data.Datefield.dt.hour
+    df = data['Unitsread'].groupby([data.ProfileID, data.date, data.hour], sort=True).mean().unstack()
+    df.columns.name = 'hour'
+    
+    return df
+
+def resampleProfiles(dailyprofiles, interval, aggfunc = 'mean'):
+    if interval is None:
+        return dailyprofiles
+    else:
+        df = dailyprofiles.reset_index()
+        df['Datefield'] = pd.to_datetime(df.date)
+        df.set_index('Datefield', inplace=True)
+        output = df.groupby('ProfileID').resample(interval).agg(aggfunc).drop(labels=['ProfileID'],axis=1)
+        return output
+
+#totaldaily = p99['Unitsread'].groupby([p99.ProfileID, p99.Datefield.dt.date]).sum()

@@ -148,7 +148,7 @@ def getGroups(db_cnx, year = None):
         geo_meta = pd.read_csv(os.path.join(data_dir, 'obs_datasets', 'geo_meta', 'site_geo.csv'))
         
     output = allgroups.merge(geo_meta[['GPSName','Lat','Long','Province','Municipality','District']], left_on='LocName', right_on='GPSName', how='left')
-    output.drop(columns='GPSName', inplace=True)
+    output.drop(labels='GPSName', axis=1, inplace=True)
     
     if year is None:
         return output
@@ -331,7 +331,7 @@ def saveAnswers(db_cnx):
         else:
             qs = pd.read_csv(os.path.join(obs_dir, 'anonymise', v))
             qs = qs.loc[lambda qs: qs.anonymise == 1, :]
-            qanon = pd.merge(getObs('Answers'), qs, left_on='QuestionaireID', right_on='QuestionaireID')[['AnswerID','ColumnNo','anonymise']]
+            qanon = pd.merge(getObs(db_cnx, 'Answers'), qs, left_on='QuestionaireID', right_on='QuestionaireID')[['AnswerID','ColumnNo','anonymise']]
             for i, rows in qanon.iterrows():
                 a.set_value(a[a.AnswerID == rows.AnswerID].index[0], str(rows.ColumnNo),'a')
         
