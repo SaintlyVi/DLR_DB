@@ -58,11 +58,10 @@ def genX(year_range, **kwargs):
     X.set_index(['ProfileID','date'],inplace=True)
     
     return X
-
     
 #TODO 1a data preprocessing - normalise data 
 
-def kmeans(X, normalize, range_n_clusters, **kwargs):
+def kmeans(X, range_n_clusters, normalise = False, **kwargs):
     """
     This function applies the MiniBatchKmeans algorithm with a partial_fit over year_range for range_n_clusters.
     returns cluster_stats and cluster_centroids
@@ -70,6 +69,11 @@ def kmeans(X, normalize, range_n_clusters, **kwargs):
     
     cluster_centroids = {}
     cluster_stats = {}  
+    
+    if normalise == False:
+        pass
+#    else:
+#        X = normalize(X)
     
     for n_clust in range_n_clusters:
         
