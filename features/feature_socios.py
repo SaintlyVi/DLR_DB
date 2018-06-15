@@ -97,6 +97,7 @@ def loadQuestions(dtype = None):
     qu = loadTable('questions').drop(labels='lock', axis=1)
     qu.Datatype = qu.Datatype.astype('category')
     qu.Datatype.cat.categories = ['blob','char','num']
+    qu['ColumnAlias'] = [x.strip() for x in qu['ColumnAlias']]
     if dtype is None:
         pass
     else: 
@@ -171,6 +172,7 @@ def searchAnswers(search):
 def buildFeatureFrame(searchlist, questionaires, cols=None):
     """
     This function creates a dataframe containing the data for a set of selected features for a given year.
+    questionaire options: 6 - pre 1999, 3 - 2000 onwards
     
     """
     if isinstance(searchlist, list):
