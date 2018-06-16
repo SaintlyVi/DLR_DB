@@ -84,15 +84,13 @@ def kmeans(X, range_n_clusters, normalise = False, **kwargs):
             cluster_stats[n_clust]['batch_fit_time'] += time.time() - tick
         except:
             pass
-         
+        
         cluster_lbls[n_clust] = cluster_labels
-        lbls = pd.DataFrame(cluster_labels)
-        lbls.to_csv(os.path.join(log_dir, str(range_n_clusters.start)+'-'+str(range_n_clusters[-1])+'-'+str(r.step) +'_labels_kmeans.csv'),index=False)
 #        print(progress(n_clust, cluster_stats[n_clust]))    
     
     return cluster_stats, cluster_centroids, cluster_lbls
         
-def kmeansResults(cluster_stats, cluster_centroids):   
+def kmeansResults(cluster_stats, cluster_centroids, cluster_lbls):   
     
     centroid_results = pd.DataFrame()
     eval_results = pd.DataFrame()
@@ -110,12 +108,20 @@ def kmeansResults(cluster_stats, cluster_centroids):
     centroid_results.reset_index(inplace=True)
     centroid_results.rename({'index':'k'}, axis=1, inplace=True)
     
+    #Save labels for 10 best clusters
+    best_lbls = eval_results.nsmallest(columns=['dbi','mia'], n= 10).nlargest(columns='silhouette', n=10)['n_clust'].values
+#    best_lbls = [str(l) for l in best_lbls]
+    
+    labels = pd.DataFrame(cluster_lbls)
+    lbls = labels.loc[:,best_lbls] 
+    
     kfirst = list(cluster_stats.keys())[0]
     klast = list(cluster_stats.keys())[-1]
     it = int((klast-kfirst)/(len(list(cluster_stats.keys()))-1))
     #3 Log Results
     eval_results.to_csv(os.path.join(log_dir, str(kfirst)+'-'+str(klast)+'-'+str(it)+'_eval_kmeans.csv'),index=False)
     centroid_results.to_csv(os.path.join(log_dir, str(kfirst)+'-'+str(klast)+'-'+str(it) +'_centroids_kmeans.csv'),index=False)
+    lbls.to_csv(os.path.join(log_dir, str(kfirst)+'-'+str(klast)+'-'+str(it)+'_labels_kmeans.csv'),index=False)
         
     return eval_results, centroid_results
     
