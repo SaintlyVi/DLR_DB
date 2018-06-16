@@ -10,13 +10,12 @@ import os
 import pandas as pd
 import numpy as np
 from sklearn.cluster import MiniBatchKMeans
-from sklearn import preprocessing
 from sklearn.metrics import silhouette_score
 
 import time
 
-from features.feature_ts import dailyProfiles, resampleProfiles
-from experiment.algorithms.cluster_metrics import davies_bouldin, mean_index_adequacy, cluster_dispersion_index
+from features.feature_ts import genX, dailyProfiles, resampleProfiles
+from experiment.algorithms.cluster_metrics import davies_bouldin, mean_index_adequacy, cluster_dispersion_index, davies_bouldin_score
 from support import log_dir
 
 def progress(n_clusters, stats):
@@ -31,33 +30,6 @@ def progress(n_clusters, stats):
     s += "\ncluster_sizes: [%s] " % ', '.join(map(str, stats['cluster_size']))
     s += "in %.2fs (%s profiles/s) \n" % (duration, stats['n_sample'] / duration)
     return s
-
-def genX(year_range, **kwargs):
-    
-    X = pd.DataFrame()
-    
-    for y in range(year_range[0], year_range[1]+1):
-               
-    #1 Get minibatch
-        if 'interval' in kwargs: interval = kwargs['interval']
-        else: interval = None
-            
-        if 'aggfunc' in kwargs: aggfunc = kwargs['aggfunc']
-        else: aggfunc = 'mean'
-            
-        if 'unit' in kwargs: unit = kwargs['unit']
-        else: unit = 'A'
-            
-        if 'directory' in kwargs: directory = kwargs['directory']
-        else: directory = 'H'
-                 
-        data = resampleProfiles(dailyProfiles(y, unit, directory), interval, aggfunc)
-        Xbatch = data.dropna()
-        Xbatch.reset_index(inplace=True)
-        X = X.append(Xbatch)
-    X.set_index(['ProfileID','date'],inplace=True)
-    
-    return X
     
 #TODO 1a data preprocessing - normalise data 
 
@@ -68,7 +40,8 @@ def kmeans(X, range_n_clusters, normalise = False, **kwargs):
     """
     
     cluster_centroids = {}
-    cluster_stats = {}  
+    cluster_stats = {} 
+    cluster_lbls = {}
     
     if normalise == False:
         pass
@@ -104,17 +77,19 @@ def kmeans(X, range_n_clusters, normalise = False, **kwargs):
             cluster_stats[n_clust]['total_sample'] += X.shape[0]
             cluster_stats[n_clust]['n_sample'] = X.shape[0]
             cluster_stats[n_clust]['silhouette'] = silhouette_score(X, cluster_labels, sample_size=10000)
-            cluster_stats[n_clust]['dbi'] = davies_bouldin(X, cluster_labels)
+            cluster_stats[n_clust]['dbi'] = davies_bouldin_score(X, cluster_labels)
             cluster_stats[n_clust]['mia'] = mean_index_adequacy(X, cluster_labels)
     #        cluster_stats[n_clusters][y]['cdi'] =cluster_dispersion_index(Xbatch, cluster_labels) DON'T RUN LOCALLY!!
             cluster_stats[n_clust]['cluster_size'] = np.bincount(cluster_labels)
             cluster_stats[n_clust]['batch_fit_time'] += time.time() - tick
         except:
             pass
-            
-        print(progress(n_clust, cluster_stats[n_clust]))
+         
+        cluster_lbls[n_clust] = cluster_labels
+        
+#        print(progress(n_clust, cluster_stats[n_clust]))
     
-    return cluster_stats, cluster_centroids
+    return cluster_stats, cluster_centroids, cluster_labels
         
 def kmeansResults(cluster_stats, cluster_centroids):   
     
