@@ -86,14 +86,15 @@ def kmeans(X, range_n_clusters, normalise = False, **kwargs):
             pass
          
         cluster_lbls[n_clust] = cluster_labels
-        
-#        print(progress(n_clust, cluster_stats[n_clust]))
+        lbls = pd.DataFrame(cluster_labels)
+        lbls.to_csv(os.path.join(log_dir, str(range_n_clusters.start)+'-'+str(range_n_clusters[-1])+'-'+str(r.step) +'_labels_kmeans.csv'),index=False)
+#        print(progress(n_clust, cluster_stats[n_clust]))    
     
-    return cluster_stats, cluster_centroids, cluster_labels
+    return cluster_stats, cluster_centroids, cluster_lbls
         
 def kmeansResults(cluster_stats, cluster_centroids):   
     
-    cluster_results = pd.DataFrame()
+    centroid_results = pd.DataFrame()
     eval_results = pd.DataFrame()
     
     eval_results = pd.DataFrame.from_dict([cluster_stats[k][i] for i in ['n_sample','dbi','mia','silhouette','batch_fit_time']] for k in cluster_stats.keys())
@@ -104,18 +105,18 @@ def kmeansResults(cluster_stats, cluster_centroids):
         c = pd.DataFrame(cluster_centroids[k])
         c['n_clust'] = k
         c['cluster_size'] = pd.DataFrame.from_dict(cluster_stats[k]['cluster_size'])
-        cluster_results = cluster_results.append(c)
+        centroid_results = centroid_results.append(c)
             
-    cluster_results.reset_index(inplace=True)
-    cluster_results.rename({'index':'k'}, axis=1, inplace=True)
+    centroid_results.reset_index(inplace=True)
+    centroid_results.rename({'index':'k'}, axis=1, inplace=True)
     
     kfirst = list(cluster_stats.keys())[0]
     klast = list(cluster_stats.keys())[-1]
     it = int((klast-kfirst)/(len(list(cluster_stats.keys()))-1))
     #3 Log Results
     eval_results.to_csv(os.path.join(log_dir, str(kfirst)+'-'+str(klast)+'-'+str(it)+'_eval_kmeans.csv'),index=False)
-    cluster_results.to_csv(os.path.join(log_dir, str(kfirst)+'-'+str(klast)+'-'+str(it) +'_cluster_kmeans.csv'),index=False)
+    centroid_results.to_csv(os.path.join(log_dir, str(kfirst)+'-'+str(klast)+'-'+str(it) +'_centroids_kmeans.csv'),index=False)
         
-    return eval_results, cluster_results
+    return eval_results, centroid_results
     
     #4 Plot Results
