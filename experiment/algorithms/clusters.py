@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.metrics import silhouette_score
+import somoclu
 
 import time
 
@@ -126,3 +127,8 @@ def kmeansResults(cluster_stats, cluster_centroids, cluster_lbls):
     return eval_results, centroid_results
     
     #4 Plot Results
+
+def som(X, dim):
+    nrow = ncol = dim
+    som = somoclu.Somoclu(nrow, ncol, compactsupport=False, maptype='planar')
+    som.train(X)
