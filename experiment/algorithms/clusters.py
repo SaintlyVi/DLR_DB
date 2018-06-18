@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.metrics import silhouette_score
+from sklearn.preprocessing import normalize
 import somoclu
 
 import time
@@ -32,66 +33,116 @@ def progress(n_clusters, stats):
     s += "in %.2fs (%s profiles/s) \n" % (duration, stats['n_sample'] / duration)
     return s
     
-#TODO 1a data preprocessing - normalise data 
+def clusterStats(cluster_stats, n, X, cluster_labels, preprocessing, transform, tic, toc):   
+   
+    stats = {'n_sample': 0,
+         'cluster_size': [],
+         'silhouette': 0.0,
+         'dbi': 0.0,
+         'mia': 0.0,
+#             'cdi': 0.0,
+         't0': time.time(),
+         'batch_fit_time': 0.0,
+         'total_sample': 0}
 
-def kmeans(X, range_n_clusters, normalise = False, **kwargs):
+    cluster_stats[n] = stats
+    try:
+        cluster_stats[n]['total_sample'] += X.shape[0]
+        cluster_stats[n]['n_sample'] = X.shape[0]
+        cluster_stats[n]['silhouette'] = silhouette_score(X, cluster_labels, sample_size=10000)
+        cluster_stats[n]['dbi'] = davies_bouldin_score(X, cluster_labels)
+        cluster_stats[n]['mia'] = mean_index_adequacy(X, cluster_labels)
+        #cluster_stats[n_clusters][y]['cdi'] =cluster_dispersion_index(Xbatch, cluster_labels) DON'T RUN LOCALLY!! - need to change to chunked alogrithm once released
+        cluster_stats[n]['cluster_size'] = np.bincount(cluster_labels)
+        cluster_stats[n]['batch_fit_time'] = toc - tic
+        cluster_stats[n]['preprocessing'] = preprocessing
+        cluster_stats[n]['transform'] = transform
+    except:
+        print('Could not compute clustering stats for n = ' + str(n))
+        pass
+
+    return cluster_stats
+
+def kmeans(X, range_n_clusters, preprocessing = False, **kwargs):
     """
     This function applies the MiniBatchKmeans algorithm with a partial_fit over year_range for range_n_clusters.
     returns cluster_stats and cluster_centroids
     """
     
     cluster_centroids = {}
-    cluster_stats = {} 
+    cluster_stats = {}
     cluster_lbls = {}
     
-    if normalise == False:
-        pass
-#    else:
-#        X = normalize(X)
+    if preprocessing == False:
+        X = np.array(X)
+        preprocessing = None
+    elif preprocessing == 'normalize':
+        X = normalize(X)
     
     for n_clust in range_n_clusters:
         
-        cluster_centroids[n_clust] = {}
-        
-        stats = {'n_sample': 0,
-             'cluster_size': [],
-             'silhouette': 0.0,
-             'dbi': 0.0,
-             'mia': 0.0,
-#             'cdi': 0.0,
-             't0': time.time(),
-             'batch_fit_time': 0.0,
-             'total_sample': 0}
-        cluster_stats[n_clust] = stats
-        
         clusterer = MiniBatchKMeans(n_clusters=n_clust, random_state=10)
                     
-        #2 Clustering
-        tick = time.time()        
-        # update estimator with examples in the current mini-batch
+        #2 Train clustering algorithm
+        tic = time.time()        
         clusterer.fit(X)
         cluster_labels = clusterer.predict(X)
-            
-        try:
-            ## Calculate scores
-            cluster_centroids[n_clust] = clusterer.cluster_centers_          
-            cluster_stats[n_clust]['total_sample'] += X.shape[0]
-            cluster_stats[n_clust]['n_sample'] = X.shape[0]
-            cluster_stats[n_clust]['silhouette'] = silhouette_score(X, cluster_labels, sample_size=10000)
-            cluster_stats[n_clust]['dbi'] = davies_bouldin_score(X, cluster_labels)
-            cluster_stats[n_clust]['mia'] = mean_index_adequacy(X, cluster_labels)
-    #        cluster_stats[n_clusters][y]['cdi'] =cluster_dispersion_index(Xbatch, cluster_labels) DON'T RUN LOCALLY!!
-            cluster_stats[n_clust]['cluster_size'] = np.bincount(cluster_labels)
-            cluster_stats[n_clust]['batch_fit_time'] += time.time() - tick
-        except:
-            pass
+        toc = time.time()
         
+         ## Calculate scores
+        cluster_stats = clusterStats(cluster_stats, n_clust, X, cluster_labels, 
+                                     preprocessing = preprocessing, transform = None,tic = tic,toc = toc)
+        
+        cluster_centroids[n_clust] = clusterer.cluster_centers_ 
         cluster_lbls[n_clust] = cluster_labels
 #        print(progress(n_clust, cluster_stats[n_clust]))    
     
     return cluster_stats, cluster_centroids, cluster_lbls
+
+def som(X, range_n_dim, preprocessing = False, algorithm=None):
+    
+    cluster_centroids = {}
+    cluster_stats = {} 
+    cluster_lbls = {}
+    
+    if preprocessing == False:
+        X = np.array(X)
+        preprocessing = None
+    elif preprocessing == 'normalize':
+        X = normalize(X)
+
+    for dim in range_n_dim:        
+
+        nrow = ncol = dim
+        tic = time.time()
+        #2 Train clustering algorithm
+        som = somoclu.Somoclu(nrow, ncol, compactsupport=False, maptype='planar')
+        som.train(X)
+        toc = time.time()
+
+        if algorithm is None:
+            transform = None
+            m = np.arange(0, nrow*ncol, 1).reshape(nrow, ncol)
+            k = [m[som.bmus[i][1],som.bmus[i][0]] for i in range(0, len(som.bmus))]
+            c = som.codebook.reshape(nrow * ncol, som.n_dim) #alternatively get mean of all k with same bmu
+
+        else:
+            transform = algorithm.get_params()
+            som.cluster(algorithm=algorithm)
+            k = [som.clusters[som.bmus[i][1],som.bmus[i][0]] for i in range(0, len(som.bmus))]
+            c = #group codebook by k and get mean values or get mean of all Xi with same k
+            
+        ## Calculate scores
+        cluster_stats = clusterStats(cluster_stats, dim, X, cluster_labels = k, 
+                                     preprocessing = preprocessing, transform = transform, 
+                                     tic = tic, toc = toc)
+
+        cluster_centroids[dim] = c
+        cluster_lbls[dim] = k
+    
+    return cluster_stats, cluster_centroids, cluster_lbls
         
-def kmeansResults(cluster_stats, cluster_centroids, cluster_lbls):   
+def clusterResults(cluster_stats, cluster_centroids, cluster_lbls):   
     
     centroid_results = pd.DataFrame()
     eval_results = pd.DataFrame()
@@ -120,15 +171,8 @@ def kmeansResults(cluster_stats, cluster_centroids, cluster_lbls):
     klast = list(cluster_stats.keys())[-1]
     it = int((klast-kfirst)/(len(list(cluster_stats.keys()))-1))
     #3 Log Results
-    eval_results.to_csv(os.path.join(log_dir, str(kfirst)+'-'+str(klast)+'-'+str(it)+'_eval_kmeans.csv'),index=False)
-    centroid_results.to_csv(os.path.join(log_dir, str(kfirst)+'-'+str(klast)+'-'+str(it) +'_centroids_kmeans.csv'),index=False)
-    lbls.to_csv(os.path.join(log_dir, str(kfirst)+'-'+str(klast)+'-'+str(it)+'_labels_kmeans.csv'),index=False)
+    eval_results.to_csv(os.path.join(log_dir, 'kmeans' + str(kfirst)+'-'+str(klast)+'-'+str(it)+'_eval.csv'),index=False)
+    centroid_results.to_csv(os.path.join(log_dir, 'kmeans' + str(kfirst)+'-'+str(klast)+'-'+str(it) +'_centroids.csv'),index=False)
+    lbls.to_csv(os.path.join(log_dir, 'kmeans' + str(kfirst)+'-'+str(klast)+'-'+str(it)+'_labels.csv'),index=False)
         
     return eval_results, centroid_results
-    
-    #4 Plot Results
-
-def som(X, dim):
-    nrow = ncol = dim
-    som = somoclu.Somoclu(nrow, ncol, compactsupport=False, maptype='planar')
-    som.train(X)

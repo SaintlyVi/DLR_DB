@@ -10,7 +10,7 @@ import numpy as np
 from scipy.spatial.distance import euclidean
 from sklearn.metrics.pairwise import euclidean_distances, pairwise_distances#, pairwise_distances_chunked
 
-from sklearn.utils import check_random_state, check_X_y, safe_indexing
+from sklearn.utils import check_X_y, safe_indexing
 from sklearn.preprocessing import LabelEncoder
 
 
