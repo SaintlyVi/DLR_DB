@@ -70,7 +70,7 @@ def kmeans(X, range_n_clusters, preprocessing = False, **kwargs):
     """
     
     cluster_centroids = {}
-    cluster_stats = {}
+    cluster_stats = {'kmeans':{}}
     cluster_lbls = {}
     
     if preprocessing == False:
@@ -90,19 +90,19 @@ def kmeans(X, range_n_clusters, preprocessing = False, **kwargs):
         toc = time.time()
         
          ## Calculate scores
-        cluster_stats = clusterStats(cluster_stats, n_clust, X, cluster_labels, 
-                                     preprocessing = preprocessing, transform = None,tic = tic,toc = toc)
-        
+        cluster_stats['kmeans'] = clusterStats(cluster_stats['kmeans'], n_clust, X, cluster_labels, 
+                                     preprocessing = preprocessing, transform = None,
+                                     tic = tic, toc = toc)        
         cluster_centroids[n_clust] = clusterer.cluster_centers_ 
         cluster_lbls[n_clust] = cluster_labels
 #        print(progress(n_clust, cluster_stats[n_clust]))    
     
     return cluster_stats, cluster_centroids, cluster_lbls
 
-def som(X, range_n_dim, preprocessing = False, algorithm=None):
+def som(X, range_n_dim, preprocessing = False, transform_algorithm=None):
     
     cluster_centroids = {}
-    cluster_stats = {} 
+    cluster_stats = {'som':{}} 
     cluster_lbls = {}
     
     if preprocessing == False:
@@ -115,29 +115,28 @@ def som(X, range_n_dim, preprocessing = False, algorithm=None):
 
         nrow = ncol = dim
         tic = time.time()
+
         #2 Train clustering algorithm
         som = somoclu.Somoclu(nrow, ncol, compactsupport=False, maptype='planar')
         som.train(X)
         toc = time.time()
 
-        if algorithm is None:
+        if transform_algorithm is None:
             transform = None
-            m = np.arange(0, nrow*ncol, 1).reshape(nrow, ncol)
-            k = [m[som.bmus[i][1],som.bmus[i][0]] for i in range(0, len(som.bmus))]
-            c = som.codebook.reshape(nrow * ncol, som.n_dim) #alternatively get mean of all k with same bmu
-
+            m = np.arange(0, nrow*ncol, 1).reshape(nrow, ncol) #create empty matrix the size of the SOM
+            k = [m[som.bmus[i][1],som.bmus[i][0]] for i in range(0, len(som.bmus))] #get SOM node (ie cluster) from bmu for each input vecor
         else:
-            transform = algorithm.get_params()
-            som.cluster(algorithm=algorithm)
-            k = [som.clusters[som.bmus[i][1],som.bmus[i][0]] for i in range(0, len(som.bmus))]
-            c = #group codebook by k and get mean values or get mean of all Xi with same k
+            transform = transform_algorithm.get_params()
+            som.cluster(algorithm=transform_algorithm)
+            k = [som.clusters[som.bmus[i][1],som.bmus[i][0]] for i in range(0, len(som.bmus))] #get cluster of SOM node and assign to input vecors based on bmus
+        
+        c = pd.DataFrame(X).assign(cluster=k).groupby('cluster').mean()
             
         ## Calculate scores
-        cluster_stats = clusterStats(cluster_stats, dim, X, cluster_labels = k, 
+        cluster_stats['som'] = clusterStats(cluster_stats['som'], dim, X, cluster_labels = k, 
                                      preprocessing = preprocessing, transform = transform, 
                                      tic = tic, toc = toc)
-
-        cluster_centroids[dim] = c
+        cluster_centroids[dim] = np.array(c)
         cluster_lbls[dim] = k
     
     return cluster_stats, cluster_centroids, cluster_lbls

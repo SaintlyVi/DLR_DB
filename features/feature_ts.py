@@ -396,7 +396,7 @@ def genX(year_range, **kwargs):
         else: directory = 'H'
                  
         data = resampleProfiles(dailyProfiles(y, unit, directory), interval, aggfunc)
-        Xbatch = data.dropna()
+        Xbatch = data.dropna() #remove missing values
         Xbatch.reset_index(inplace=True)
         X = X.append(Xbatch)
     X.set_index(['ProfileID','date'],inplace=True)
