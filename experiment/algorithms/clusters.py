@@ -207,12 +207,6 @@ def saveResults(cluster_stats, cluster_centroids, cluster_lbls):
     eval_results = evals.rename_axis(level_names).reset_index()
     eval_results.drop(labels='cluster_size', axis=1, inplace=True)
         
-#        for k in level1_values.keys():
-#            c = pd.DataFrame(cluster_centroids[k])
-#            c['n_clust'] = k
-#            c['cluster_size'] = pd.DataFrame.from_dict(level1_values[k]['cluster_size'])
-#            centroid_results = centroid_results.append(c)
-            
     centroid_results.reset_index(inplace=True)
     centroid_results.rename({'index':'k'}, axis=1, inplace=True)
     
@@ -235,4 +229,4 @@ def saveResults(cluster_stats, cluster_centroids, cluster_lbls):
     lbls.to_csv(os.path.join(log_dir, level1_key + str(kfirst)+'-'+str(klast)+'-'+str(it)
     +'_labels.csv'),index=False)
         
-    return eval_results
+    return eval_results, centroid_results
