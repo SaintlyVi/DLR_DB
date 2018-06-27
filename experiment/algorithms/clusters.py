@@ -151,7 +151,7 @@ def som(X, range_n_dim, preprocessing = False, kmeans=False, **kwargs):
             if kwargs is None:
                 n_clust = [10]
             else:
-                for key, value in kwargs:
+                for key, value in kwargs.items():
                     if key == 'n_clusters':
                         n_clust = value
             for n in n_clust:
@@ -193,20 +193,25 @@ def saveResults(cluster_stats, cluster_centroids, cluster_lbls):
                       for level2_key, level3_dict in level2_dict.items()
                       for level3_key, values      in level3_dict.items()}
             level_names = ['algorithm','dim','n_clust']
-
-            c = pd.DataFrame({(level1_key, level2_key): values
-                      for level1_key, level2_dict in cluster_centroids.items()
-                      for level2_key, values in level2_dict.items()})
             
+            c = pd.DataFrame()
+            for k, v in level1_values.items():
+                for i, j in v.items():
+                    c = pd.DataFrame(cluster_centroids[k][i])
+                    c['dim'] = k
+                    c['n_clust'] = i
+                    c['cluster_size'] = j['cluster_size']
+                    centroid_results = centroid_results.append(c)
+                      
     evals = pd.DataFrame(reform).T
     eval_results = evals.rename_axis(level_names).reset_index()
     eval_results.drop(labels='cluster_size', axis=1, inplace=True)
         
-        for k in level1_values.keys():
-            c = pd.DataFrame(cluster_centroids[k])
-            c['n_clust'] = k
-            c['cluster_size'] = pd.DataFrame.from_dict(level1_values[k]['cluster_size'])
-            centroid_results = centroid_results.append(c)
+#        for k in level1_values.keys():
+#            c = pd.DataFrame(cluster_centroids[k])
+#            c['n_clust'] = k
+#            c['cluster_size'] = pd.DataFrame.from_dict(level1_values[k]['cluster_size'])
+#            centroid_results = centroid_results.append(c)
             
     centroid_results.reset_index(inplace=True)
     centroid_results.rename({'index':'k'}, axis=1, inplace=True)
