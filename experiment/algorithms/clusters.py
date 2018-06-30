@@ -223,9 +223,9 @@ def saveResults(experiment_name, cluster_stats, cluster_centroids, top_lbls):
     os.makedirs(cluster_dir, exist_ok=True)    
     os.makedirs(results_dir, exist_ok=True)
 
-    eval_results.to_csv(os.path.join(results_dir, 'cluster_results.csv'), mode='a', index=False)
+    eval_results.to_csv(os.path.join(results_dir, 'cluster_results.csv'), mode='a', index=False, header=False)
     centroid_results.to_csv(os.path.join(cluster_dir, experiment_name + '_centroids.csv'), index=False)
-    best_lbls.to_csv(os.path.join(results_dir, 'best_labels.csv'), mode='a', index=False)
+    best_lbls.to_csv(os.path.join(results_dir, 'best_labels.csv'), mode='a', index=False, header=False)
 
     print('All results recorded')
     return eval_results, best_lbls

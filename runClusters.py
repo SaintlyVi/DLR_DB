@@ -19,7 +19,8 @@ from features.feature_ts import genX
 # Set up argument parser to run from terminal
 parser = argparse.ArgumentParser(description='Cluster DLR timeseries data.')
 parser.add_argument('params', type=str, help='Parameter file with clustering specifications')
-parser.add_argument('-l', dest='save_labels', type=int, help='Save cluster labels of top (int) results')
+parser.add_argument('top', type=int, help='Save metadata for top n results')
+parser.add_argument('-l', dest='save_labels', type=bool, help='Save cluster labels of top results', default=False)
 args = parser.parse_args()
 
 param_dir = os.path.join(experiment_dir, 'parameters')
@@ -48,13 +49,13 @@ for i in range(1, len(param)): #skip first line with header info
     if algorithm == 'kmeans':
         cluster_stats, cluster_centroids, cluster_lbls = kmeans(X, range_n_clusters, preprocessing)
 
-    eval_results = saveResults(args.params, cluster_stats, cluster_centroids)
+    eval_results, best_lbls = saveResults(args.params, cluster_stats, cluster_centroids, args.top)
     
-    if type(args.save_labels) is int:
-        saveLabels(X, cluster_lbls, args.save_labels, eval_results, args.params)
+    if args.save_labels == True:
+        saveLabels(X, cluster_lbls, best_lbls, args.params)
     
     log_line = param[i]
-    logs = pd.DataFrame(log_line, columns = ['algorithm', 'start', 'end', 'preprocessing', 
+    logs = pd.DataFrame([log_line], columns = ['algorithm', 'start', 'end', 'preprocessing', 
                                              'range_n_dim', 'transform', 'range_n_clusters'])
     writeLog(logs, os.path.join(log_dir,'log_runClusters.csv'))
 
