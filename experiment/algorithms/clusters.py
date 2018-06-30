@@ -19,7 +19,7 @@ import feather
 import time
 from datetime import date
 
-from experiment.algorithms.cluster_metrics import mean_index_adequacy, cluster_dispersion_index, davies_bouldin_score
+from experiment.algorithms.cluster_metrics import mean_index_adequacy, davies_bouldin_score #, cluster_dispersion_index
 from support import log_dir, cluster_dir, results_dir
 
 def progress(n_clusters, stats):
@@ -65,7 +65,7 @@ def clusterStats(cluster_stats, n, X, cluster_labels, preprocessing, transform, 
 
     return cluster_stats
 
-def kmeans(X, range_n_clusters, preprocessing = False):
+def kmeans(X, range_n_clusters, preprocessing = None):
     """
     This function applies the MiniBatchKmeans algorithm from sklearn on inputs X for range_n_clusters.
     If preprossing = True, X is normalised with sklearn.preprocessing.normalize()
@@ -76,9 +76,8 @@ def kmeans(X, range_n_clusters, preprocessing = False):
     cluster_stats = {'kmeans':{}}
     cluster_lbls = {}
     
-    if preprocessing == False:
+    if preprocessing == None:
         X = np.array(X)
-        preprocessing = None
     elif preprocessing == 'normalize':
         X = normalize(X)
     
@@ -106,7 +105,7 @@ def kmeans(X, range_n_clusters, preprocessing = False):
     
     return cluster_stats, cluster_centroids, cluster_lbls
 
-def som(X, range_n_dim, preprocessing = False, transform=False, **kwargs):
+def som(X, range_n_dim, preprocessing = None, transform=None, **kwargs):
     """
     This function applies the self organising maps algorithm from somoclu on inputs X over square maps of range_n_dim.
     If preprossing = True, X is normalised with sklearn.preprocessing.normalize()
@@ -119,9 +118,8 @@ def som(X, range_n_dim, preprocessing = False, transform=False, **kwargs):
     cluster_stats = {'som':{}} 
     cluster_lbls = {}
     
-    if preprocessing == False:
+    if preprocessing == None:
         X = np.array(X)
-        preprocessing = None
     elif preprocessing == 'normalize':
         X = normalize(X)
 
@@ -139,8 +137,7 @@ def som(X, range_n_dim, preprocessing = False, transform=False, **kwargs):
         som.train(X)
         toc = time.time()
 
-        if transform == False:
-            transform = None
+        if transform == None:
             m = np.arange(0, nrow*ncol, 1).reshape(nrow, ncol) #create empty matrix the size of the SOM
             k = [m[som.bmus[i][1],som.bmus[i][0]] for i in range(0, len(som.bmus))] #get cluster of SOM node and assign to input vecors based on bmus
             c = pd.DataFrame(X).assign(cluster=k).groupby('cluster').mean()
