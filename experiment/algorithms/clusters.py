@@ -9,16 +9,18 @@ Created on Thu Jun  7 12:04:39 2018
 import os
 import pandas as pd
 import numpy as np
+
 from sklearn.cluster import MiniBatchKMeans, KMeans
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import normalize
 import somoclu
 
+import feather
 import time
 from datetime import date
 
 from experiment.algorithms.cluster_metrics import mean_index_adequacy, cluster_dispersion_index, davies_bouldin_score
-from support import log_dir
+from support import log_dir, cluster_dir, results_dir
 
 def progress(n_clusters, stats):
     """Report progress information, return a string."""
@@ -175,7 +177,7 @@ def som(X, range_n_dim, preprocessing = False, transform=False, **kwargs):
     
     return cluster_stats, cluster_centroids, cluster_lbls
         
-def saveResults(cluster_stats, cluster_centroids, cluster_lbls):   
+def saveResults(experiment_name, cluster_stats, cluster_centroids):   
     
     centroid_results = pd.DataFrame()
     
@@ -210,27 +212,41 @@ def saveResults(cluster_stats, cluster_centroids, cluster_lbls):
                       
     evals = pd.DataFrame(reform).T
     eval_results = evals.rename_axis(level_names).reset_index()
-    eval_results.drop(labels='cluster_size', axis=1, inplace=True)
+#    eval_results.drop(labels='cluster_size', axis=1, inplace=True)
     eval_results[['dbi','mia','silhouette']] = eval_results[['dbi','mia','silhouette']].astype(float)
     eval_results['date'] = date.today().isoformat()
+    eval_results['experiment'] = experiment_name
     
     centroid_results.reset_index(inplace=True)
     centroid_results.rename({'index':'k'}, axis=1, inplace=True)
     centroid_results['date'] = date.today().isoformat()
+    centroid_results['experiment'] = experiment_name
     
-    #3 Log Results
-    eval_results.to_csv(os.path.join(log_dir, 'eval_results.csv'), mode='a', index=False)
-    centroid_results.to_csv(os.path.join(log_dir, 'centroid_results.csv'), mode='a', index=False)
-    
+    #3 Save Results
+    os.makedirs(log_dir , exist_ok=True)    
+    os.makedirs(cluster_dir , exist_ok=True)    
+    os.makedirs(results_dir , exist_ok=True)
+
+    eval_results.to_csv(os.path.join(results_dir, 'cluster_results.csv'), 
+                        mode='a', index=False)
+    centroid_results.to_csv(os.path.join(cluster_dir, 
+                                         experiment_name + '_centroids.csv'), index=False)
+
+    print('All results recorded')
+    return eval_results
+
+def saveLabels(X, cluster_lbls, top, eval_results, experiment_name):    
+
     #Save labels for 10 best clusters
-    best_lbls = eval_results.nsmallest(columns=['dbi','mia'], n= 10).nlargest(columns='silhouette', n=10)[['n_clust','som_dim']].reset_index(drop=True)
-    labels = pd.DataFrame(cluster_lbls)
+    best_lbls = eval_results.nsmallest(columns=['dbi','mia'], n=top).nlargest(columns='silhouette', n=10)[['n_clust','som_dim']].reset_index(drop=True)
+    labels = pd.DataFrame(cluster_lbls, index=X.index)
     lbls = pd.DataFrame([labels.loc[best_lbls.loc[r,'n_clust'],
                                     best_lbls.loc[r,'som_dim']] for r in range(len(best_lbls))]).T
     best_label_data = pd.concat([best_lbls.T, lbls])
-    best_label_data.to_csv(os.path.join(log_dir, date.today().isoformat() + level1_key + 
-                                        '_labels.csv'),index=True)
-        
+
+    wpath = os.path.join(cluster_dir, date.today().isoformat() + experiment_name + '_labels.csv')
+    feather.write_dataframe(best_label_data, wpath)    
+    
     return print('All results logged')
 
 #scores = eval_results.pivot_table(values=['dbi','mia','silhouette'],index='n_clust',columns='dim',aggfunc= lambda x:x)

@@ -3,39 +3,60 @@
 """
 Created on Wed Jan 10 12:17:16 2018
 
-This is a shell script for retrieving and saving observations from the DLR MSSQL database.
+This is a shell script for running timeseries clustering arguments from terminal.
 
 @author: SaintlyVi
 """
 
-import optparse
+import argparse
+import os
+import pandas as pd
 
-from experiment.algoritms.clusters import som, kmeans, saveResults
+from support import experiment_dir, writeLog, log_dir
+from experiment.algoritms.clusters import som, kmeans, saveResults, saveLabels
 from features.feature_ts import genX
 
-parser = optparse.OptionParser()
+# Set up argument parser to run from terminal
+parser = argparse.ArgumentParser(description='Cluster DLR timeseries data.')
+parser.add_argument('p', dest='param_file', type=str, help='Parameter file with clustering specifications')
+parser.add_argument('-l', dest='save_labels', type=int, help='Save cluster labels of top (int) results')
+args = parser.parse_args()
 
-parser.add_option('-s', '--start', dest='start', type=int, help='Year start')
-parser.add_option('-e', '--end', dest='end', type=int, help='Year end')
-parser.add_option('-a', '--algorithm', dest='algorithm', help='som or kmeans')
-parser.add_option('-d', '--range_n_dim', dest='range_n_dim', help='range_n_dim - som only')
-parser.add_option('-n', '--range_n_clusters', dest='range_n_clusters', help='range_n_clusters')
-parser.add_option('-p', '--preprocessing', dest='preprocessing', help='preprocessing')
+param_dir = os.path.join(experiment_dir, 'parameters')
+param_path = os.path.join(param_dir, args.param_file + '.txt')
+header = open(param_path,'r')
+param = list()
+for line in header:
+    if line.strip() != '':                # ignore blank lines
+        param.append(eval(line))
 
-(options, args) = parser.parse_args()
+for i in range(1, len(param)): #skip first line with header info
+    # Extract all parameter values
+    algorithm = param[i][0]
+    start = param[i][1]
+    end = param[i][2]
+    preprocessing = param[i][3]
+    range_n_dim = param[i][4]
+    transform = param[i][5]
+    range_n_clusters = param[i][6]
 
-if options.start is None:
-    options.start = int(input('Enter observation start year: '))
-if options.end is None:
-    options.end = int(input('Enter observation end year: '))
+    X = genX([start, end])
+
+    if algorithm == 'som':
+        cluster_stats, cluster_centroids, cluster_lbls = som(X, range_n_dim, preprocessing, 
+                                                             transform, range_n_clusters)    
+    if args.algorithm == 'kmeans':
+        cluster_stats, cluster_centroids, cluster_lbls = kmeans(X, range_n_clusters, preprocessing)
+
+    eval_results = saveResults(args.param_file, cluster_stats, cluster_centroids)
     
-X = genX([options.start, options.end])
+    if type(args.save_labels) is int:
+        saveLabels(X, cluster_lbls, args.save_labels, eval_results, args.param_file)
+    
+    log_line = param[i]
+    logs = pd.DataFrame(log_line, columns = ['algorithm', 'start', 'end', 'preprocessing', 
+                                             'range_n_dim', 'transform', 'range_n_clusters'])
+    writeLog(logs, os.path.join(log_dir,'log_runClusters.csv'))
 
-if options.algorithm == 'som':
-    cluster_stats, cluster_centroids, cluster_lbls = som(X, options.range_n_dim, options.preprocessing, 
-                                                         transform=False, options.range_n_clusters)
-
-if options.algorithm == 'kmeans':
-    cluster_stats, cluster_centroids, cluster_lbls = kmeans(X, options.range_n_clusters, options.preprocessing)
-
-print('>>>genClusters end<<<')
+print(eval_results)
+print('\n>>>genClusters end<<<')
