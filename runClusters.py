@@ -13,17 +13,17 @@ import os
 import pandas as pd
 
 from support import experiment_dir, writeLog, log_dir
-from experiment.algoritms.clusters import som, kmeans, saveResults, saveLabels
+from experiment.algorithms.clusters import som, kmeans, saveResults, saveLabels
 from features.feature_ts import genX
 
 # Set up argument parser to run from terminal
 parser = argparse.ArgumentParser(description='Cluster DLR timeseries data.')
-parser.add_argument('p', dest='param_file', type=str, help='Parameter file with clustering specifications')
+parser.add_argument('params', type=str, help='Parameter file with clustering specifications')
 parser.add_argument('-l', dest='save_labels', type=int, help='Save cluster labels of top (int) results')
 args = parser.parse_args()
 
 param_dir = os.path.join(experiment_dir, 'parameters')
-param_path = os.path.join(param_dir, args.param_file + '.txt')
+param_path = os.path.join(param_dir, args.params + '.txt')
 header = open(param_path,'r')
 param = list()
 for line in header:
@@ -44,14 +44,14 @@ for i in range(1, len(param)): #skip first line with header info
 
     if algorithm == 'som':
         cluster_stats, cluster_centroids, cluster_lbls = som(X, range_n_dim, preprocessing, 
-                                                             transform, range_n_clusters)    
-    if args.algorithm == 'kmeans':
+                                                             transform, n_clusters=range_n_clusters)    
+    if algorithm == 'kmeans':
         cluster_stats, cluster_centroids, cluster_lbls = kmeans(X, range_n_clusters, preprocessing)
 
-    eval_results = saveResults(args.param_file, cluster_stats, cluster_centroids)
+    eval_results = saveResults(args.params, cluster_stats, cluster_centroids)
     
     if type(args.save_labels) is int:
-        saveLabels(X, cluster_lbls, args.save_labels, eval_results, args.param_file)
+        saveLabels(X, cluster_lbls, args.save_labels, eval_results, args.params)
     
     log_line = param[i]
     logs = pd.DataFrame(log_line, columns = ['algorithm', 'start', 'end', 'preprocessing', 

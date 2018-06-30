@@ -113,6 +113,13 @@ def som(X, range_n_dim, preprocessing = None, transform=None, **kwargs):
     kwargs can be n_clusters = range(start, end, interval) OR list()
     Returns cluster stats, cluster centroids and cluster labels.
     """
+
+    for dim in range_n_dim: 
+        limit = int(np.sqrt(len(X)/20))
+        if dim > limit: #verify that number of nodes are sensible for size of input data
+            return print('Input size too small for map. Largest n should be ' + str(limit))
+        else:
+            pass
     
     cluster_centroids = {}
     cluster_stats = {'som':{}} 
@@ -123,7 +130,7 @@ def som(X, range_n_dim, preprocessing = None, transform=None, **kwargs):
     elif preprocessing == 'normalize':
         X = normalize(X)
 
-    for dim in range_n_dim:    
+    for dim in range_n_dim: 
         
         cluster_centroids[dim] = {}
         cluster_stats['som'][dim] = {} 
@@ -178,20 +185,7 @@ def saveResults(experiment_name, cluster_stats, cluster_centroids):
     
     centroid_results = pd.DataFrame()
     
-    for level1_key, level1_values in cluster_stats.items():
-#        if level1_key == 'kmeans':
-#            reform = {(level1_key, level2_key): values
-#                      for level1_key, level2_dict in cluster_stats.items()
-#                      for level2_key, values in level2_dict.items()}
-#            level_names = ['algorithm','n_clust']
-#            
-#            for k in level1_values.keys():
-#                c = pd.DataFrame(cluster_centroids[k])
-#                c['n_clust'] = k
-#                c['cluster_size'] = pd.DataFrame.from_dict(level1_values[k]['cluster_size'])
-#                centroid_results = centroid_results.append(c)
-#
-#        elif level1_key == 'som':            
+    for level1_key, level1_values in cluster_stats.items():          
         reform = {(level1_key, level2_key, level3_key): values
                   for level1_key, level2_dict in cluster_stats.items()
                   for level2_key, level3_dict in level2_dict.items()
