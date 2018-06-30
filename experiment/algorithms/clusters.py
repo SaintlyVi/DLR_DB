@@ -59,6 +59,13 @@ def clusterStats(cluster_stats, n, X, cluster_labels, preprocessing, transform, 
         cluster_stats[n]['batch_fit_time'] = toc - tic
         cluster_stats[n]['preprocessing'] = preprocessing
         cluster_stats[n]['transform'] = transform
+
+        s = "%s : " % (n)                    
+        s += "\nsilhouette: %(silhouette).3f " % stats
+        s += "\ndbi: %(dbi).3f " % stats
+        s += "\nmia: %(mia).3f " % stats
+        print(s)
+
     except:
         print('Could not compute clustering stats for n = ' + str(n))
         pass
@@ -241,7 +248,7 @@ def saveLabels(X, cluster_lbls, best_lbls, experiment_name):
     lbls['date'] = X.reset_index()['date']
     lbls.set_index(['ProfileID','date'], inplace=True)
 
-    wpath = os.path.join(cluster_dir, date.today().isoformat() + experiment_name + '_labels.csv')
+    wpath = os.path.join(cluster_dir, date.today().isoformat() + experiment_name + '_labels.feather')
     feather.write_dataframe(lbls, wpath)    
     
     return print('All results logged')
