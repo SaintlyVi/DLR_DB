@@ -181,7 +181,7 @@ def som(X, range_n_dim, preprocessing = None, transform=None, **kwargs):
     
     return cluster_stats, cluster_centroids, cluster_lbls
         
-def saveResults(experiment_name, cluster_stats, cluster_centroids):   
+def saveResults(experiment_name, cluster_stats, cluster_centroids, top_lbls):   
     
     centroid_results = pd.DataFrame()
     
@@ -213,23 +213,26 @@ def saveResults(experiment_name, cluster_stats, cluster_centroids):
     centroid_results['date'] = date.today().isoformat()
     centroid_results['experiment'] = experiment_name
     
+    best_lbls = eval_results.nsmallest(columns=['dbi','mia'], n=top_lbls).nlargest(columns='silhouette',
+                                      n=top_lbls)[['n_clust','som_dim']].reset_index(drop=True)
+    best_lbls['experiment'] = experiment_name
+    best_lbls['date'] = date.today().isoformat()
+    
     #3 Save Results
     os.makedirs(log_dir , exist_ok=True)    
-    os.makedirs(cluster_dir , exist_ok=True)    
-    os.makedirs(results_dir , exist_ok=True)
+    os.makedirs(cluster_dir, exist_ok=True)    
+    os.makedirs(results_dir, exist_ok=True)
 
-    eval_results.to_csv(os.path.join(results_dir, 'cluster_results.csv'), 
-                        mode='a', index=False)
-    centroid_results.to_csv(os.path.join(cluster_dir, 
-                                         experiment_name + '_centroids.csv'), index=False)
+    eval_results.to_csv(os.path.join(results_dir, 'cluster_results.csv'), mode='a', index=False)
+    centroid_results.to_csv(os.path.join(cluster_dir, experiment_name + '_centroids.csv'), index=False)
+    best_lbls.to_csv(os.path.join(results_dir, 'best_labels.csv'), mode='a', index=False)
 
     print('All results recorded')
-    return eval_results
+    return eval_results, best_lbls
 
-def saveLabels(X, cluster_lbls, top, eval_results, experiment_name):    
+def saveLabels(X, cluster_lbls, best_lbls, experiment_name):    
 
     #Save labels for 10 best clusters
-    best_lbls = eval_results.nsmallest(columns=['dbi','mia'], n=top).nlargest(columns='silhouette', n=top)[['n_clust','som_dim']].reset_index(drop=True)
     labels = pd.DataFrame(cluster_lbls)
     lbls = pd.DataFrame([labels.loc[best_lbls.loc[r,'n_clust'],
                                     best_lbls.loc[r,'som_dim']] for r in range(len(best_lbls))]).T
@@ -237,7 +240,6 @@ def saveLabels(X, cluster_lbls, top, eval_results, experiment_name):
     lbls['ProfileID'] = X.reset_index()['ProfileID']
     lbls['date'] = X.reset_index()['date']
     lbls.set_index(['ProfileID','date'], inplace=True)
-#    best_label_data = pd.concat([best_lbls.T, lbls])
 
     wpath = os.path.join(cluster_dir, date.today().isoformat() + experiment_name + '_labels.csv')
     feather.write_dataframe(lbls, wpath)    
