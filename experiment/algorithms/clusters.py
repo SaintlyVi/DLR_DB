@@ -243,10 +243,10 @@ def saveLabels(X, cluster_lbls, top, eval_results, experiment_name):
     lbls['ProfileID'] = X.reset_index()['ProfileID']
     lbls['date'] = X.reset_index()['date']
     lbls.set_index(['ProfileID','date'], inplace=True)
-    best_label_data = pd.concat([best_lbls.T, lbls])
+#    best_label_data = pd.concat([best_lbls.T, lbls])
 
     wpath = os.path.join(cluster_dir, date.today().isoformat() + experiment_name + '_labels.csv')
-    feather.write_dataframe(best_label_data, wpath)    
+    feather.write_dataframe(lbls, wpath)    
     
     return print('All results logged')
 
