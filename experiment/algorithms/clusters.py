@@ -80,12 +80,12 @@ def kmeans(X, range_n_clusters, preprocessing = None):
         X = np.array(X)
     elif preprocessing == 'normalize':
         X = normalize(X)
+
+    cluster_centroids[0] = {}
+    cluster_stats['kmeans'][0] = {} 
+    cluster_lbls[0] = {}
     
     for n_clust in range_n_clusters:
-        
-        cluster_centroids[0] = {}
-        cluster_stats['kmeans'][0] = {} 
-        cluster_lbls[0] = {}
         
         clusterer = MiniBatchKMeans(n_clusters=n_clust, random_state=10)
                     
@@ -203,7 +203,7 @@ def saveResults(experiment_name, cluster_stats, cluster_centroids):
                       
     evals = pd.DataFrame(reform).T
     eval_results = evals.rename_axis(level_names).reset_index()
-#    eval_results.drop(labels='cluster_size', axis=1, inplace=True)
+    eval_results.drop(labels='cluster_size', axis=1, inplace=True)
     eval_results[['dbi','mia','silhouette']] = eval_results[['dbi','mia','silhouette']].astype(float)
     eval_results['date'] = date.today().isoformat()
     eval_results['experiment'] = experiment_name
@@ -229,14 +229,18 @@ def saveResults(experiment_name, cluster_stats, cluster_centroids):
 def saveLabels(X, cluster_lbls, top, eval_results, experiment_name):    
 
     #Save labels for 10 best clusters
-    best_lbls = eval_results.nsmallest(columns=['dbi','mia'], n=top).nlargest(columns='silhouette', n=10)[['n_clust','som_dim']].reset_index(drop=True)
-    labels = pd.DataFrame(cluster_lbls, index=X.index)
+    best_lbls = eval_results.nsmallest(columns=['dbi','mia'], n=top).nlargest(columns='silhouette', n=top)[['n_clust','som_dim']].reset_index(drop=True)
+    labels = pd.DataFrame(cluster_lbls)
     lbls = pd.DataFrame([labels.loc[best_lbls.loc[r,'n_clust'],
                                     best_lbls.loc[r,'som_dim']] for r in range(len(best_lbls))]).T
-    best_label_data = pd.concat([best_lbls.T, lbls])
+    
+    lbls['ProfileID'] = X.reset_index()['ProfileID']
+    lbls['date'] = X.reset_index()['date']
+    lbls.set_index(['ProfileID','date'], inplace=True)
+#    best_label_data = pd.concat([best_lbls.T, lbls])
 
     wpath = os.path.join(cluster_dir, date.today().isoformat() + experiment_name + '_labels.csv')
-    feather.write_dataframe(best_label_data, wpath)    
+    feather.write_dataframe(lbls, wpath)    
     
     return print('All results logged')
 
