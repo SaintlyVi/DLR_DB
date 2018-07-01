@@ -13,14 +13,13 @@ import os
 import pandas as pd
 
 from support import experiment_dir, writeLog, log_dir
-from experiment.algorithms.clusters import som, kmeans, saveResults, saveLabels
+from experiment.algorithms.clusters import som, kmeans, saveLabels
 from features.feature_ts import genX
 
 # Set up argument parser to run from terminal
 parser = argparse.ArgumentParser(description='Cluster DLR timeseries data.')
 parser.add_argument('params', type=str, help='Parameter file with clustering specifications')
-parser.add_argument('top', type=int, help='Save metadata for top n results')
-parser.add_argument('-l', dest='save_labels', type=bool, help='Save cluster labels of top results', default=True)
+parser.add_argument('-top', type=int, help='Save labels for top n results')
 args = parser.parse_args()
 
 param_dir = os.path.join(experiment_dir, 'parameters')
@@ -44,20 +43,18 @@ for i in range(1, len(param)): #skip first line with header info
     X = genX([start, end])
 
     if algorithm == 'som':
-        cluster_stats, cluster_centroids, cluster_lbls = som(X, range_n_dim, preprocessing, 
-                                                             transform, n_clusters=range_n_clusters)    
+        stats, centroids, cluster_lbls = som(X, range_n_dim, preprocessing, transform, args.params,
+                                             n_clusters=range_n_clusters)    
     if algorithm == 'kmeans':
-        cluster_stats, cluster_centroids, cluster_lbls = kmeans(X, range_n_clusters, preprocessing)
+        stats, centroids, cluster_lbls = kmeans(X, range_n_clusters, preprocessing, args.params)
 
-    eval_results, best_lbls = saveResults(args.params, cluster_stats, cluster_centroids, args.top)
-    
-    if args.save_labels == True:
-        saveLabels(X, cluster_lbls, best_lbls, args.params)
+    if args.top is int:
+        saveLabels(X, cluster_lbls, stats, args.top)
     
     log_line = param[i]
-    logs = pd.DataFrame([log_line], columns = ['algorithm', 'start', 'end', 'preprocessing', 
-                                             'range_n_dim', 'transform', 'range_n_clusters'])
+    logs = pd.DataFrame(args.params + [log_line], columns = ['experiment','algorithm', 'start', 'end', 
+                        'preprocessing', 'range_n_dim', 'transform', 'range_n_clusters'])
     writeLog(logs, os.path.join(log_dir,'log_runClusters'))
 
-print(eval_results)
+print(stats)
 print('\n>>>genClusters end<<<')
