@@ -7,6 +7,7 @@ git status
 git add .
 git commit -m 'pre-run commit'
 git pull origin master
+git push origin master
 
 #python runClusters.py exp2_kmeans -top 10
 #python runClusters.py exp2_norm_kmeans -top 10
