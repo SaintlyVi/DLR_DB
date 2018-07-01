@@ -6,6 +6,8 @@ echo "Ready to roll."
 #declare -a experiments = (exp2_kmeans, exp2_kmeans, exp2_norm_som, exp2_norm_som+kmeans, exp2_som, exp2_som+kmeans)
 
 git status
+git add .
+git commit -m 'exp0_test2'
 git pull origin master
 python runClusters.py exp0_test2 -top 10
 git add .

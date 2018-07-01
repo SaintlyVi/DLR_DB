@@ -49,7 +49,10 @@ for i in range(1, len(param)): #skip first line with header info
         stats, centroids, cluster_lbls = kmeans(X, range_n_clusters, preprocessing, args.params)
 
     if args.top is int:
+        print(args.top)
         saveLabels(X, cluster_lbls, stats, args.top)
+    else:
+        print(type(args.top))
     
     log_line = param[i]
     logs = pd.DataFrame([[args.params] + list(log_line)], columns = ['experiment','algorithm', 'start',
