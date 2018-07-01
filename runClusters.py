@@ -52,8 +52,8 @@ for i in range(1, len(param)): #skip first line with header info
         saveLabels(X, cluster_lbls, stats, args.top)
     
     log_line = param[i]
-    logs = pd.DataFrame(args.params + [log_line], columns = ['experiment','algorithm', 'start', 'end', 
-                        'preprocessing', 'range_n_dim', 'transform', 'range_n_clusters'])
+    logs = pd.DataFrame([args.params] + list(log_line), columns = ['experiment','algorithm', 'start',
+                        'end', 'preprocessing', 'range_n_dim', 'transform', 'range_n_clusters'])
     writeLog(logs, os.path.join(log_dir,'log_runClusters'))
 
 print(stats)
