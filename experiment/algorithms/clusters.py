@@ -20,20 +20,15 @@ import time
 from datetime import date
 
 from experiment.algorithms.cluster_metrics import mean_index_adequacy, davies_bouldin_score #, cluster_dispersion_index
-from support import log_dir, cluster_dir, results_dir
+from support import cluster_dir, results_dir
 
-def progress(n_clusters, stats):
+def progress(n, stats):
     """Report progress information, return a string."""
-    duration = time.time() - stats['t0']
-    s = "%s : " % (n_clusters)
-    s += "total %(total_sample)s profiles clustered; " % stats
-    s += "this batch %(n_sample)s profiles " % stats
+    s = "%s : " % (n)                    
     s += "\nsilhouette: %(silhouette).3f " % stats
     s += "\ndbi: %(dbi).3f " % stats
-    s += "\nmia: %(mia).3f " % stats
-    s += "\ncluster_sizes: [%s] " % ', '.join(map(str, stats['cluster_size']))
-    s += "in %.2fs (%s profiles/s) \n" % (duration, stats['n_sample'] / duration)
-    return s
+    s += "\nmia: %(mia).3f " % stats  
+    return print(s)
     
 def clusterStats(cluster_stats, n, X, cluster_labels, preprocessing, transform, tic, toc):   
    
@@ -71,6 +66,56 @@ def clusterStats(cluster_stats, n, X, cluster_labels, preprocessing, transform, 
         pass
 
     return cluster_stats
+
+def saveResults(experiment_name, cluster_stats, cluster_centroids, som_dim, save=True):
+    """
+    Saves cluster stats results and centroids for a single clustering iteration. 
+    Called inside kmeans() and som() functions.
+    """
+
+    for k, v in cluster_stats.items():
+        n = k
+                        
+    evals = pd.DataFrame(cluster_stats).T
+    evals['experiment_name'] = experiment_name
+    evals['som_dim'] = som_dim
+    evals['n_clust'] = n
+    eval_results = evals.drop(labels='cluster_size', axis=1).reset_index(drop=True)
+#    eval_results.rename({'index':'k'}, axis=1, inplace=True)
+    eval_results[['dbi','mia','silhouette']] = eval_results[['dbi','mia','silhouette']].astype(float)
+    eval_results['date'] = date.today().isoformat()
+
+    centroid_results = pd.DataFrame(cluster_centroids)   
+    centroid_results['experiment_name'] = experiment_name
+    centroid_results['som_dim'] = som_dim
+    centroid_results['n_clust'] = n
+    try:
+        centroid_results['cluster_size'] = evals['cluster_size'][n]
+    except:
+        centroid_results['cluster_size'] = np.nan
+    centroid_results.reset_index(inplace=True)
+    centroid_results.rename({'index':'k'}, axis=1, inplace=True)
+    centroid_results['date'] = date.today().isoformat()
+    
+    #3 Save Results
+    if save is True:
+        os.makedirs(results_dir, exist_ok=True)    
+        erpath = os.path.join(results_dir, 'cluster_results.csv')    
+        if os.path.isfile(erpath):
+            eval_results.to_csv(erpath, mode='a', index=False, header=False)
+        else:
+            eval_results.to_csv(erpath, index=False)
+
+        os.makedirs(cluster_dir, exist_ok=True)   
+        crpath = os.path.join(cluster_dir, experiment_name + '_centroids.csv')    
+        if os.path.isfile(crpath):
+            centroid_results.to_csv(crpath, mode='a', index=False, header=False)
+        else:
+            centroid_results.to_csv(crpath, index=False)
+        
+        print('Results saved for', experiment_name, str(som_dim), str(n))
+    
+    return eval_results, centroid_results
 
 def kmeans(X, range_n_clusters, preprocessing = None, experiment_name=None):
     """
@@ -202,102 +247,7 @@ def som(X, range_n_dim, preprocessing = None, transform=None, experiment_name=No
     stats.reset_index(drop=True, inplace=True)
     
     return stats, centroids, cluster_lbls
-
-def saveResults(experiment_name, cluster_stats, cluster_centroids, som_dim, save=True):   
-
-    for k, v in cluster_stats.items():
-        n = k
-                        
-    evals = pd.DataFrame(cluster_stats).T
-    evals['experiment_name'] = experiment_name
-    evals['som_dim'] = som_dim
-    evals['n_clust'] = n
-    eval_results = evals.drop(labels='cluster_size', axis=1).reset_index(drop=True)
-#    eval_results.rename({'index':'k'}, axis=1, inplace=True)
-    eval_results[['dbi','mia','silhouette']] = eval_results[['dbi','mia','silhouette']].astype(float)
-    eval_results['date'] = date.today().isoformat()
-
-    centroid_results = pd.DataFrame(cluster_centroids)   
-    centroid_results['experiment_name'] = experiment_name
-    centroid_results['som_dim'] = som_dim
-    centroid_results['n_clust'] = n
-    try:
-        centroid_results['cluster_size'] = evals['cluster_size'][n]
-    except:
-        centroid_results['cluster_size'] = np.nan
-    centroid_results.reset_index(inplace=True)
-    centroid_results.rename({'index':'k'}, axis=1, inplace=True)
-    centroid_results['date'] = date.today().isoformat()
-    
-    #3 Save Results
-    if save is True:
-        os.makedirs(results_dir, exist_ok=True)    
-        erpath = os.path.join(results_dir, 'cluster_results.csv')    
-        if os.path.isfile(erpath):
-            eval_results.to_csv(erpath, mode='a', index=False, header=False)
-        else:
-            eval_results.to_csv(erpath, index=False)
-
-        os.makedirs(cluster_dir, exist_ok=True)   
-        crpath = os.path.join(cluster_dir, experiment_name + '_centroids.csv')    
-        if os.path.isfile(crpath):
-            centroid_results.to_csv(crpath, mode='a', index=False, header=False)
-        else:
-            centroid_results.to_csv(crpath, index=False)
-        
-        print('Results saved for', experiment_name, str(som_dim), str(n))
-    
-    return eval_results, centroid_results
-        
-def saveResults2(experiment_name, cluster_stats, cluster_centroids, top_lbls):   
-    
-    centroid_results = pd.DataFrame()
-    
-    for level1_key, level1_values in cluster_stats.items():          
-        reform = {(level1_key, level2_key, level3_key): values
-                  for level1_key, level2_dict in cluster_stats.items()
-                  for level2_key, level3_dict in level2_dict.items()
-                  for level3_key, values      in level3_dict.items()}
-        level_names = ['algorithm','som_dim','n_clust']
-        
-        c = pd.DataFrame()
-        for k, v in level1_values.items():
-            for i, j in v.items():
-                c = pd.DataFrame(cluster_centroids[k][i])
-                c['som_dim'] = k
-                c['n_clust'] = i
-                c['cluster_size'] = j['cluster_size']
-                centroid_results = centroid_results.append(c)
-                      
-    evals = pd.DataFrame(reform).T
-    eval_results = evals.rename_axis(level_names).reset_index()
-    eval_results.drop(labels='cluster_size', axis=1, inplace=True)
-    eval_results[['dbi','mia','silhouette']] = eval_results[['dbi','mia','silhouette']].astype(float)
-    eval_results['date'] = date.today().isoformat()
-    eval_results['experiment'] = experiment_name
-    
-    centroid_results.reset_index(inplace=True)
-    centroid_results.rename({'index':'k'}, axis=1, inplace=True)
-    centroid_results['date'] = date.today().isoformat()
-    centroid_results['experiment'] = experiment_name
-    
-    best_lbls = eval_results.nsmallest(columns=['dbi','mia'], n=top_lbls).nlargest(columns='silhouette',
-                                      n=top_lbls)[['n_clust','som_dim']].reset_index(drop=True)
-    best_lbls['experiment'] = experiment_name
-    best_lbls['date'] = date.today().isoformat()
-    
-    #3 Save Results
-    os.makedirs(log_dir , exist_ok=True)    
-    os.makedirs(cluster_dir, exist_ok=True)    
-    os.makedirs(results_dir, exist_ok=True)
-
-    eval_results.to_csv(os.path.join(results_dir, 'cluster_results.csv'), mode='a', index=False, header=False)
-    centroid_results.to_csv(os.path.join(cluster_dir, experiment_name + '_centroids.csv'), index=False)
-    best_lbls.to_csv(os.path.join(results_dir, 'best_labels.csv'), mode='a', index=False, header=False)
-
-    print('All results recorded')
-    return eval_results, best_lbls
-
+       
 def saveLabels(X, cluster_lbls, stats, top_lbls):    
 
     experiment_name = stats.experiment_name[0]    
@@ -326,6 +276,6 @@ def saveLabels(X, cluster_lbls, stats, top_lbls):
     wpath = os.path.join(cluster_dir, experiment_name + '_labels.feather')
     feather.write_dataframe(lbls, wpath)    
     
-    return print('All results logged')
+    return print('Labels for top '+str(top_lbls)+' clusters saved')
 
 #scores = eval_results.pivot_table(values=['dbi','mia','silhouette'],index='n_clust',columns='dim',aggfunc= lambda x:x)

@@ -49,14 +49,11 @@ for i in range(1, len(param)): #skip first line with header info
         stats, centroids, cluster_lbls = kmeans(X, range_n_clusters, preprocessing, args.params)
 
     if args.top:
-        print(args.top)
         saveLabels(X, cluster_lbls, stats, args.top)
-
     
     log_line = param[i]
     logs = pd.DataFrame([[args.params] + list(log_line)], columns = ['experiment','algorithm', 'start',
                         'end', 'preprocessing', 'range_n_dim', 'transform', 'range_n_clusters'])
     writeLog(logs, os.path.join(log_dir,'log_runClusters'))
 
-print(stats)
 print('\n>>>genClusters end<<<')
