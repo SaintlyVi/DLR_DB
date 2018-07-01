@@ -7,11 +7,11 @@ echo "Ready to roll."
 
 git status
 git add .
-git commit -m 'exp0_test2'
+git commit -m 'pre-run exp0_test2'
 git pull origin master
 python runClusters.py exp0_test2 -top 10
 git add .
-git commit -m 'testing'
+git commit -m 'post-run exp0_test2'
 git pull origin master
 git push origin master 
 
