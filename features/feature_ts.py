@@ -406,6 +406,8 @@ def genX(year_range, **kwargs):
             Xbatch.reset_index(inplace=True)
             X = X.append(Xbatch)
         
+        X.reset_index(drop=True, inplace=True)
+        X['date'] = pd.to_datetime(X['date'])
         feather.write_dataframe(X, xpath)
     
     return X.set_index(['ProfileID','date'])

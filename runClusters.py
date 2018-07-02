@@ -11,6 +11,7 @@ This is a shell script for running timeseries clustering arguments from terminal
 import argparse
 import os
 import pandas as pd
+import time
 
 from support import experiment_dir, writeLog, log_dir
 from experiment.algorithms.clusters import som, kmeans, saveLabels
@@ -39,7 +40,9 @@ for i in range(1, len(param)): #skip first line with header info
     range_n_dim = param[i][4]
     transform = param[i][5]
     range_n_clusters = param[i][6]
-
+    
+    tic = time.time()
+    
     X = genX([start, end])
 
     if algorithm == 'som':
@@ -50,10 +53,12 @@ for i in range(1, len(param)): #skip first line with header info
 
     if args.top:
         saveLabels(X, cluster_lbls, stats, args.top)
+        
+    toc = time.time()
     
     log_line = param[i]
-    logs = pd.DataFrame([[args.params] + list(log_line)], columns = ['experiment','algorithm', 'start',
-                        'end', 'preprocessing', 'range_n_dim', 'transform', 'range_n_clusters'])
+    logs = pd.DataFrame([[args.params, (toc-tic)/60] + list(log_line)], columns = ['experiment','runtime','algorithm', 
+                         'start', 'end', 'preprocessing', 'range_n_dim', 'transform', 'range_n_clusters'])
     writeLog(logs, os.path.join(log_dir,'log_runClusters'))
 
 print('\n>>>genClusters end<<<')
