@@ -1,11 +1,17 @@
 #!/bin/bash
-# -*- coding: utf-8 -*-
+
 clear
 echo "Ready to roll."
 
-python runClusters.py exp2_kmeans 10
-python runClusters.py exp2_norm_kmeans 10
-python runClusters.py exp2_norm_som 10
-python runClusters.py exp2_norm_som+kmeans 10
-python runClusters.py exp2_som 10
-python runClusters.py exp2_som+kmeans 10
+git status
+git add .
+git commit -m 'pre-run commit'
+git pull origin master
+git push origin master
+
+#python runClusters.py exp2_kmeans -top 10
+#python runClusters.py exp2_norm_kmeans -top 10
+#python runClusters.py exp2_som -top 10
+#python runClusters.py exp2_norm_som -top 10
+#python runClusters.py exp2_norm_som+kmeans -top 10
+#python runClusters.py exp2_som+kmeans -top 10

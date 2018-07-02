@@ -378,29 +378,38 @@ def resampleProfiles(dailyprofiles, interval, aggfunc = 'mean'):
 
 def genX(year_range, **kwargs):
     
-    X = pd.DataFrame()
+    xpath = os.path.join(profiles_dir, 'X', str(year_range[0])+'_'+str(year_range[1])+'.feather')
     
-    for y in range(year_range[0], year_range[1]+1):
-               
-    #1 Get minibatch
-        if 'interval' in kwargs: interval = kwargs['interval']
-        else: interval = None
-            
-        if 'aggfunc' in kwargs: aggfunc = kwargs['aggfunc']
-        else: aggfunc = 'mean'
-            
-        if 'unit' in kwargs: unit = kwargs['unit']
-        else: unit = 'A'
-            
-        if 'directory' in kwargs: directory = kwargs['directory']
-        else: directory = 'H'
-                 
-        data = resampleProfiles(dailyProfiles(y, unit, directory), interval, aggfunc)
-        Xbatch = data.dropna() #remove missing values
-        Xbatch.reset_index(inplace=True)
-        X = X.append(Xbatch)
-    X.set_index(['ProfileID','date'],inplace=True)
+    try:
+        X = feather.read_dataframe(xpath)
     
-    return X
+    except:
+        X = pd.DataFrame()
+        
+        for y in range(year_range[0], year_range[1]+1):
+                   
+        #1 Get minibatch
+            if 'interval' in kwargs: interval = kwargs['interval']
+            else: interval = None
+                
+            if 'aggfunc' in kwargs: aggfunc = kwargs['aggfunc']
+            else: aggfunc = 'mean'
+                
+            if 'unit' in kwargs: unit = kwargs['unit']
+            else: unit = 'A'
+                
+            if 'directory' in kwargs: directory = kwargs['directory']
+            else: directory = 'H'
+                     
+            data = resampleProfiles(dailyProfiles(y, unit, directory), interval, aggfunc)
+            Xbatch = data.dropna() #remove missing values
+            Xbatch.reset_index(inplace=True)
+            X = X.append(Xbatch)
+        
+        X.reset_index(drop=True, inplace=True)
+        X['date'] = pd.to_datetime(X['date'])
+        feather.write_dataframe(X, xpath)
+    
+    return X.set_index(['ProfileID','date'])
     
 #totaldaily = p99['Unitsread'].groupby([p99.ProfileID, p99.Datefield.dt.date]).sum()
