@@ -11,7 +11,7 @@ git push origin master
 
 #python runClusters.py exp2_kmeans -top 10
 #python runClusters.py exp2_norm_kmeans -top 10
-python runClusters.py exp2_som -top 10
-python runClusters.py exp2_norm_som -top 10
-python runClusters.py exp2_norm_som+kmeans -top 10
-python runClusters.py exp2_som+kmeans -top 10
+#python runClusters.py exp2_som -top 10
+#python runClusters.py exp2_norm_som -top 10
+#python runClusters.py exp2_norm_som+kmeans -top 10
+#python runClusters.py exp2_som+kmeans -top 10
