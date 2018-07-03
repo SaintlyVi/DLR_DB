@@ -247,6 +247,12 @@ def som(X, range_n_dim, preprocessing = None, transform=None, experiment_name=No
     stats.reset_index(drop=True, inplace=True)
     
     return stats, centroids, cluster_lbls
+
+def bestLabels(cluster_lbls, stats, top_lbls):
+
+    labels = pd.DataFrame(cluster_lbls)
+    
+    return lbls
        
 def saveLabels(X, cluster_lbls, stats, top_lbls):    
 

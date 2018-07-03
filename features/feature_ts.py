@@ -55,6 +55,7 @@ def aggTs(year, unit, interval, mean=True, dir_name='H'):
         data = loadProfiles(year, unit, dir_name)
         data['ProfileID'] = data['ProfileID'].astype('category')
         data.set_index('Datefield', inplace=True)
+        data.loc[data['Valid']!=1,'Unitsread'] = np.nan #Ensure that only valid data is used in aggregation
         
     except:
         raise InputError(unit, "Invalid unit")      
@@ -357,7 +358,7 @@ def dailyProfiles(year, unit, directory):
     
     data = loadProfiles(year, unit, directory)
     data.drop(labels=['RecorderID'],axis=1,inplace=True)
-    data.loc[data['Valid']==0,'Unitsread'] = np.nan
+    data.loc[data['Valid']!=1,'Unitsread'] = np.nan #VERY NB to use != 1 and NOT ==0: Valid is a mean value of 12 5min readings averaged over an hour. A single incorrect 5min reading can cause havoc. 
     data['date'] = data.Datefield.dt.date
     data['hour'] = data.Datefield.dt.hour
     df = data['Unitsread'].groupby([data.ProfileID, data.date, data.hour], sort=True).mean().unstack()
@@ -409,6 +410,12 @@ def genX(year_range, **kwargs):
         X.reset_index(drop=True, inplace=True)
         X['date'] = pd.to_datetime(X['date'])
         feather.write_dataframe(X, xpath)
+    
+        minx = X.iloc[:,2::].min()
+        maxx = X.iloc[:,2::].max()
+            
+        if len(minx[minx<0]) != 0: return print('Input dataset contains outliers and invalid data. Aborting....')
+        if len(maxx[maxx>1000]) != 0: return print('Input dataset may contain outliers and invalid data. Aborting....')
     
     return X.set_index(['ProfileID','date'])
     

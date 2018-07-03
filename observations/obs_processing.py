@@ -53,7 +53,7 @@ def reduceRawProfiles(year, unit, interval):
     The data is structured as dict[unit:{year:[list_of_profile_ts]}]
     
     """
-    ts = loadProfiles(year, unit, interval)
+    ts = loadRawProfiles(year, unit)
     
     if unit in ['A','V','Hz','kVA','kW']:
         aggts = ts.groupby(['RecorderID', 'ProfileID']).resample(interval, on='Datefield').mean()
@@ -62,6 +62,7 @@ def reduceRawProfiles(year, unit, interval):
     aggts = aggts.loc[:, ['Unitsread', 'Valid']]
     aggts.reset_index(inplace=True)
     aggts.drop_duplicates(inplace=True)
+    aggts.loc[(aggts.Valid!=1)&(aggts.Valid>0), 'Valid'] = 0
        
     return aggts
 
