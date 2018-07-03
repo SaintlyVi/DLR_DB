@@ -84,6 +84,7 @@ def saveResults(experiment_name, cluster_stats, cluster_centroids, som_dim, save
 #    eval_results.rename({'index':'k'}, axis=1, inplace=True)
     eval_results[['dbi','mia','silhouette']] = eval_results[['dbi','mia','silhouette']].astype(float)
     eval_results['date'] = date.today().isoformat()
+    eval_results['best_clusters'] = None
 
     centroid_results = pd.DataFrame(cluster_centroids)   
     centroid_results['experiment_name'] = experiment_name
@@ -167,7 +168,7 @@ def kmeans(X, range_n_clusters, preprocessing = None, experiment_name=None):
     
     return stats, centroids, cluster_lbls        
 
-def som(X, range_n_dim, preprocessing = None, transform=None, experiment_name=None, **kwargs):
+def som(X, range_n_dim, top_lbls=10, preprocessing = None, transform=None, experiment_name=None, **kwargs):
     """
     This function applies the self organising maps algorithm from somoclu on inputs X over square maps of range_n_dim.
     If preprossing = True, X is normalised with sklearn.preprocessing.normalize()
@@ -185,7 +186,8 @@ def som(X, range_n_dim, preprocessing = None, transform=None, experiment_name=No
     
     centroids = pd.DataFrame()
     stats = pd.DataFrame() 
-    cluster_lbls = {}
+    cluster_lbls = pd.DataFrame()
+    best_lbls = pd.DataFrame()
     
     if preprocessing == None:
         X = np.array(X)
@@ -194,7 +196,7 @@ def som(X, range_n_dim, preprocessing = None, transform=None, experiment_name=No
 
     for dim in range_n_dim: 
         
-        cluster_lbls[dim] = {}        
+        cluster_lbls_dim = {}        
         nrow = ncol = dim
         tic = time.time()
 
@@ -242,17 +244,34 @@ def som(X, range_n_dim, preprocessing = None, transform=None, experiment_name=No
             stats = stats.append(eval_results)
             centroids = centroids.append(centroid_results)
 
-            cluster_lbls[dim][n] = k
-    
+            cluster_lbls_dim[n] = k
+        
+        #outside n_clust loop
+        lbls_dim, best_lbls_dim = bestClusters(cluster_lbls_dim, stats, top_lbls)
+        cluster_lbls = pd.concat([cluster_lbls, lbls_dim],axis=1)
+#        best_lbls = pd.concat([best_lbls, best_lbls_dim], axis=0)
+        
     stats.reset_index(drop=True, inplace=True)
     
     return stats, centroids, cluster_lbls
 
-def bestLabels(cluster_lbls, stats, top_lbls):
+def bestClusters(cluster_lbls, stats, top_lbls):
 
     labels = pd.DataFrame(cluster_lbls)
     
-    return lbls
+    if len(labels) > top_lbls:
+    
+        best_lbls = stats.nsmallest(columns=['dbi','mia'], n=top_lbls).nlargest(columns='silhouette',
+                                          n=top_lbls)[['n_clust','som_dim']].reset_index(drop=True)
+        lbls = labels.loc[:, best_lbls['n_clust'].values]    
+    
+    else:
+        best_lbls = stats[['n_clust','som_dim']]
+        lbls = labels
+        
+    best_lbls['date'] = date.today().isoformat()
+    
+    return lbls, best_lbls
        
 def saveLabels(X, cluster_lbls, stats, top_lbls):    
 
