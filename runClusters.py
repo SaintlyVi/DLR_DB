@@ -46,13 +46,12 @@ for i in range(1, len(param)): #skip first line with header info
     X = genX([start, end])
 
     if algorithm == 'som':
-        stats, centroids, cluster_lbls = som(X, range_n_dim, preprocessing, transform, args.params,
-                                             n_clusters=range_n_clusters)    
+        stats, centroids, cluster_lbls = som(X, range_n_dim, args.top, preprocessing, transform, args.params,
+                                             n_clusters=range_n_clusters)  
     if algorithm == 'kmeans':
-        stats, centroids, cluster_lbls = kmeans(X, range_n_clusters, preprocessing, args.params)
-
-    if args.top:
-        saveLabels(X, cluster_lbls, stats, args.top)
+        stats, centroids, cluster_lbls = kmeans(X, range_n_clusters, args.top, preprocessing, args.params)
+#    if args.top:
+#        saveLabels(X, cluster_lbls, stats, args.top)
         
     toc = time.time()
     

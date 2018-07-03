@@ -132,9 +132,9 @@ def kmeans(X, range_n_clusters, top_lbls=10, preprocessing = None, experiment_na
     cluster_lbls_dim = {} 
         
     if preprocessing == None:
-        Xa = np.array(X)
+        X = np.array(X)
     elif preprocessing == 'normalize':
-        Xa = normalize(X)
+        X = normalize(X)
   
     for n_clust in range_n_clusters:
         
@@ -142,12 +142,12 @@ def kmeans(X, range_n_clusters, top_lbls=10, preprocessing = None, experiment_na
                     
         #2 Train clustering algorithm
         tic = time.time()        
-        clusterer.fit(Xa)
-        cluster_labels = clusterer.predict(Xa)
+        clusterer.fit(X)
+        cluster_labels = clusterer.predict(X)
         toc = time.time()
         
          ## Calculate scores
-        cluster_stats = clusterStats({}, n_clust, Xa, cluster_labels, 
+        cluster_stats = clusterStats({}, n_clust, X, cluster_labels, 
                                      preprocessing = preprocessing, transform = None,
                                      tic = tic, toc = toc)        
         cluster_centroids = clusterer.cluster_centers_ 
@@ -169,7 +169,7 @@ def kmeans(X, range_n_clusters, top_lbls=10, preprocessing = None, experiment_na
     
     stats.reset_index(drop=True, inplace=True)
     if save is True:
-        saveLabels(X, cluster_lbls, stats)
+        saveLabels(cluster_lbls, stats)
     
     return stats, centroids, cluster_lbls        
 
@@ -194,9 +194,9 @@ def som(X, range_n_dim, top_lbls=10, preprocessing = None, transform=None, exper
     cluster_lbls = pd.DataFrame()
     
     if preprocessing == None:
-        Xa = np.array(X)
+        X = np.array(X)
     elif preprocessing == 'normalize':
-        Xa = normalize(X)
+        X = normalize(X)
 
     for dim in range_n_dim: 
         
@@ -206,7 +206,7 @@ def som(X, range_n_dim, top_lbls=10, preprocessing = None, transform=None, exper
 
         #2 Train clustering algorithm
         som = somoclu.Somoclu(nrow, ncol, compactsupport=False, maptype='planar')
-        som.train(Xa)
+        som.train(X)
         toc = time.time()
 
         if transform == None:
@@ -231,10 +231,10 @@ def som(X, range_n_dim, top_lbls=10, preprocessing = None, transform=None, exper
                 m = som.clusters
             #get cluster of SOM node and assign to input vecors based on bmus
             k = [m[som.bmus[i][1],som.bmus[i][0]] for i in range(0, len(som.bmus))] 
-            c = pd.DataFrame(Xa).assign(cluster=k).groupby('cluster').mean()
+            c = pd.DataFrame(X).assign(cluster=k).groupby('cluster').mean()
                 
             #calculate scores
-            cluster_stats = clusterStats({}, n, Xa, cluster_labels = k, preprocessing = preprocessing, 
+            cluster_stats = clusterStats({}, n, X, cluster_labels = k, preprocessing = preprocessing, 
                          transform = transform, tic = tic, toc = toc)
             cluster_centroids = np.array(c)
             
@@ -256,7 +256,7 @@ def som(X, range_n_dim, top_lbls=10, preprocessing = None, transform=None, exper
         
     stats.reset_index(drop=True, inplace=True)
     if save is True:
-        saveLabels(X, cluster_lbls, stats)
+        saveLabels(cluster_lbls, stats)
     
     return stats, centroids, cluster_lbls
 
@@ -278,18 +278,25 @@ def bestClusters(cluster_lbls, stats, top_lbls):
     
     return best_clusters, stats
        
-def saveLabels(X, cluster_lbls, stats):    
+def saveLabels(cluster_lbls, stats):    
 
     experiment_name = stats.experiment_name[0]    
     best_lbls = stats.loc[stats.best_clusters==1,['n_clust','som_dim']]
+    best_lbls['experiment_name'] = experiment_name
       
-    cluster_lbls[['ProfileID','date']] = pd.DataFrame(X).reset_index()['ProfileID','date']
-    cluster_lbls.set_index(['ProfileID','date'], inplace=True)
-    cluster_lbls.columns = pd.MultiIndex.from_arrays([best_lbls['som_dim'], best_lbls['n_clust']],names=('som_dim','n_clust'))
+#    cluster_lbls[['ProfileID','date']] = pd.DataFrame(X).reset_index()[['ProfileID','date']]
+#    cluster_lbls.set_index(['ProfileID','date'], inplace=True)
+#    cluster_lbls.columns = pd.MultiIndex.from_arrays([best_lbls['som_dim'], best_lbls['n_clust']],names=('som_dim','n_clust'))
     cluster_lbls.dropna(inplace=True)
 
     wpath = os.path.join(cluster_dir, experiment_name + '_labels.feather')
-    feather.write_dataframe(cluster_lbls, wpath)    
+    feather.write_dataframe(cluster_lbls, wpath)
+    
+    blpath = os.path.join(results_dir, 'best_clusters.csv')
+    if os.path.isfile(blpath):
+        best_lbls.to_csv(blpath, mode='a', index=False, header=False)
+    else:
+        best_lbls.to_csv(blpath, index=False)
     
     return print('Labels for best '+experiment_name+' clusters saved')
 
