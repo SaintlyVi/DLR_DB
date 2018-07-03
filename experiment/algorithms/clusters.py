@@ -118,7 +118,7 @@ def saveResults(experiment_name, cluster_stats, cluster_centroids, som_dim, save
     
     return eval_results, centroid_results
 
-def kmeans(X, range_n_clusters, preprocessing = None, experiment_name=None):
+def kmeans(X, range_n_clusters, top_lbls=10, preprocessing = None, experiment_name=None):
     """
     This function applies the MiniBatchKmeans algorithm from sklearn on inputs X for range_n_clusters.
     If preprossing = True, X is normalised with sklearn.preprocessing.normalize()
@@ -127,9 +127,9 @@ def kmeans(X, range_n_clusters, preprocessing = None, experiment_name=None):
     
     centroids = pd.DataFrame()
     stats = pd.DataFrame() 
-    cluster_lbls = {}
+    cluster_lbls = pd.DataFrame()
     dim = 0 #set dim to 0 to match SOM formating
-    cluster_lbls[dim] = {}
+    cluster_lbls_dim = {} 
         
     if preprocessing == None:
         X = np.array(X)
@@ -162,9 +162,14 @@ def kmeans(X, range_n_clusters, preprocessing = None, experiment_name=None):
         stats = stats.append(eval_results)
         centroids = centroids.append(centroid_results)
 
-        cluster_lbls[dim][n_clust] = cluster_labels
+        cluster_lbls_dim[n_clust] = cluster_labels
+        
+    best_clusters, stats = bestClusters(cluster_lbls_dim, stats, top_lbls)
+    cluster_lbls = pd.concat([cluster_lbls, best_clusters],axis=1)
     
     stats.reset_index(drop=True, inplace=True)
+    if save is True:
+        saveLabels(X, cluster_lbls, stats)
     
     return stats, centroids, cluster_lbls        
 
@@ -187,7 +192,6 @@ def som(X, range_n_dim, top_lbls=10, preprocessing = None, transform=None, exper
     centroids = pd.DataFrame()
     stats = pd.DataFrame() 
     cluster_lbls = pd.DataFrame()
-    best_lbls = pd.DataFrame()
     
     if preprocessing == None:
         X = np.array(X)
@@ -247,11 +251,12 @@ def som(X, range_n_dim, top_lbls=10, preprocessing = None, transform=None, exper
             cluster_lbls_dim[n] = k
         
         #outside n_clust loop
-        lbls_dim, best_lbls_dim = bestClusters(cluster_lbls_dim, stats, top_lbls)
-        cluster_lbls = pd.concat([cluster_lbls, lbls_dim],axis=1)
-#        best_lbls = pd.concat([best_lbls, best_lbls_dim], axis=0)
+        best_clusters, stats = bestClusters(cluster_lbls_dim, stats, top_lbls)
+        cluster_lbls = pd.concat([cluster_lbls, best_clusters],axis=1)
         
     stats.reset_index(drop=True, inplace=True)
+    if save is True:
+        saveLabels(X, cluster_lbls, stats)
     
     return stats, centroids, cluster_lbls
 
@@ -259,49 +264,32 @@ def bestClusters(cluster_lbls, stats, top_lbls):
 
     labels = pd.DataFrame(cluster_lbls)
     
-    if len(labels) > top_lbls:
-    
+    if len(labels) > top_lbls:    
         best_lbls = stats.nsmallest(columns=['dbi','mia'], n=top_lbls).nlargest(columns='silhouette',
                                           n=top_lbls)[['n_clust','som_dim']].reset_index(drop=True)
-        lbls = labels.loc[:, best_lbls['n_clust'].values]    
+        best_clusters = labels.loc[:, best_lbls['n_clust'].values]    
     
     else:
         best_lbls = stats[['n_clust','som_dim']]
-        lbls = labels
-        
-    best_lbls['date'] = date.today().isoformat()
+        best_clusters = labels
     
-    return lbls, best_lbls
+    best_clusters.columns = pd.MultiIndex.from_arrays([best_lbls['som_dim'], 
+                                                       best_lbls['n_clust']],names=('som_dim','n_clust'))    
+    stats.loc[stats['n_clust'].isin(best_lbls['n_clust'].values), 'best_clusters'] = 1
+    
+    return best_clusters, stats
        
-def saveLabels(X, cluster_lbls, stats, top_lbls):    
+def saveLabels(X, cluster_lbls, stats):    
 
     experiment_name = stats.experiment_name[0]    
-    
-    best_lbls = stats.nsmallest(columns=['dbi','mia'], n=top_lbls).nlargest(columns='silhouette',
-                                      n=top_lbls)[['n_clust','som_dim']].reset_index(drop=True)
-    best_lbls['experiment'] = experiment_name
-    best_lbls['date'] = date.today().isoformat()
-
-    os.makedirs(cluster_dir, exist_ok=True)
-    blpath = os.path.join(cluster_dir, 'best_labels.csv')    
-    if os.path.isfile(blpath):
-        best_lbls.to_csv(os.path.join(blpath), mode='a', index=False, header=False)
-    else:
-        best_lbls.to_csv(os.path.join(blpath), index=False)
-
-    #Save labels for 10 best clusters
-    labels = pd.DataFrame(cluster_lbls)
-    lbls = pd.DataFrame([labels.loc[best_lbls.loc[r,'n_clust'],
-                                    best_lbls.loc[r,'som_dim']] for r in range(len(best_lbls))]).T
-    
-    lbls['ProfileID'] = X.reset_index()['ProfileID']
-    lbls['date'] = X.reset_index()['date']
-    lbls.set_index(['ProfileID','date'], inplace=True)
-    lbls.dropna(inplace=True)
+      
+    cluster_lbls[['ProfileID','date']] = pd.DataFrame(X).reset_index()[['ProfileID','date']]
+    cluster_lbls.set_index(['ProfileID','date'], inplace=True)
+    cluster_lbls.dropna(inplace=True)
 
     wpath = os.path.join(cluster_dir, experiment_name + '_labels.feather')
-    feather.write_dataframe(lbls, wpath)    
+    feather.write_dataframe(cluster_lbls, wpath)    
     
-    return print('Labels for top '+str(top_lbls)+' clusters saved')
+    return print('Labels for best '+experiment_name+' clusters saved')
 
 #scores = eval_results.pivot_table(values=['dbi','mia','silhouette'],index='n_clust',columns='dim',aggfunc= lambda x:x)
