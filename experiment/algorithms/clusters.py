@@ -272,6 +272,7 @@ def saveLabels(X, cluster_lbls, stats, top_lbls):
     lbls['ProfileID'] = X.reset_index()['ProfileID']
     lbls['date'] = X.reset_index()['date']
     lbls.set_index(['ProfileID','date'], inplace=True)
+    lbls.dropna(inplace=True)
 
     wpath = os.path.join(cluster_dir, experiment_name + '_labels.feather')
     feather.write_dataframe(lbls, wpath)    
