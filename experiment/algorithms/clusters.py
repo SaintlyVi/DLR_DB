@@ -282,12 +282,16 @@ def saveLabels(cluster_lbls, stats):
 
     experiment_name = stats.experiment_name[0]    
     best_lbls = stats.loc[stats.best_clusters==1,['n_clust','som_dim']]
-    best_lbls['experiment_name'] = experiment_name
+    best_lbls['experiment_name'] = experiment_name     
       
 #    cluster_lbls[['ProfileID','date']] = pd.DataFrame(X).reset_index()[['ProfileID','date']]
 #    cluster_lbls.set_index(['ProfileID','date'], inplace=True)
 #    cluster_lbls.columns = pd.MultiIndex.from_arrays([best_lbls['som_dim'], best_lbls['n_clust']],names=('som_dim','n_clust'))
-    cluster_lbls.dropna(inplace=True)
+    cluster_lbls.dropna(inplace=True)    
+    cols = []
+    for i, j in zip(best_lbls['som_dim'],best_lbls['n_clust']):
+        cols.append(str(i)+'_'+str(j))
+    cluster_lbls.columns = cols
 
     wpath = os.path.join(cluster_dir, experiment_name + '_labels.feather')
     feather.write_dataframe(cluster_lbls, wpath)
