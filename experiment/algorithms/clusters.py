@@ -128,14 +128,16 @@ def kmeans(X, range_n_clusters, top_lbls=10, preprocessing = None, experiment_na
     centroids = pd.DataFrame()
     stats = pd.DataFrame() 
     cluster_lbls = pd.DataFrame()
-    dim = 0 #set dim to 0 to match SOM formating
-    cluster_lbls_dim = {} 
         
     if preprocessing == None:
         X = np.array(X)
     elif preprocessing == 'normalize':
         X = normalize(X)
-  
+
+    dim = 0 #set dim to 0 to match SOM formating  
+    cluster_lbls_dim = {}
+    stats_dim = pd.DataFrame()
+    
     for n_clust in range_n_clusters:
         
         clusterer = MiniBatchKMeans(n_clusters=n_clust, random_state=10)
@@ -158,14 +160,16 @@ def kmeans(X, range_n_clusters, top_lbls=10, preprocessing = None, experiment_na
             save = True
         eval_results, centroid_results = saveResults(experiment_name, cluster_stats,
                                                       cluster_centroids, dim, save)
-
-        stats = stats.append(eval_results)
+        
+        stats_dim = stats_dim.append(eval_results)
         centroids = centroids.append(centroid_results)
 
         cluster_lbls_dim[n_clust] = cluster_labels
-        
-    best_clusters, stats = bestClusters(cluster_lbls_dim, stats, top_lbls)
-    cluster_lbls = pd.concat([cluster_lbls, best_clusters],axis=1)
+    
+    #outside n_clust loop
+    best_clusters, best_stats = bestClusters(cluster_lbls_dim, stats_dim, top_lbls)
+    cluster_lbls = pd.concat([cluster_lbls, best_clusters], axis=1)
+    stats = pd.concat([stats, best_stats], axis=0)
     
     stats.reset_index(drop=True, inplace=True)
     if save is True:
@@ -200,7 +204,8 @@ def som(X, range_n_dim, top_lbls=10, preprocessing = None, transform=None, exper
 
     for dim in range_n_dim: 
         
-        cluster_lbls_dim = {}        
+        cluster_lbls_dim = {}
+        stats_dim = pd.DataFrame()        
         nrow = ncol = dim
         tic = time.time()
 
@@ -234,25 +239,24 @@ def som(X, range_n_dim, top_lbls=10, preprocessing = None, transform=None, exper
             c = pd.DataFrame(X).assign(cluster=k).groupby('cluster').mean()
                 
             #calculate scores
-            cluster_stats = clusterStats({}, n, X, cluster_labels = k, preprocessing = preprocessing, 
-                         transform = transform, tic = tic, toc = toc)
+            cluster_stats = clusterStats({}, n, X, cluster_labels = k, preprocessing = preprocessing, transform = transform, tic = tic, toc = toc)
             cluster_centroids = np.array(c)
             
             if experiment_name is None:
                 save = False
             else:
                 save = True
-            eval_results, centroid_results = saveResults(experiment_name, cluster_stats,
-                                                          cluster_centroids, dim, save)
+            eval_results, centroid_results = saveResults(experiment_name, cluster_stats, cluster_centroids, dim, save)
 
-            stats = stats.append(eval_results)
+            stats_dim = stats_dim.append(eval_results)
             centroids = centroids.append(centroid_results)
 
             cluster_lbls_dim[n] = k
         
         #outside n_clust loop
-        best_clusters, stats = bestClusters(cluster_lbls_dim, stats, top_lbls)
+        best_clusters, best_stats = bestClusters(cluster_lbls_dim, stats_dim, top_lbls)
         cluster_lbls = pd.concat([cluster_lbls, best_clusters],axis=1)
+        stats = pd.concat([stats, best_stats], axis=0)
         
     stats.reset_index(drop=True, inplace=True)
     if save is True:
@@ -287,7 +291,7 @@ def saveLabels(cluster_lbls, stats):
 #    cluster_lbls[['ProfileID','date']] = pd.DataFrame(X).reset_index()[['ProfileID','date']]
 #    cluster_lbls.set_index(['ProfileID','date'], inplace=True)
 #    cluster_lbls.columns = pd.MultiIndex.from_arrays([best_lbls['som_dim'], best_lbls['n_clust']],names=('som_dim','n_clust'))
-    cluster_lbls.dropna(inplace=True)    
+#    cluster_lbls.dropna(inplace=True)    
     cols = []
     for i, j in zip(best_lbls['som_dim'],best_lbls['n_clust']):
         cols.append(str(i)+'_'+str(j))
