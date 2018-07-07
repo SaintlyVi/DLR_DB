@@ -269,8 +269,10 @@ def bestClusters(cluster_lbls, stats, top_lbls):
     labels = pd.DataFrame(cluster_lbls)
     
     if len(labels) > top_lbls:    
-        best_lbls = stats.nsmallest(columns=['dbi','mia'], n=top_lbls).nlargest(columns='silhouette',
-                                          n=top_lbls)[['n_clust','som_dim']].reset_index(drop=True)
+#        best_lbls = stats.nsmallest(columns=['dbi','mia'], n=top_lbls).nlargest(columns='silhouette',
+#                                          n=top_lbls)[['n_clust','som_dim']].reset_index(drop=True)
+        b = stats.dbi*stats.mia/stats.silhouette
+        best_lbls = b[b>0].nsmallest(n=top_lbls).reset_index(drop=True)
         best_clusters = labels.loc[:, best_lbls['n_clust'].values]    
     
     else:
