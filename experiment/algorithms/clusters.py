@@ -37,6 +37,7 @@ def clusterStats(cluster_stats, n, X, cluster_labels, preprocessing, transform, 
          'silhouette': 0.0,
          'dbi': 0.0,
          'mia': 0.0,
+         'all_scores': 0.0,
 #             'cdi': 0.0,
          't0': time.time(),
          'batch_fit_time': 0.0,
@@ -54,6 +55,7 @@ def clusterStats(cluster_stats, n, X, cluster_labels, preprocessing, transform, 
         cluster_stats[n]['batch_fit_time'] = toc - tic
         cluster_stats[n]['preprocessing'] = preprocessing
         cluster_stats[n]['transform'] = transform
+        cluster_stats[n]['all_scores'] = cluster_stats[n]['dbi']*cluster_stats[n]['mia']/cluster_stats[n]['silhouette']
 
         s = "%s : " % (n)                    
         s += "\nsilhouette: %(silhouette).3f " % stats
@@ -84,7 +86,7 @@ def saveResults(experiment_name, cluster_stats, cluster_centroids, som_dim, save
 #    eval_results.rename({'index':'k'}, axis=1, inplace=True)
     eval_results[['dbi','mia','silhouette']] = eval_results[['dbi','mia','silhouette']].astype(float)
     eval_results['date'] = date.today().isoformat()
-    eval_results['best_clusters'] = None
+#    eval_results['best_clusters'] = None
 
     centroid_results = pd.DataFrame(cluster_centroids)   
     centroid_results['experiment_name'] = experiment_name
@@ -271,8 +273,10 @@ def bestClusters(cluster_lbls, stats, top_lbls):
     if len(labels) > top_lbls:    
 #        best_lbls = stats.nsmallest(columns=['dbi','mia'], n=top_lbls).nlargest(columns='silhouette',
 #                                          n=top_lbls)[['n_clust','som_dim']].reset_index(drop=True)
-        b = stats.dbi*stats.mia/stats.silhouette
-        best_lbls = b[b>0].nsmallest(n=top_lbls).reset_index(drop=True)
+#        b = stats.dbi*stats.mia/stats.silhouette
+        stats.all_scores = stats.all_scores.astype('float')
+        best_lbls = stats[stats.all_scores>0].nsmallest(columns='all_scores', n=top_lbls 
+                         ).reset_index(drop=True)
         best_clusters = labels.loc[:, best_lbls['n_clust'].values]    
     
     else:
