@@ -299,6 +299,7 @@ def saveLabels(cluster_lbls, stats):
 #    cluster_lbls.columns = pd.MultiIndex.from_arrays([best_lbls['som_dim'], best_lbls['n_clust']],names=('som_dim','n_clust'))
 #    cluster_lbls.dropna(inplace=True)    
     cols = []
+# TO DO this column order is wrong!!
     for i, j in zip(best_lbls['som_dim'],best_lbls['n_clust']):
         cols.append(str(i)+'_'+str(j))
     cluster_lbls.columns = cols

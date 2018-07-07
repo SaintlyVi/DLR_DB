@@ -165,3 +165,13 @@ n_clust,som_dim,experiment_name
 38,80,exp2_som+kmeans
 44,80,exp2_som+kmeans
 53,80,exp2_som+kmeans
+20,0,exp2_norm_kmeans
+26,0,exp2_norm_kmeans
+32,0,exp2_norm_kmeans
+35,0,exp2_norm_kmeans
+44,0,exp2_norm_kmeans
+47,0,exp2_norm_kmeans
+50,0,exp2_norm_kmeans
+68,0,exp2_norm_kmeans
+92,0,exp2_norm_kmeans
+98,0,exp2_norm_kmeans
