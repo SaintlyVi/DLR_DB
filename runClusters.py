@@ -42,7 +42,7 @@ for i in range(args.skip+1, len(param)): #skip first line with header info
     transform = param[i][5]
     range_n_clusters = param[i][6]
     
-    print('Starting '+preprocessing+' '+algorithm+' '+transform)
+    print(param[i])
     
     tic = time.time()
     
