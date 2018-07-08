@@ -21,6 +21,7 @@ from features.feature_ts import genX
 parser = argparse.ArgumentParser(description='Cluster DLR timeseries data.')
 parser.add_argument('params', type=str, help='Parameter file with clustering specifications')
 parser.add_argument('-top', type=int, help='Save labels for top n results')
+parser.add_argument('-skip', type=int, help='Skip runs from top in parameter file')
 args = parser.parse_args()
 
 param_dir = os.path.join(experiment_dir, 'parameters')
@@ -31,7 +32,7 @@ for line in header:
     if line.strip() != '':                # ignore blank lines
         param.append(eval(line))
 
-for i in range(1, len(param)): #skip first line with header info
+for i in range(args.skip+1, len(param)): #skip first line with header info
     # Extract all parameter values
     algorithm = param[i][0]
     start = param[i][1]

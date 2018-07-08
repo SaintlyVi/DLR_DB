@@ -120,21 +120,43 @@ def saveResults(experiment_name, cluster_stats, cluster_centroids, som_dim, save
     
     return eval_results, centroid_results
 
+def preprocessX(X, norm=None):  
+    
+    if norm == 'unit_norm': #Kwac et al 2013
+        Xnorm = normalize(X)
+    elif norm == 'zero-one': #Dent et al 2014
+        Xnorm = X.divide(X.max(axis=1), axis=0)
+        Xnorm = np.array(Xnorm)
+    elif norm == 'demin': #Jin et al 2016
+        Xnorm = normalize(X.subtract(X.min(axis=1), axis=0))
+    elif norm == 'sa_norm': #Dekenah 2014
+        Xnorm = np.array(X.divide(X.mean(axis=1), axis=0))
+    else:
+        X = np.array(X)
+        
+    return Xnorm
+
 def kmeans(X, range_n_clusters, top_lbls=10, preprocessing = None, experiment_name=None):
     """
     This function applies the MiniBatchKmeans algorithm from sklearn on inputs X for range_n_clusters.
     If preprossing = True, X is normalised with sklearn.preprocessing.normalize()
     Returns cluster stats, cluster centroids and cluster labels.
     """
+
+    if experiment_name is None:
+        save = False
+    else:
+        if preprocessing is None:
+            pass
+        else:
+            experiment_name = experiment_name+'_'+ preprocessing
+        save = True
     
     centroids = pd.DataFrame()
     stats = pd.DataFrame() 
     cluster_lbls = pd.DataFrame()
         
-    if preprocessing == None:
-        X = np.array(X)
-    elif preprocessing == 'normalize':
-        X = normalize(X)
+    X = preprocessX(X, norm=preprocessing)
 
     dim = 0 #set dim to 0 to match SOM formating  
     cluster_lbls_dim = {}
@@ -156,10 +178,6 @@ def kmeans(X, range_n_clusters, top_lbls=10, preprocessing = None, experiment_na
                                      tic = tic, toc = toc)        
         cluster_centroids = clusterer.cluster_centers_ 
         
-        if experiment_name is None:
-            save = False
-        else:
-            save = True
         eval_results, centroid_results = saveResults(experiment_name, cluster_stats,
                                                       cluster_centroids, dim, save)
         
@@ -194,15 +212,21 @@ def som(X, range_n_dim, top_lbls=10, preprocessing = None, transform=None, exper
             return print('Input size too small for map. Largest n should be ' + str(limit))
         else:
             pass
+        
+    if experiment_name is None:
+        save = False
+    else:
+        if preprocessing is None:
+            pass
+        else:
+            experiment_name = experiment_name+'_'+ preprocessing
+        save = True
     
     centroids = pd.DataFrame()
     stats = pd.DataFrame() 
     cluster_lbls = pd.DataFrame()
     
-    if preprocessing == None:
-        X = np.array(X)
-    elif preprocessing == 'normalize':
-        X = normalize(X)
+    X = preprocessX(X, norm=preprocessing)
 
     for dim in range_n_dim: 
         
@@ -241,14 +265,12 @@ def som(X, range_n_dim, top_lbls=10, preprocessing = None, transform=None, exper
             c = pd.DataFrame(X).assign(cluster=k).groupby('cluster').mean()
                 
             #calculate scores
-            cluster_stats = clusterStats({}, n, X, cluster_labels = k, preprocessing = preprocessing, transform = transform, tic = tic, toc = toc)
+            cluster_stats = clusterStats({}, n, X, cluster_labels = k, preprocessing = preprocessing,
+                                         transform = transform, tic = tic, toc = toc)
             cluster_centroids = np.array(c)
             
-            if experiment_name is None:
-                save = False
-            else:
-                save = True
-            eval_results, centroid_results = saveResults(experiment_name, cluster_stats, cluster_centroids, dim, save)
+            eval_results, centroid_results = saveResults(experiment_name, cluster_stats,
+                                                         cluster_centroids, dim, save)
 
             stats_dim = stats_dim.append(eval_results)
             centroids = centroids.append(centroid_results)
@@ -302,6 +324,7 @@ def saveLabels(cluster_lbls, stats):
 # TO DO this column order is wrong!!
     for i, j in zip(best_lbls['som_dim'],best_lbls['n_clust']):
         cols.append(str(i)+'_'+str(j))
+    print(cols)
     cluster_lbls.columns = cols
 
     wpath = os.path.join(cluster_dir, experiment_name + '_labels.feather')
@@ -314,5 +337,3 @@ def saveLabels(cluster_lbls, stats):
         best_lbls.to_csv(blpath, index=False)
     
     return print('Labels for best '+experiment_name+' clusters saved')
-
-#scores = eval_results.pivot_table(values=['dbi','mia','silhouette'],index='n_clust',columns='dim',aggfunc= lambda x:x)

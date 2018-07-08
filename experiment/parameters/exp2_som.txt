@@ -1,2 +1,5 @@
 'algorithm', 'start', 'end', 'preprocessing', 'range_n_dim', 'transform', 'range_n_clusters'
 'som', 1994, 2014, None, range(5, 30, 2), None, None
+'som', 1994, 2014, 'unit_norm', range(5, 30, 2), None, None
+'som', 1994, 2014, 'zero-one', range(5, 30, 2), None, None
+'som', 1994, 2014, 'demin', range(5, 30, 2), None, None
