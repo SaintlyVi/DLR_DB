@@ -125,14 +125,16 @@ def preprocessX(X, norm=None):
     if norm == 'unit_norm': #Kwac et al 2013
         Xnorm = normalize(X)
     elif norm == 'zero-one': #Dent et al 2014
-        Xnorm = X.divide(X.max(axis=1), axis=0)
-        Xnorm = np.array(Xnorm)
+        Xnorm = np.array(X.divide(X.max(axis=1), axis=0))
     elif norm == 'demin': #Jin et al 2016
         Xnorm = normalize(X.subtract(X.min(axis=1), axis=0))
     elif norm == 'sa_norm': #Dekenah 2014
         Xnorm = np.array(X.divide(X.mean(axis=1), axis=0))
     else:
         X = np.array(X)
+    
+    #Xnorm.fillna(0, inplace=True)
+    Xnorm[np.isnan(Xnorm)] = 0
         
     return Xnorm
 
