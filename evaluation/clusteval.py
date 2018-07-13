@@ -54,73 +54,96 @@ def clusterColNames(data):
     data.columns = ['Cluster '+str(x+1) for x in data.columns]
     return data
 
-def weekday_corr(label_data, n_clust):
+def demandCorr(experiment, n_clust):
+    data = feather.read_dataframe(os.path.join(data_dir, 'cluster_results', experiment+'_labels.feather'))
+    X = ts.genX([1994,2014])
+    Xdd = X.sum(axis=1).reset_index()
+    Xdd.columns = ['ProfileID','date','DD_A']
+    data[['ProfileID','date','DD_A']] = pd.DataFrame(Xdd)[['ProfileID','date','DD_A']]
+    del X, Xdd #clear memory
+    
+    data.date = data.date.astype(dt.date)#pd.to_datetime(data.date)
+    data.ProfileID = data.ProfileID.astype('category')
+    
+    
+    return
+
+def weekdayCorr(label_data, n_clust):
     df = label_data.reset_index()
     weekday_lbls = df.groupby([n_clust,df.date.dt.weekday])['ProfileID'].count().unstack(level=0)
     weekday_lbls.set_axis(['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'], axis=0, inplace=True)
     weekday_lbls = clusterColNames(weekday_lbls)
-    weekday_likelihood = weekday_lbls.divide(weekday_lbls.sum(axis=0), axis=1)    
+    weekday_likelihood = weekday_lbls.divide(weekday_lbls.sum(axis=0), axis=1) # likelihood of assignment
     
-    random_likelihood = 1/len(weekday_likelihood)  
-#    weekday_ent = weekday_likelihood.divide(random_likelihood, axis=1)
-    
-    weekday_entropy = -weekday_likelihood.applymap(lambda x : x*log(x,2))
-    
-    return random_likelihood, weekday_entropy
+    random_likelihood = 1/len(weekday_likelihood) # null hypothesis
+    relative_likelihood = weekday_likelihood.divide(random_likelihood, axis=1)
 
-def month_corr(label_data, n_clust):
+    random_loglike = log(random_likelihood,2)#-random_likelihood*log(random_likelihood,2)    
+    weekday_loglike = weekday_likelihood.applymap(lambda x : log(x,2))#-x*log(x,2)) 
+    relative_loglike = weekday_loglike.divide(random_loglike, axis=1)
+    
+    return weekday_likelihood, relative_likelihood
+
+def monthlyCorr(label_data, n_clust):
     df = label_data.reset_index()
     month_lbls = df.groupby([n_clust,df.date.dt.month])['ProfileID'].count().unstack(level=0)
     month_lbls = clusterColNames(month_lbls)
-    month_lbls2 = month_lbls.divide(month_lbls.sum(axis=0), axis=1)
+    month_likelihood = month_lbls.divide(month_lbls.sum(axis=0), axis=1)
     
-    random_likelihood = 1/len(month_lbls2)
+    random_likelihood = 1/len(month_likelihood)    
+    relative_likelihood = month_likelihood.divide(random_likelihood, axis=1)    
     
-    month_lbls2 = month_lbls2.divide(random_likelihood, axis=1)    
-    
-    return random_likelihood, month_lbls2
+    return month_likelihood, relative_likelihood
 
-def year_corr(label_data, n_clust):
+def yearlyCorr(label_data, n_clust):
     df = label_data.reset_index()
     year_lbls = df.groupby([n_clust,df.date.dt.year])['ProfileID'].count().unstack(level=0)
     year_lbls = clusterColNames(year_lbls).T
-    year_lbls2 = year_lbls.divide(year_lbls.sum(axis=0), axis=1)    
+    year_likelihood = year_lbls.divide(year_lbls.sum(axis=0), axis=1)    
     
-    random_likelihood = 1/len(year_lbls2)
+    random_likelihood = 1/len(year_likelihood)    
+    relative_likelihood = year_likelihood.divide(random_likelihood, axis=1)
     
-    year_lbls2 = year_lbls2.divide(random_likelihood, axis=1)
-    
-    return random_likelihood, year_lbls2
+    return year_likelihood, relative_likelihood, 
 
-def daytype_corr(label_data, n_clust):
+def daytypeCorr(label_data, n_clust):
     df = label_data.reset_index()
     weekday_lbls = df.groupby([n_clust,df.date.dt.weekday])['ProfileID'].count().unstack(level=0)
     weekday_lbls.set_axis(['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'], axis=0, inplace=True)
     daytype = weekday_lbls[weekday_lbls.index.isin(['Monday','Tuesday','Wednesday','Thursday','Friday'])].sum(axis=0).to_frame('weekday').T
     daytype = daytype.append(weekday_lbls.loc[['Saturday','Sunday'], :])
     daytype_lbls = clusterColNames(daytype)
-    daytype_lbls2 = daytype_lbls.divide(daytype_lbls.sum(axis=0), axis=1)
-    
-    random_likelihood = 1/len(weekday_lbls)
-    
-    daytype_lbls2.loc['weekday'] = daytype_lbls2.loc['weekday'].apply(lambda x: x/(5*random_likelihood))
-    daytype_lbls2.loc['Saturday'] = daytype_lbls2.loc['Saturday'].apply(lambda x: x/(random_likelihood))
-    daytype_lbls2.loc['Sunday'] = daytype_lbls2.loc['Sunday'].apply(lambda x: x/(random_likelihood))    
-    
-    return random_likelihood, daytype_lbls2
+    daytype_likelihood = daytype_lbls.divide(daytype_lbls.sum(axis=0), axis=1)
 
-def season_corr(label_data, n_clust):
+    random_likelihood = [5/7, 1/7, 1/7]
+    relative_likelihood = daytype_likelihood.divide(random_likelihood, axis=0)
+   
+    return daytype_likelihood, relative_likelihood
+
+def seasonCorr(label_data, n_clust):
     df = label_data.reset_index()
     month_lbls = df.groupby([n_clust,df.date.dt.month])['ProfileID'].count().unstack(level=0)    
     summer = month_lbls[~month_lbls.index.isin([5, 6, 7, 8])].sum(axis=0).to_frame('summer').T
     winter = month_lbls[month_lbls.index.isin([5, 6, 7, 8])].sum(axis=0).to_frame('winter').T        
     season = summer.append(winter)
     season_lbls = clusterColNames(season)
-    season_lbls2 = season_lbls.divide(season_lbls.sum(axis=0), axis=1)    
+    season_likelihood = season_lbls.divide(season_lbls.sum(axis=0), axis=1)    
     
-    random_likelihood = 1/len(month_lbls)
+    random_likelihood = [8/12, 4/12]
+    relative_likelihood = season_likelihood.divide(random_likelihood, axis=0)
+    
+    return season_likelihood, relative_likelihood
 
-    season_lbls2.loc['summer'] = season_lbls2.loc['summer'].apply(lambda x: x/(8*random_likelihood))
-    season_lbls2.loc['winter'] = season_lbls2.loc['winter'].apply(lambda x: x/(4*random_likelihood))    
+def clusterEntropy(likelihood, random_likelihood=None):
+    if random_likelihood is None:
+        try:
+            random_likelihood = 1/len(likelihood)
+        except:
+            return('This function cannot compute entropy for weighted probabilities yet.')
+
+    cluster_entropy = likelihood.applymap(lambda x : -x*log(x,2)).sum(axis=0)
+    max_entropy = -random_likelihood*log(random_likelihood,2)*len(likelihood)
     
-    return random_likelihood, season_lbls2
+    ##TODO need to check how to calculate entropy when variables are weighted
+    
+    return cluster_entropy, max_entropy    
