@@ -131,7 +131,7 @@ def preprocessX(X, norm=None):
     elif norm == 'sa_norm': #Dekenah 2014
         Xnorm = np.array(X.divide(X.mean(axis=1), axis=0))
     else:
-        X = np.array(X)
+        Xnorm = np.array(X)
     
     #Xnorm.fillna(0, inplace=True)
     Xnorm[np.isnan(Xnorm)] = 0
