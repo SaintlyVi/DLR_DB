@@ -28,7 +28,7 @@ def readResults():
     
     return cluster_results
 
-def bestClusters(cluster_results, n_best, experiment='all' ):
+def selectClusters(cluster_results, n_best, experiment='all' ):
     if experiment=='all':
         experiment_clusters = cluster_results
     else:
@@ -37,8 +37,9 @@ def bestClusters(cluster_results, n_best, experiment='all' ):
         
     return best_clusters
 
-def bestLabels(experiment):
-    data = feather.read_dataframe(os.path.join(data_dir, 'cluster_results', experiment+'_labels.feather'))
+def bestLabels(experiment, n_best=1):
+    data = feather.read_dataframe(os.path.join(data_dir, 'cluster_results', 
+                                               experiment+'_labels.feather')).iloc[:,:n_best]
     X = ts.genX([1994,2014])
     data.columns = ['0_'+str(l) for l in data.max()+1]
     data[['ProfileID','date']] = pd.DataFrame(X).reset_index()[['ProfileID','date']]
@@ -54,8 +55,19 @@ def clusterColNames(data):
     data.columns = ['Cluster '+str(x+1) for x in data.columns]
     return data
 
+def realCentroids(experiment, n_best=1):
+    labels = feather.read_dataframe(os.path.join(data_dir, 'cluster_results', 
+                                                 experiment+'_labels.feather')).iloc[:,n_best-1]
+    X = ts.genX([1994,2014]).reset_index()   
+    exp =  experiment.split('_',1)[-1] + str(n_best)
+    X[exp] = labels
+    centroids = X.iloc[:,2:].groupby(exp).mean()
+    
+    return centroids
+
 def demandCorr(experiment, n_clust):
     data = feather.read_dataframe(os.path.join(data_dir, 'cluster_results', experiment+'_labels.feather'))
+    data.columns = ['0_'+str(l) for l in data.max()+1]
     X = ts.genX([1994,2014])
     Xdd = X.sum(axis=1).reset_index()
     Xdd.columns = ['ProfileID','date','DD_A']
@@ -65,8 +77,29 @@ def demandCorr(experiment, n_clust):
     data.date = data.date.astype(dt.date)#pd.to_datetime(data.date)
     data.ProfileID = data.ProfileID.astype('category')
     
+    #bin daily demand into 100 equally sized bins
+    data['int100_bins']=pd.cut(data.loc[data.DD_A!=0,'DD_A'], bins = range(0,1000,10), 
+        labels=np.arange(1, 100), include_lowest=False, right=True)
+    data.int100_bins = data.int100_bins.cat.add_categories([0])
+    data.int100_bins = data.int100_bins.cat.reorder_categories(range(0,100), ordered=True)
+    data.loc[data.DD_A==0,'int100_bins'] = 0   
     
-    return
+    int100_lbls = data.groupby([n_clust, data.int100_bins])['ProfileID'].count().unstack(level=0)
+    int100_lbls = clusterColNames(int100_lbls)
+    int100_likelihood = int100_lbls.divide(int100_lbls.sum(axis=0), axis=1)
+
+    data['q100_bins'] = pd.qcut(data.loc[data.DD_A!=0,'DD_A'], q=99, labels=np.arange(1, 100))
+    data.q100_bins = data.q100_bins.cat.add_categories([0])
+    data.q100_bins = data.q100_bins.cat.reorder_categories(range(0,100), ordered=True)    
+    data.loc[data.DD_A==0,'q100_bins'] = 0
+    cats = data.groupby('q100_bins')['DD_A'].max().round(2)
+    data.q100_bins.cat.categories = cats
+    
+    q100_lbls = data.groupby([n_clust, data.q100_bins])['ProfileID'].count().unstack(level=0)
+    q100_lbls = clusterColNames(q100_lbls)
+    q100_likelihood = q100_lbls.divide(q100_lbls.sum(axis=0), axis=1)
+    
+    return int100_likelihood, q100_likelihood
 
 def weekdayCorr(label_data, n_clust):
     df = label_data.reset_index()
