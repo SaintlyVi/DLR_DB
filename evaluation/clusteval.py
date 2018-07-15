@@ -12,10 +12,10 @@ import datetime as dt
 from math import ceil, log
 import feather
 import os
+import peakutils
 
 import features.feature_ts as ts
-import observations.obs_processing as op
-from support import data_dir
+from support import data_dir, results_dir
 
 def readResults():
     cluster_results = pd.read_csv('results/cluster_results.csv')
@@ -73,13 +73,26 @@ def realCentroids(experiment, n_best=1):
     
     return centroids
 
-def consumptionError(experiment, n_best=1):
+def consumptionError(experiment, compare='total', n_best=1):
+    """
+    Calculate error metrics for total daily consumption (compare=total) or peak daily consumption (compare=peak).
+    Returns 
+    mean absolute percentage error, 
+    median absolute percentage error, 
+    median log accuracy ratio (Q=predicted/actual)
+    median symmetric accuracy
+    """
+
     X = getLabels(experiment, n_best)
-    X_dd = pd.concat([X.iloc[:,list(range(0,24))].sum(axis=1), X.iloc[:,-1]], axis=1, keys=['DD','k'])
-    del X
-    
     centroids = realCentroids(experiment, n_best)
-    cent_dd = centroids.sum(axis=1).rename_axis('k',0).reset_index(name='DD')
+    
+    if compare == 'total':
+        X_dd = pd.concat([X.iloc[:,list(range(0,24))].sum(axis=1), X.iloc[:,-1]], axis=1, keys=['DD','k'])
+        cent_dd = centroids.sum(axis=1).rename_axis('k',0).reset_index(name='DD')
+    elif compare == 'peak':
+        X_dd = pd.concat([X.iloc[:,list(range(0,24))].max(axis=1), X.iloc[:,-1]], axis=1, keys=['DD','k'])
+        cent_dd = centroids.max(axis=1).rename_axis('k',0).reset_index(name='DD')
+    del X  
 
     X_dd['ae'] = 0
     X_dd['logq'] = 0
@@ -88,7 +101,7 @@ def consumptionError(experiment, n_best=1):
         try:
             X_dd.loc[X_dd.k==y[1],'logq'] = [log(y[2]/x) for x in X_dd.loc[X_dd.k==y[1],'DD']]
         except:
-            print('Zero values. Could not compute log(Q) for cluster ', str(y[1]))
+            print('Zero values. Could not compute log(Q) for cluster', str(y[1]))
             X_dd.loc[X_dd.k==y[1],'logq'] = np.inf
 
     X_dd['ape'] = X_dd.ae/X_dd.DD
@@ -222,3 +235,49 @@ def clusterEntropy(likelihood, random_likelihood=None):
     ##TODO need to check how to calculate entropy when variables are weighted
     
     return cluster_entropy, max_entropy    
+
+def centroidPeaks(experiment, n_best=1):
+    centroids = realCentroids(experiment, n_best)
+    cent_peak = dict()
+    for i in centroids.iterrows():
+        h = peakutils.peak.indexes(i[1], thres=0.5, min_dist=1)
+        val = centroids.iloc[i[0], h].values
+        cent_peak[i[0]] = dict(zip(h,val))
+        
+    return cent_peak
+
+def peakCoincidence(experiment, n_best=1):
+
+    X = getLabels(experiment, n_best)
+    X2 = pd.concat([X.iloc[:,list(range(0,24))], X.iloc[:,-1]], axis=1)
+    X2.columns = list(range(0,24))+['k']
+    del X
+    
+    cent_peak = centroidPeaks(experiment, n_best)
+
+    clusters = X2.iloc[:,-1].unique()
+    clusters.sort()
+    X_peak = dict()
+    for c in clusters:
+        X_k = X2.loc[X2.k == c]      
+        X_k.drop(columns='k', inplace=True)
+        peak_count = 0
+        for i in X_k.iterrows():
+            h = peakutils.peak.indexes(i[1], thres=0.5, min_dist=1)
+            peak_count += len(set(cent_peak[c]).intersection(set(h)))
+        X_peak[c] = peak_count / len(X_k)
+        print('Mean peak coincidence computed for cluster',str(c))
+
+    peak_eval = pd.DataFrame(list(X_peak.items()), columns=['k','mean_coincidence'])
+    count_cent_peaks = [len(cent_peak[i].keys()) for i in cent_peak.keys()]
+    peak_eval['coincidence_ratio'] = peak_eval.mean_coincidence/count_cent_peaks
+    peak_eval['experiment'] = experiment
+    peak_eval['n_best'] = n_best
+    
+    pcpath = os.path.join(results_dir, 'peak_coincidence.csv')
+    if os.path.isfile(pcpath):
+        peak_eval.to_csv(pcpath, mode='a', index=False, header=False)
+    else:
+        peak_eval.to_csv(pcpath, index=False)
+        
+    return X_peak
