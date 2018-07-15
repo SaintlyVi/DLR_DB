@@ -37,12 +37,21 @@ def selectClusters(cluster_results, n_best, experiment='all' ):
         
     return best_clusters
 
+def getLabels(experiment, n_best=1):
+    
+    labels = feather.read_dataframe(os.path.join(data_dir, 'cluster_results', 
+                                                 experiment+'_labels.feather')).iloc[:,:n_best]
+    X = ts.genX([1994,2014]).reset_index()   
+    exp =  experiment.split('_',1)[-1]
+    for i in range(0, n_best):
+        X[exp+str(i+1)] = labels.iloc[:,i]
+    
+    return X.set_index(['ProfileID','date'])
+
 def bestLabels(experiment, n_best=1):
-    data = feather.read_dataframe(os.path.join(data_dir, 'cluster_results', 
-                                               experiment+'_labels.feather')).iloc[:,:n_best]
-    X = ts.genX([1994,2014])
+    X = getLabels(experiment, n_best)
+    data = X.iloc[:,-n_best:]
     data.columns = ['0_'+str(l) for l in data.max()+1]
-    data[['ProfileID','date']] = pd.DataFrame(X).reset_index()[['ProfileID','date']]
     del X #clear memory
     data.date = data.date.astype(dt.date)#pd.to_datetime(data.date)
     data.ProfileID = data.ProfileID.astype('category')
@@ -56,46 +65,79 @@ def clusterColNames(data):
     return data
 
 def realCentroids(experiment, n_best=1):
-    labels = feather.read_dataframe(os.path.join(data_dir, 'cluster_results', 
-                                                 experiment+'_labels.feather')).iloc[:,n_best-1]
-    X = ts.genX([1994,2014]).reset_index()   
-    exp =  experiment.split('_',1)[-1] + str(n_best)
-    X[exp] = labels
-    centroids = X.iloc[:,2:].groupby(exp).mean()
+    X = getLabels(experiment, n_best)
+    data = X.iloc[:,list(range(0,24))+[-1]]
+    exp = data.columns[-1]
+    centroids = data.groupby(exp).mean()
+    del X
     
     return centroids
 
-def demandCorr(experiment, n_clust):
-    data = feather.read_dataframe(os.path.join(data_dir, 'cluster_results', experiment+'_labels.feather'))
-    data.columns = ['0_'+str(l) for l in data.max()+1]
-    X = ts.genX([1994,2014])
-    Xdd = X.sum(axis=1).reset_index()
-    Xdd.columns = ['ProfileID','date','DD_A']
-    data[['ProfileID','date','DD_A']] = pd.DataFrame(Xdd)[['ProfileID','date','DD_A']]
-    del X, Xdd #clear memory
+def consumptionError(experiment, n_best=1):
+    X = getLabels(experiment, n_best)
+    X_dd = pd.concat([X.iloc[:,list(range(0,24))].sum(axis=1), X.iloc[:,-1]], axis=1, keys=['DD','k'])
+    del X
     
+    centroids = realCentroids(experiment, n_best)
+    cent_dd = centroids.sum(axis=1).rename_axis('k',0).reset_index(name='DD')
+
+    X_dd['ae'] = 0
+    X_dd['logq'] = 0
+    for y in cent_dd.itertuples(): 
+        X_dd.loc[X_dd.k==y[1],'ae'] = [abs(x-y[2]) for x in X_dd.loc[X_dd.k==y[1],'DD']]
+        try:
+            X_dd.loc[X_dd.k==y[1],'logq'] = [log(y[2]/x) for x in X_dd.loc[X_dd.k==y[1],'DD']]
+        except:
+            print('Zero values. Could not compute log(Q) for cluster ', str(y[1]))
+            X_dd.loc[X_dd.k==y[1],'logq'] = np.inf
+
+    X_dd['ape'] = X_dd.ae/X_dd.DD
+    X_dd['alogq'] = X_dd['logq'].map(lambda x: abs(x))
+            
+    mape = X_dd.groupby('k')['ape'].mean()*100
+    mdape = X_dd.groupby('k')['ape'].agg(np.median)*100
+    mdlq = X_dd.groupby('k')['logq'].agg(np.median)
+    mdsyma = np.expm1(X_dd.groupby('k')['alogq'].agg(np.median))*100
+    
+    del X_dd
+           
+    return mape, mdape, mdlq, mdsyma
+
+def meanError(metric):    
+    err = metric.where(~np.isinf(metric)).mean()    
+    return err
+
+def demandCorr(experiment, n_best=1):
+
+    X = getLabels(experiment, n_best)
+    data = pd.concat([X.iloc[:,list(range(0,24))].sum(axis=1), X.iloc[:,-1]], axis=1, keys=['DD','k'])
+
+    del X #clear memory
+    
+    data.reset_index(inplace=True)
     data.date = data.date.astype(dt.date)#pd.to_datetime(data.date)
     data.ProfileID = data.ProfileID.astype('category')
     
     #bin daily demand into 100 equally sized bins
-    data['int100_bins']=pd.cut(data.loc[data.DD_A!=0,'DD_A'], bins = range(0,1000,10), 
+    data['int100_bins']=pd.cut(data.loc[data.DD!=0,'DD'], bins = range(0,1000,10), 
         labels=np.arange(1, 100), include_lowest=False, right=True)
     data.int100_bins = data.int100_bins.cat.add_categories([0])
     data.int100_bins = data.int100_bins.cat.reorder_categories(range(0,100), ordered=True)
-    data.loc[data.DD_A==0,'int100_bins'] = 0   
+    data.loc[data.DD==0,'int100_bins'] = 0   
     
-    int100_lbls = data.groupby([n_clust, data.int100_bins])['ProfileID'].count().unstack(level=0)
+    #NB: use int100 for entropy calculation!
+    int100_lbls = data.groupby(['k', data.int100_bins])['ProfileID'].count().unstack(level=0)
     int100_lbls = clusterColNames(int100_lbls)
     int100_likelihood = int100_lbls.divide(int100_lbls.sum(axis=0), axis=1)
 
-    data['q100_bins'] = pd.qcut(data.loc[data.DD_A!=0,'DD_A'], q=99, labels=np.arange(1, 100))
+    data['q100_bins'] = pd.qcut(data.loc[data.DD!=0,'DD'], q=99, labels=np.arange(1, 100))
     data.q100_bins = data.q100_bins.cat.add_categories([0])
     data.q100_bins = data.q100_bins.cat.reorder_categories(range(0,100), ordered=True)    
-    data.loc[data.DD_A==0,'q100_bins'] = 0
-    cats = data.groupby('q100_bins')['DD_A'].max().round(2)
+    data.loc[data.DD==0,'q100_bins'] = 0
+    cats = data.groupby('q100_bins')['DD'].max().round(2)
     data.q100_bins.cat.categories = cats
     
-    q100_lbls = data.groupby([n_clust, data.q100_bins])['ProfileID'].count().unstack(level=0)
+    q100_lbls = data.groupby(['k', data.q100_bins])['ProfileID'].count().unstack(level=0)
     q100_lbls = clusterColNames(q100_lbls)
     q100_likelihood = q100_lbls.divide(q100_lbls.sum(axis=0), axis=1)
     
