@@ -37,13 +37,13 @@ def selectClusters(cluster_results, n_best, experiment='all' ):
         
     return best_clusters
 
-def getLabels(experiment, n_best=1):
+def getLabels(experiment, count_best=1):
     
     labels = feather.read_dataframe(os.path.join(data_dir, 'cluster_results', 
-                                                 experiment+'_labels.feather')).iloc[:,:n_best]
+                                                 experiment+'_labels.feather')).iloc[:,:count_best]
     X = ts.genX([1994,2014]).reset_index()   
     exp =  experiment.split('_',1)[-1]
-    for i in range(0, n_best):
+    for i in range(0, count_best):
         X[exp+str(i+1)] = labels.iloc[:,i]
     
     return X.set_index(['ProfileID','date'])
@@ -113,7 +113,7 @@ def consumptionError(experiment, compare='total', n_best=1):
     """
 
     X = getLabels(experiment, n_best)
-    centroids = realCentroids(experiment, n_best)
+    centroids, cluster_size, meta = realCentroids(experiment, n_best)
     
     if compare == 'total':
         X_dd = pd.concat([X.iloc[:,list(range(0,24))].sum(axis=1), X.iloc[:,-1]], axis=1, keys=['DD','k'])
@@ -146,7 +146,7 @@ def consumptionError(experiment, compare='total', n_best=1):
     return mape, mdape, mdlq, mdsyma
 
 def centroidPeaks(experiment, n_best=1):
-    centroids = realCentroids(experiment, n_best)
+    centroids, cluster_size, meta = realCentroids(experiment, n_best)
     cent_peak = dict()
     for i in centroids.iterrows():
         h = peakutils.peak.indexes(i[1], thres=0.5, min_dist=1)
@@ -201,14 +201,17 @@ def peakCoincidence(experiment, n_best=1):
     
     return peak_eval
 
-def meanError(metric):    
-    err = metric.where(~np.isinf(metric)).mean()    
+def meanError(metric_vals):    
+    err = metric_vals.where(~np.isinf(metric_vals)).mean()    
     return err
 
-def demandCorr(experiment, n_best=1):
+def demandCorr(experiment, compare='total', n_best=1):
 
     X = getLabels(experiment, n_best)
-    data = pd.concat([X.iloc[:,list(range(0,24))].sum(axis=1), X.iloc[:,-1]], axis=1, keys=['DD','k'])
+    if compare == 'total':
+        data = pd.concat([X.iloc[:,list(range(0,24))].sum(axis=1), X.iloc[:,-1]], axis=1, keys=['DD','k'])
+    elif compare == 'peak':
+        data = pd.concat([X.iloc[:,list(range(0,24))].sum(axis=1), X.iloc[:,-1]], axis=1, keys=['DD','k'])
 
     del X #clear memory
     
@@ -241,9 +244,14 @@ def demandCorr(experiment, n_best=1):
     
     return int100_likelihood, q100_likelihood
 
-def weekdayCorr(label_data, n_clust):
+def weekdayCorr(label_data):
+
+    if len(label_data.columns)>1:
+        return('Too many columns to compute. Select 1 column only')
+    else:
+        label_data.columns = ['k']
     df = label_data.reset_index()
-    weekday_lbls = df.groupby([n_clust,df.date.dt.weekday])['ProfileID'].count().unstack(level=0)
+    weekday_lbls = df.groupby(['k',df.date.dt.weekday])['ProfileID'].count().unstack(level=0)
     weekday_lbls.set_axis(['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'], axis=0, inplace=True)
     weekday_lbls = clusterColNames(weekday_lbls)
     weekday_likelihood = weekday_lbls.divide(weekday_lbls.sum(axis=0), axis=1) # likelihood of assignment
@@ -257,9 +265,14 @@ def weekdayCorr(label_data, n_clust):
     
     return weekday_likelihood, relative_likelihood
 
-def monthlyCorr(label_data, n_clust):
+def monthlyCorr(label_data):
+    
+    if len(label_data.columns)>1:
+        return('Too many columns to compute. Select 1 column only')
+    else:
+        label_data.columns = ['k']
     df = label_data.reset_index()
-    month_lbls = df.groupby([n_clust,df.date.dt.month])['ProfileID'].count().unstack(level=0)
+    month_lbls = df.groupby(['k',df.date.dt.month])['ProfileID'].count().unstack(level=0)
     month_lbls = clusterColNames(month_lbls)
     month_likelihood = month_lbls.divide(month_lbls.sum(axis=0), axis=1)
     
@@ -268,9 +281,14 @@ def monthlyCorr(label_data, n_clust):
     
     return month_likelihood, relative_likelihood
 
-def yearlyCorr(label_data, n_clust):
+def yearlyCorr(label_data):
+    
+    if len(label_data.columns)>1:
+        return('Too many columns to compute. Select 1 column only')
+    else:
+        label_data.columns = ['k']
     df = label_data.reset_index()
-    year_lbls = df.groupby([n_clust,df.date.dt.year])['ProfileID'].count().unstack(level=0)
+    year_lbls = df.groupby(['k',df.date.dt.year])['ProfileID'].count().unstack(level=0)
     year_lbls = clusterColNames(year_lbls).T
     year_likelihood = year_lbls.divide(year_lbls.sum(axis=0), axis=1)    
     
@@ -279,9 +297,14 @@ def yearlyCorr(label_data, n_clust):
     
     return year_likelihood, relative_likelihood, 
 
-def daytypeCorr(label_data, n_clust):
+def daytypeCorr(label_data):
+    
+    if len(label_data.columns)>1:
+        return('Too many columns to compute. Select 1 column only')
+    else:
+        label_data.columns = ['k']
     df = label_data.reset_index()
-    weekday_lbls = df.groupby([n_clust,df.date.dt.weekday])['ProfileID'].count().unstack(level=0)
+    weekday_lbls = df.groupby(['k',df.date.dt.weekday])['ProfileID'].count().unstack(level=0)
     weekday_lbls.set_axis(['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'], axis=0, inplace=True)
     daytype = weekday_lbls[weekday_lbls.index.isin(['Monday','Tuesday','Wednesday','Thursday','Friday'])].sum(axis=0).to_frame('weekday').T
     daytype = daytype.append(weekday_lbls.loc[['Saturday','Sunday'], :])
@@ -293,9 +316,14 @@ def daytypeCorr(label_data, n_clust):
    
     return daytype_likelihood, relative_likelihood
 
-def seasonCorr(label_data, n_clust):
+def seasonCorr(label_data):
+    
+    if len(label_data.columns)>1:
+        return('Too many columns to compute. Select 1 column only')
+    else:
+        label_data.columns = ['k']
     df = label_data.reset_index()
-    month_lbls = df.groupby([n_clust,df.date.dt.month])['ProfileID'].count().unstack(level=0)    
+    month_lbls = df.groupby(['k',df.date.dt.month])['ProfileID'].count().unstack(level=0)    
     summer = month_lbls[~month_lbls.index.isin([5, 6, 7, 8])].sum(axis=0).to_frame('summer').T
     winter = month_lbls[month_lbls.index.isin([5, 6, 7, 8])].sum(axis=0).to_frame('winter').T        
     season = summer.append(winter)

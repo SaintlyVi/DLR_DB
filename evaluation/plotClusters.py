@@ -262,3 +262,57 @@ def plotClusterSpecificity(data, corr_list, n_clust=None):
     fig['layout'].update(title='Temporal specificity of k clusters', height=n_corr*400, hovermode = "closest", showlegend=False) 
 
     po.iplot(fig)
+    
+def plotClusterMetrics(metrics_dict, title, metric=None, make_area_plot=False, ylog=False):
+
+    #format plot attributes
+    if make_area_plot == True:
+        fillme = 'tozeroy'
+    else:
+        fillme = None
+    colours = cl.scales[str(len(metrics_dict.keys()))]['div']['Spectral']
+
+    #generate plot data
+    traces = []
+    s = 0
+    for k,v in metrics_dict.items():
+        for i,j in v.items():
+            if metric is None:
+                grouped=i
+                pass
+            elif i in metric:
+                grouped=None
+                pass
+            else:
+                continue
+            x = j.index+1
+            y = j
+            traces.append(dict(
+                x=x,
+                y=y,
+                name=k+' | '+i,
+                legendgroup=grouped,
+                mode='lines+markers',
+                marker=dict(size=3),
+                line=dict(color=colours[s]),
+                fill=fillme,
+                connectgaps=True
+            ))
+        s += 1
+
+    #set layout
+    if ylog == True:
+        yax = dict(title = 'metric (log scale)' , type='log')
+    else:
+        yax = dict(title = 'metric')
+    layout = go.Layout(
+            title= 'Comparison of '+title+' for different model runs',
+            margin=go.Margin(t=50,r=50,b=50,l=50, pad=10),
+            height= 300+len(traces)*15,
+            xaxis=dict(title = 'clusters'),
+            yaxis=yax,
+            hovermode = "closest"
+            )
+
+    fig = {'data':traces, 'layout':layout }
+    return po.iplot(fig)
