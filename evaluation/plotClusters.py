@@ -233,7 +233,7 @@ def plotClusterSpecificity(data, corr_list, n_clust=None):
     
     i = 1
     for corr in corr_list:
-        function = 'ec.'+corr+'Corr(data, n_clust)'
+        function = 'ec.'+corr+'Corr(data)'
         rndm_lklhd, lbls2 = eval(function)   
 
         #Create colorscales

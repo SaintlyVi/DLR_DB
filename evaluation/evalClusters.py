@@ -211,7 +211,7 @@ def demandCorr(experiment, compare='total', n_best=1):
     if compare == 'total':
         data = pd.concat([X.iloc[:,list(range(0,24))].sum(axis=1), X.iloc[:,-1]], axis=1, keys=['DD','k'])
     elif compare == 'peak':
-        data = pd.concat([X.iloc[:,list(range(0,24))].sum(axis=1), X.iloc[:,-1]], axis=1, keys=['DD','k'])
+        data = pd.concat([X.iloc[:,list(range(0,24))].max(axis=1), X.iloc[:,-1]], axis=1, keys=['DD','k'])
 
     del X #clear memory
     
