@@ -175,7 +175,7 @@ def searchAnswers(search):
             
     return result
 
-def extractFeatures(searchlist, year=None, cols=None, geo=None):
+def extractFeatures(searchlist, year=None, col_names=None, geo=None):
     """
 
     This function creates a dataframe containing the data for a set of selected features for a given year.
@@ -191,10 +191,10 @@ def extractFeatures(searchlist, year=None, cols=None, geo=None):
     else:
         searchlist = [searchlist]
         
-    if cols is None:
+    if col_names is None:
         search = dict(zip(searchlist, searchlist))
     else:
-        search = dict(zip(searchlist, cols))
+        search = dict(zip(searchlist, col_names))
     
     #filter AnswerIDs by year          
     ids = loadID()
@@ -222,7 +222,7 @@ def extractFeatures(searchlist, year=None, cols=None, geo=None):
     if geo is None:
         pass
     else:
-        result = result.merge(sub_ids[['AnswerID', geo]], how='left')
+        result = result.merge(sub_ids[['AnswerID', 'ProfileID', geo]], how='left')
                           
     return result
 
