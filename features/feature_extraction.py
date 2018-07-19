@@ -67,7 +67,7 @@ def generateFeatureSetSingle(year, spec_file, set_id='ProfileID'):
         except:
             data = data[[set_id] + features]
             
-    #adjust monthly income for inflation. 
+    #adjust monthly income for inflation baselined to December 2016. 
     #Important that this happens here, after columns have been renamed and before income data is binned
     if 'monthly_income' in features:
         cpi_percentage=(0.265,0.288,0.309,0.336,0.359,0.377,0.398,0.42,0.459,0.485,0.492,0.509,
@@ -147,7 +147,7 @@ def checkFeatures(data, appliances):
         
     return err
 
-def saveFeatures(spec_files, year_start, year_end):
+def saveFeatures(spec_files, year_start, year_end, filetype='json'):
     """
     This function saves an evidence dataset with observations in the data directory.
     
@@ -161,7 +161,7 @@ def saveFeatures(spec_files, year_start, year_end):
         
     #Save data to disk
     root_name = '_'.join(spec_files)
-    file_name =  root_name + '_' + str(year_start) + '+'+ str(year_end-year_start) + '.txt'
+    file_name =  root_name + '_' + str(year_start) + '+'+ str(year_end-year_start) + '.' + filetype
     dir_path = os.path.join(fdata_dir, root_name)
     os.makedirs(dir_path , exist_ok=True)
     file_path = os.path.join(dir_path, file_name)
@@ -170,8 +170,14 @@ def saveFeatures(spec_files, year_start, year_end):
     evidence = generateFeatureSetMulti(spec_files, year_start, year_end)
     status = 1      
     message = 'Success!'
-    evidence.to_json(file_path)
-    print('Success! Saved to data/feature_data/' + root_name + '/' + file_name) ## TODO this message must move
+    if filetype == 'json':
+        evidence.to_json(file_path)
+    elif filetype == 'csv':
+        evidence.to_csv(file_path)
+    else:
+        return('Cannot save to specified file type')
+
+    print('Success! Saved to data/feature_data/' + root_name + '/' + file_name)
         
     l = ['featureExtraction', year_start, year_end, status, message, spec_files, file_name]
     loglines.append(l)

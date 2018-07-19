@@ -102,3 +102,6 @@ timestamp,process,year,status,message,feature_specification,output_file
 2018-05-12 23:57:40,featureExtraction,1994,2014,1,Success!,['base1'],base1_1994+20.txt
 2018-05-12 23:59:43,featureExtraction,1994,2014,1,Success!,"['base1', 'appliance1']",base1_appliance1_1994+20.txt
 2018-05-13 00:01:53,featureExtraction,2000,2014,1,Success!,"['base1', 'appliance1', 'behaviour1']",base1_appliance1_behaviour1_2000+14.txt
+2018-07-19 09:26:23,featureExtraction,1994,2014,1,Success!,['features1'],features1_1994+20.txt
+2018-07-19 09:43:30,featureExtraction,1994,2014,1,Success!,['features1'],features1_1994+20.txt
+2018-07-19 09:48:20,featureExtraction,1994,2014,1,Success!,['features1'],features1_1994+20.csv
