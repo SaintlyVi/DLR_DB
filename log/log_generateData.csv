@@ -105,3 +105,12 @@ timestamp,process,year,status,message,feature_specification,output_file
 2018-07-19 09:26:23,featureExtraction,1994,2014,1,Success!,['features1'],features1_1994+20.txt
 2018-07-19 09:43:30,featureExtraction,1994,2014,1,Success!,['features1'],features1_1994+20.txt
 2018-07-19 09:48:20,featureExtraction,1994,2014,1,Success!,['features1'],features1_1994+20.csv
+2018-07-19 17:52:11,featureExtraction,1994,2014,1,Success!,['features1'],features1_1994+20.json
+2018-07-19 18:05:07,featureExtraction,1994,2014,1,Success!,['features1'],features1_1994+20.json
+2018-07-19 18:06:04,featureExtraction,1994,2014,1,Success!,['features1'],features1_1994+20.json
+2018-07-19 18:07:44,featureExtraction,1994,2014,1,Success!,['features1'],features1_1994+20.txt
+2018-07-19 18:15:09,featureExtraction,1994,2014,1,Success!,['features1'],features1_1994+20.txt
+2018-07-19 18:16:41,featureExtraction,1994,2014,1,Success!,['features1'],features1_1994+20.txt
+2018-07-19 18:19:02,featureExtraction,1994,2014,1,Success!,['features1'],features1_1994+20.csv
+2018-07-19 18:24:47,featureExtraction,1994,2014,1,Success!,['features1'],features1_1994+20.txt
+2018-07-19 18:33:35,featureExtraction,1994,2014,1,Success!,['features1'],features1_1994+20.csv
