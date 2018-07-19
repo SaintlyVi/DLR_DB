@@ -178,7 +178,7 @@ def searchAnswers(search):
             
     return result
 
-def extractFeatures(searchlist, year=None, col_names=None, geo=None):
+def extractSocios(searchlist, year=None, col_names=None, geo=None):
     """
 
     This function creates a dataframe containing the data for a set of selected features for a given year.
@@ -229,7 +229,7 @@ def extractFeatures(searchlist, year=None, col_names=None, geo=None):
                           
     return result
 
-def generateFeatureSetSingle(year, spec_file, set_id='ProfileID'):
+def generateSociosSetSingle(year, spec_file, set_id='ProfileID'):
     """
     This function generates a json formatted evidence text file compatible with the syntax for providing evidence to the python library libpgm for the specified year. The function requires a json formatted text file with feature specifications as input.
     
@@ -263,7 +263,7 @@ def generateFeatureSetSingle(year, spec_file, set_id='ProfileID'):
         geo = featurespec['geo']
     
     #Get data and questions from socio-demographic survey responses
-    data = extractFeatures(searchlist, year, col_names=searchlist, geo=geo)
+    data = extractSocios(searchlist, year, col_names=searchlist, geo=geo)
     missing_cols = list(set(searchlist) - set(data.columns))
     data = data.append(pd.DataFrame(columns=missing_cols)) #add columns dropped during feature extraction
     data.fillna(0, inplace=True) #fill na with 0 to allow for further processing
@@ -304,7 +304,7 @@ def generateFeatureSetSingle(year, spec_file, set_id='ProfileID'):
 
     return data
                  
-def generateFeatureSetMulti(spec_files, year_start=1994, year_end=2014):
+def generateSociosSetMulti(spec_files, year_start=1994, year_end=2014):
 
     if isinstance(spec_files, list):
         pass
@@ -316,7 +316,7 @@ def generateFeatureSetMulti(spec_files, year_start=1994, year_end=2014):
         gg = pd.DataFrame()
         for year in range(year_start, year_end+1):
             try:
-                gg = gg.append(generateFeatureSetSingle(year, spec))
+                gg = gg.append(generateSociosSetSingle(year, spec))
             except Exception:
                 ## TODO this should be logged
                 print('Could not extract features for ' + str(year) + ' with spec ' + spec)
@@ -334,7 +334,7 @@ def generateFeatureSetMulti(spec_files, year_start=1994, year_end=2014):
     
     return ff
 
-def genFeatures(spec_files, year_start, year_end, filetype='txt'):
+def genS(spec_files, year_start, year_end, filetype='txt'):
     """
     This function saves an evidence dataset with observations in the data directory.
     
@@ -364,7 +364,7 @@ def genFeatures(spec_files, year_start, year_end, filetype='txt'):
     
     except:
         #Generate evidence data
-        evidence = generateFeatureSetMulti(spec_files, year_start, year_end)
+        evidence = generateSociosSetMulti(spec_files, year_start, year_end)
         status = 1      
         message = 'Success!'
         if filetype == 'txt':
@@ -386,7 +386,6 @@ def genFeatures(spec_files, year_start, year_end, filetype='txt'):
            
     return evidence
 
-
 def checkAnswer(answerid, features):
     """
     This function returns the survey responses for an individuals answer ID and list of search terms.
@@ -397,7 +396,7 @@ def checkAnswer(answerid, features):
     groups = loadTable('groups')
     year = int(groups.loc[groups.GroupID == groupid, 'Year'].reset_index(drop=True)[0])
     
-    ans = extractFeatures(features, year)[0].loc[extractFeatures(features, year)[0]['AnswerID']==answerid]
+    ans = extractSocios(features, year)[0].loc[extractSocios(features, year)[0]['AnswerID']==answerid]
     return ans
 
 def recorderLocations(year = 2014):

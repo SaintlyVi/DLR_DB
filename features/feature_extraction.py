@@ -8,9 +8,33 @@ Created on Sun Jul 23 13:59:37 2017
 import pandas as pd
 import os
 import numpy as np
+import datetime as dt
 
 from support import fdata_dir, writeLog
-import features.feature_socios as socios
+from features.feature_socios import genS
+from features.feature_ts import genX
+from evaluation.evalClusters import bestLabels
+
+def genF(experiment, year_start, year_end, socios):
+    
+    X = genX([year_start,year_end])
+    Xdd = pd.DataFrame(X.sum(axis=1), columns=['DD']).reset_index()
+    del X
+    # Add cluster labels
+    Xdd['k'] = bestLabels(experiment, n_best=1).values
+    # Add temporal features
+    Xdd['year']=Xdd.date.dt.year
+    Xdd['month']=Xdd.date.dt.month_name()
+    Xdd['weekday']=Xdd.date.dt.weekday_name
+    Xdd.drop(columns='date', inplace=True)
+    
+    S = genS(socios, year_start, year_end, 'csv').reset_index()
+    
+    #merge socio-demographic, geographic and temporal features
+    F = pd.merge(Xdd, S, how='inner',on='ProfileID')
+    del Xdd, S
+    
+    return F
 
 def features2dict(data):      
     """            
