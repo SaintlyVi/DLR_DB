@@ -21,7 +21,7 @@ def genF(experiment, year_start, year_end, socios):
     Xdd = pd.DataFrame(X.sum(axis=1), columns=['DD']).reset_index()
     del X
     # Add cluster labels
-    Xdd['k'] = bestLabels(experiment, n_best=1).values
+    Xdd['k'] = bestLabels(experiment, n_best=1).values + 1
     # Add temporal features
     Xdd['year']=Xdd.date.dt.year
     Xdd['month']=Xdd.date.dt.month_name()
@@ -34,6 +34,13 @@ def genF(experiment, year_start, year_end, socios):
     F = pd.merge(Xdd, S, how='inner',on='ProfileID')
     del Xdd, S
     
+    monthly_consumption_bins = [5, 50, 100, 150, 200, 250, 300, 350, 400, 600, 900, 1200, 2500, 5000, 7000]
+    daily_demand_bins = [x /30*1000/230 for x in monthly_consumption_bins]
+    bin_labels = ['{0:.0f}-{1:.0f}'.format(x,y) for x, y in zip(daily_demand_bins[:-1], daily_demand_bins[1:])]
+    F['DD'] = pd.cut(F.DD, daily_demand_bins, labels=bin_labels, right=False)
+    F['DD'] = F.DD.where(~F.DD.isna(), 0)
+    F.iloc[:,1:] = F.iloc[:,1:].apply(lambda x: x.astype('category'))
+    
     return F
 
 def features2dict(data):      
@@ -44,6 +51,7 @@ def features2dict(data):
     """
     for c in data.columns:
         data[c].replace(np.nan, '', regex=True, inplace=True) #remove nan as BN inference cannot deal 
+    data.set_index('ProfileID', inplace=True)
     featuredict = data.to_dict('index') 
     e = []
     for f in featuredict.values(): 
