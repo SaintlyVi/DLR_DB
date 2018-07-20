@@ -11,23 +11,51 @@ NOTE: Apply the following fix before using libpgm with python 3:
 import os
 import pandas as pd
 import numpy as np
+import json
 
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import normalize
 
-import feather
-import time
-from datetime import date
-
-from experiment.algorithms.cluster_metrics import mean_index_adequacy, davies_bouldin_score #, cluster_dispersion_index
-from support import cluster_dir, results_dir
-
-#First do naive Bayes with 10-fold cross validation
-
-#Then learn the full BN with libpgm
+from libpgm.graphskeleton import GraphSkeleton
+from libpgm.nodedata import NodeData
+from libpgm.discretebayesiannetwork import DiscreteBayesianNetwork
+from libpgm.tablecpdfactorization import TableCPDFactorization
+from libpgm.pgmlearner import PGMLearner
 
 
+#Learn the full BN with libpgm
+def features2array(data):      
+    """            
+    This function converts a dataframe into a dict formatted for use as evidence in libpgm BN inference.
+    
+    Unsure if this function has much use going forward ...19 July 2018
+    """
+    for c in data.columns:
+        data[c].replace(np.nan, '', regex=True, inplace=True) #remove nan as BN inference cannot deal 
+    data.drop(columns='ProfileID', inplace=True)
+    featuredict = data.to_dict('index') 
+    e = []
+    for f in featuredict.values(): 
+        d = dict()
+        for k, v in f.items():
+            if v is not str(''):
+                d[k] = v
+        e.append(d)  
+    evidence = np.array(e)
+    del data
+    
+    return evidence
+
+def learnBN(data):
+#    nd = NodeData()
+#    skel = GraphSkeleton()
+    learner = PGMLearner()
+    result = learner.discrete_estimatebn(data)
+    
+    return result
+
+#Then contemplate naive Bayes with 10-fold cross validation
 
 
 

@@ -51,7 +51,6 @@ def features2dict(data):
     """
     for c in data.columns:
         data[c].replace(np.nan, '', regex=True, inplace=True) #remove nan as BN inference cannot deal 
-    data.set_index('ProfileID', inplace=True)
     featuredict = data.to_dict('index') 
     e = []
     for f in featuredict.values(): 

@@ -1,9 +1,17 @@
 """
 Support file for generating helper functions for Bayesian networks, inference and subsequent data visualisation.
 
-NOTE: Apply the following fix before using libpgm with python 3:
+NOTE: Apply the following fixes before using libpgm with python 3:
     
-    Execute `2to3 -w /home/user/anaconda3/lib/python3.5/site-packages/utils/bntextutils.py` from the command prompt.
+1. In terminal navigate to ~/anaconda3/lib/python_YOUR_DIST/site-packages/libpgm and execute the following: 
+    for f in *.py
+    do 
+    2to3 -w $f
+    done
+    
+2. then execute:
+    2to3 -w ~/anaconda3/lib/python3.6/site-packages/utils/bntextutils.py
+
 
 @author: Wiebke Toussaint
 """
