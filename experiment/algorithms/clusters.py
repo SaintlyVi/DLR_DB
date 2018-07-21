@@ -70,7 +70,7 @@ def clusterStats(cluster_stats, n, X, cluster_labels, preprocessing, transform, 
 
     return cluster_stats
 
-def saveResults(experiment_name, cluster_stats, cluster_centroids, som_dim, save=True):
+def saveResults(experiment_name, cluster_stats, cluster_centroids, som_dim, amd_bin, save=True):
     """
     Saves cluster stats results and centroids for a single clustering iteration. 
     Called inside kmeans() and som() functions.
@@ -83,6 +83,7 @@ def saveResults(experiment_name, cluster_stats, cluster_centroids, som_dim, save
     evals['experiment_name'] = experiment_name
     evals['som_dim'] = som_dim
     evals['n_clust'] = n
+    evals['amd_bin'] = amd_bin
     eval_results = evals.drop(labels='cluster_size', axis=1).reset_index(drop=True)
 #    eval_results.rename({'index':'k'}, axis=1, inplace=True)
     eval_results[['dbi','mia','silhouette']] = eval_results[['dbi','mia','silhouette']].astype(float)
@@ -93,6 +94,7 @@ def saveResults(experiment_name, cluster_stats, cluster_centroids, som_dim, save
     centroid_results['experiment_name'] = experiment_name
     centroid_results['som_dim'] = som_dim
     centroid_results['n_clust'] = n
+    centroid_results['amd_bin'] = amd_bin
     try:
         centroid_results['cluster_size'] = evals['cluster_size'][n]
     except:
@@ -174,21 +176,24 @@ def kmeans(X, range_n_clusters, top_lbls=10, preprocessing = None, bin_X=False, 
             experiment_name = experiment_name+'_'+ preprocessing
         save = True
     
-    centroids = pd.DataFrame()
-    stats = pd.DataFrame() 
-    cluster_lbls = pd.DataFrame()
-    
-#apply pre-binning
+    #apply pre-binning
     if bin_X == True:
         Xbin = amdBins(X)
     else:
-        Xbin = dict({'0-4000':X})
+        Xbin = {'0-4000':X}
 
-    for k, v in Xbin.items():
-        A = X.loc[v,:]
+    for b, ids in Xbin.items():
+        try:
+            A = X.loc[ids,:]
+        except:
+            A = ids
 
-#apply preprocessing    
+        #apply preprocessing    
         A = preprocessX(A, norm=preprocessing)
+
+        centroids = pd.DataFrame()
+        stats = pd.DataFrame() 
+        cluster_lbls = pd.DataFrame()
 
         dim = 0 #set dim to 0 to match SOM formating  
         cluster_lbls_dim = {}
@@ -198,7 +203,7 @@ def kmeans(X, range_n_clusters, top_lbls=10, preprocessing = None, bin_X=False, 
             
             clusterer = MiniBatchKMeans(n_clusters=n_clust, random_state=10)
                         
-            #2 Train clustering algorithm
+            #train clustering algorithm
             tic = time.time()        
             clusterer.fit(A)
             cluster_labels = clusterer.predict(A)
@@ -211,25 +216,26 @@ def kmeans(X, range_n_clusters, top_lbls=10, preprocessing = None, bin_X=False, 
             cluster_centroids = clusterer.cluster_centers_ 
             
             eval_results, centroid_results = saveResults(experiment_name, cluster_stats,
-                                                          cluster_centroids, dim, save)
+                                                          cluster_centroids, dim, b, save)
             
             stats_dim = stats_dim.append(eval_results)
             centroids = centroids.append(centroid_results)
     
             cluster_lbls_dim[n_clust] = cluster_labels
     
-    #outside n_clust loop
-    best_clusters, best_stats = bestClusters(cluster_lbls_dim, stats_dim, top_lbls)
-    cluster_lbls = pd.concat([cluster_lbls, best_clusters], axis=1)
-    stats = pd.concat([stats, best_stats], axis=0)
-    
-    stats.reset_index(drop=True, inplace=True)
-    if save is True:
-        saveLabels(cluster_lbls, stats)
+        #outside n_clust loop
+        best_clusters, best_stats = bestClusters(cluster_lbls_dim, stats_dim, top_lbls)
+        cluster_lbls = pd.concat([cluster_lbls, best_clusters], axis=1)
+        stats = pd.concat([stats, best_stats], axis=0)
+        
+        stats.reset_index(drop=True, inplace=True)
+
+        if save is True:
+            saveLabels(cluster_lbls, stats)
     
     return stats, centroids, cluster_lbls        
 
-def som(X, range_n_dim, top_lbls=10, preprocessing = None, transform=None, experiment_name=None, **kwargs):
+def som(X, range_n_dim, top_lbls=10, preprocessing = None, bin_X=False, transform=None, experiment_name=None, **kwargs):
     """
     This function applies the self organising maps algorithm from somoclu on inputs X over square maps of range_n_dim.
     If preprossing = True, X is normalised with sklearn.preprocessing.normalize()
@@ -253,70 +259,82 @@ def som(X, range_n_dim, top_lbls=10, preprocessing = None, transform=None, exper
         else:
             experiment_name = experiment_name+'_'+ preprocessing
         save = True
-    
-    centroids = pd.DataFrame()
-    stats = pd.DataFrame() 
-    cluster_lbls = pd.DataFrame()
-    
-    X = preprocessX(X, norm=preprocessing)
 
-    for dim in range_n_dim: 
-        
-        cluster_lbls_dim = {}
-        stats_dim = pd.DataFrame()        
-        nrow = ncol = dim
-        tic = time.time()
+    #apply pre-binning
+    if bin_X == True:
+        Xbin = amdBins(X)
+    else:
+        Xbin = {'0-4000':X}
 
-        #2 Train clustering algorithm
-        som = somoclu.Somoclu(nrow, ncol, compactsupport=False, maptype='planar')
-        som.train(X)
-        toc = time.time()
+    for b, ids in Xbin.items():
+        try:
+            A = X.loc[ids,:]
+        except:
+            A = ids
+        #apply preprocessing    
+        A = preprocessX(A, norm=preprocessing)
 
-        if transform == None:
-            n_clust = [0]    
-        elif transform == 'kmeans':
-            if kwargs is None:
-                n_clust = [10]
-            else:
-                for key, value in kwargs.items():
-                    if key == 'n_clusters':
-                        n_clust = value
-        else:
-            return('Cannot process this transform algorithm')
+        centroids = pd.DataFrame()
+        stats = pd.DataFrame() 
+        cluster_lbls = pd.DataFrame()
+
+        for dim in range_n_dim: 
             
-        for n in n_clust:
-            if n == 0:
-                #create empty matrix the size of the SOM
-                m = np.arange(0, nrow*ncol, 1).reshape(nrow, ncol) 
+            cluster_lbls_dim = {}
+            stats_dim = pd.DataFrame()        
+            nrow = ncol = dim
+            tic = time.time()
+    
+            #train clustering algorithm
+            som = somoclu.Somoclu(nrow, ncol, compactsupport=False, maptype='planar')
+            som.train(A)
+            toc = time.time()
+    
+            if transform == None:
+                n_clust = [0]    
+            elif transform == 'kmeans':
+                if kwargs is None:
+                    n_clust = [10]
+                else:
+                    for key, value in kwargs.items(): #create list with number of clusters for kmeans
+                        if key == 'n_clusters':
+                            n_clust = value
             else:
-                clusterer = KMeans(n_clusters=n, random_state=10)
-                som.cluster(algorithm=clusterer)
-                m = som.clusters
-            #get cluster of SOM node and assign to input vecors based on bmus
-            k = [m[som.bmus[i][1],som.bmus[i][0]] for i in range(0, len(som.bmus))] 
-            c = pd.DataFrame(X).assign(cluster=k).groupby('cluster').mean()
+                return('Cannot process this transform algorithm')
                 
-            #calculate scores
-            cluster_stats = clusterStats({}, n, X, cluster_labels = k, preprocessing = preprocessing,
-                                         transform = transform, tic = tic, toc = toc)
-            cluster_centroids = np.array(c)
+            for n in n_clust:
+                if n == 0:
+                    #create empty matrix the size of the SOM
+                    m = np.arange(0, nrow*ncol, 1).reshape(nrow, ncol) 
+                else:
+                    clusterer = KMeans(n_clusters=n, random_state=10)
+                    som.cluster(algorithm=clusterer)
+                    m = som.clusters
+                #get cluster of SOM node and assign to input vecors based on bmus
+                k = [m[som.bmus[i][1],som.bmus[i][0]] for i in range(0, len(som.bmus))] 
+                c = pd.DataFrame(A).assign(cluster=k).groupby('cluster').mean()
+                    
+                #calculate scores
+                cluster_stats = clusterStats({}, n, A, cluster_labels = k, preprocessing = preprocessing,
+                                             transform = transform, tic = tic, toc = toc)
+                cluster_centroids = np.array(c)
+                
+                eval_results, centroid_results = saveResults(experiment_name, cluster_stats,
+                                                             cluster_centroids, dim, b, save)
+    
+                stats_dim = stats_dim.append(eval_results)
+                centroids = centroids.append(centroid_results)
+    
+                cluster_lbls_dim[n] = k
             
-            eval_results, centroid_results = saveResults(experiment_name, cluster_stats,
-                                                         cluster_centroids, dim, save)
-
-            stats_dim = stats_dim.append(eval_results)
-            centroids = centroids.append(centroid_results)
-
-            cluster_lbls_dim[n] = k
-        
-        #outside n_clust loop
-        best_clusters, best_stats = bestClusters(cluster_lbls_dim, stats_dim, top_lbls)
-        cluster_lbls = pd.concat([cluster_lbls, best_clusters],axis=1)
-        stats = pd.concat([stats, best_stats], axis=0)
-        
-    stats.reset_index(drop=True, inplace=True)
-    if save is True:
-        saveLabels(cluster_lbls, stats)
+            #outside n_clust loop
+            best_clusters, best_stats = bestClusters(cluster_lbls_dim, stats_dim, top_lbls)
+            cluster_lbls = pd.concat([cluster_lbls, best_clusters],axis=1)
+            stats = pd.concat([stats, best_stats], axis=0)
+            
+        stats.reset_index(drop=True, inplace=True)
+        if save is True:
+            saveLabels(cluster_lbls, stats)
     
     return stats, centroids, cluster_lbls
 
@@ -334,7 +352,7 @@ def bestClusters(cluster_lbls, stats, top_lbls):
         best_clusters = labels.loc[:, best_lbls['n_clust'].values]    
     
     else:
-        best_lbls = stats[['n_clust','som_dim']]
+        best_lbls = stats[['n_clust','som_dim','amd_bin']]
         best_clusters = labels
     
 #    best_clusters.columns = pd.MultiIndex.from_arrays([best_lbls['som_dim'], best_lbls['n_clust']],names=('som_dim','n_clust'))    
@@ -344,8 +362,9 @@ def bestClusters(cluster_lbls, stats, top_lbls):
        
 def saveLabels(cluster_lbls, stats):    
 
-    experiment_name = stats.experiment_name[0]    
-    best_lbls = stats.loc[stats.best_clusters==1,['n_clust','som_dim']]
+    experiment_name = stats.experiment_name[0]
+    amd_bin = stats.amd_bin[0]
+    best_lbls = stats.loc[stats.best_clusters==1,['n_clust','som_dim','amd_bin']]
     best_lbls['experiment_name'] = experiment_name     
       
 #    cluster_lbls[['ProfileID','date']] = pd.DataFrame(X).reset_index()[['ProfileID','date']]
@@ -359,7 +378,7 @@ def saveLabels(cluster_lbls, stats):
     print(cols)
     cluster_lbls.columns = cols
 
-    wpath = os.path.join(cluster_dir, experiment_name + '_labels.feather')
+    wpath = os.path.join(cluster_dir, experiment_name + '_' + amd_bin + '_labels.feather')
     feather.write_dataframe(cluster_lbls, wpath)
     
     blpath = os.path.join(results_dir, 'best_clusters.csv')

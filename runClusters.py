@@ -44,9 +44,10 @@ for i in range(skip_experiments+1, len(param)): #skip first line with header inf
     end = param[i][2]
     drop_0 = param[i][3]
     preprocessing = param[i][4]
-    range_n_dim = param[i][5]
-    transform = param[i][6]
-    range_n_clusters = param[i][7]
+    bin_X = param[i][5]
+    range_n_dim = param[i][6]
+    transform = param[i][7]
+    range_n_clusters = param[i][8]
     
     print(param[i])
     
@@ -58,7 +59,7 @@ for i in range(skip_experiments+1, len(param)): #skip first line with header inf
         stats, centroids, cluster_lbls = som(X, range_n_dim, args.top, preprocessing, transform, args.params,
                                              n_clusters=range_n_clusters)  
     if algorithm == 'kmeans':
-        stats, centroids, cluster_lbls = kmeans(X, range_n_clusters, args.top, preprocessing, args.params)
+        stats, centroids, cluster_lbls = kmeans(X, range_n_clusters, args.top, preprocessing, bin_X, args.params)
 #    if args.top:
 #        saveLabels(X, cluster_lbls, stats, args.top)
         
