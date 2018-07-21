@@ -32,7 +32,12 @@ for line in header:
     if line.strip() != '':                # ignore blank lines
         param.append(eval(line))
 
-for i in range(args.skip+1, len(param)): #skip first line with header info
+if args.skip is None:
+    skip_experiments = 0
+else:
+    skip_experiments = args.skip
+
+for i in range(skip_experiments+1, len(param)): #skip first line with header info
     # Extract all parameter values
     algorithm = param[i][0]
     start = param[i][1]
