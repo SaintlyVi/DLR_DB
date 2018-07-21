@@ -56,7 +56,7 @@ for i in range(skip_experiments+1, len(param)): #skip first line with header inf
     X = genX([start, end], drop_0)
 
     if algorithm == 'som':
-        stats, centroids, cluster_lbls = som(X, range_n_dim, args.top, preprocessing, transform, args.params,
+        stats, centroids, cluster_lbls = som(X, range_n_dim, args.top, preprocessing, bin_X, transform, args.params,
                                              n_clusters=range_n_clusters)  
     if algorithm == 'kmeans':
         stats, centroids, cluster_lbls = kmeans(X, range_n_clusters, args.top, preprocessing, bin_X, args.params)
@@ -67,7 +67,7 @@ for i in range(skip_experiments+1, len(param)): #skip first line with header inf
     
     log_line = param[i]
     logs = pd.DataFrame([[args.params, (toc-tic)/60] + list(log_line)], columns = ['experiment','runtime','algorithm', 
-                         'start', 'end', 'drop_0', 'preprocessing', 'range_n_dim', 'transform', 'range_n_clusters'])
+                         'start', 'end', 'drop_0', 'preprocessing', 'bin_X', 'range_n_dim', 'transform', 'range_n_clusters'])
     writeLog(logs, os.path.join(log_dir,'log_runClusters'))
 
 print('\n>>>genClusters end<<<')
