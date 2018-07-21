@@ -37,16 +37,17 @@ for i in range(args.skip+1, len(param)): #skip first line with header info
     algorithm = param[i][0]
     start = param[i][1]
     end = param[i][2]
-    preprocessing = param[i][3]
-    range_n_dim = param[i][4]
-    transform = param[i][5]
-    range_n_clusters = param[i][6]
+    drop_0 = param[i][3]
+    preprocessing = param[i][4]
+    range_n_dim = param[i][5]
+    transform = param[i][6]
+    range_n_clusters = param[i][7]
     
     print(param[i])
     
     tic = time.time()
     
-    X = genX([start, end])
+    X = genX([start, end], drop_0)
 
     if algorithm == 'som':
         stats, centroids, cluster_lbls = som(X, range_n_dim, args.top, preprocessing, transform, args.params,

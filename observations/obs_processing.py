@@ -77,16 +77,15 @@ def saveReducedProfiles(yearstart, yearend, interval):
             #create empty directory to save files   
             dir_path = os.path.join(profiles_dir, interval, unit)
             os.makedirs(dir_path, exist_ok=True)
-        
-            ts = reduceRawProfiles(year, unit, interval)
             
             #write to reduced data to file
-            if ts.empty:
-                pass
-            else:
+            try:
+                ts = reduceRawProfiles(year, unit, interval)
                 wpath = os.path.join(dir_path, str(year) + '_' + unit + '.feather')
                 feather.write_dataframe(ts, wpath)
                 print('Write success')
+            except:
+                pass
     
     logline = [yearstart, yearend, interval]
     log_lines = pd.DataFrame([logline], columns = ['from_year','to_year', 'resample_interval'])

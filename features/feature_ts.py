@@ -377,9 +377,23 @@ def resampleProfiles(dailyprofiles, interval, aggfunc = 'mean'):
         return output
 
 
-def genX(year_range, **kwargs):
+def genX(year_range, drop_0=False, **kwargs):
+
+#1 Get minibatch
+    if 'interval' in kwargs: interval = kwargs['interval']
+    else: interval = None
+        
+    if 'aggfunc' in kwargs: aggfunc = kwargs['aggfunc']
+    else: aggfunc = 'mean'
+        
+    if 'unit' in kwargs: unit = kwargs['unit']
+    else: unit = 'A'
+        
+    if 'directory' in kwargs: directory = kwargs['directory']
+    else: directory = 'H'
     
-    xpath = os.path.join(profiles_dir, 'X', str(year_range[0])+'_'+str(year_range[1])+'.feather')
+    xpath = os.path.join(profiles_dir, 'X', str(year_range[0])+'_'+str(year_range[1])+
+                         aggfunc+unit+directory+'.feather')
     
     try:
         X = feather.read_dataframe(xpath)
@@ -388,20 +402,7 @@ def genX(year_range, **kwargs):
         X = pd.DataFrame()
         
         for y in range(year_range[0], year_range[1]+1):
-                   
-        #1 Get minibatch
-            if 'interval' in kwargs: interval = kwargs['interval']
-            else: interval = None
-                
-            if 'aggfunc' in kwargs: aggfunc = kwargs['aggfunc']
-            else: aggfunc = 'mean'
-                
-            if 'unit' in kwargs: unit = kwargs['unit']
-            else: unit = 'A'
-                
-            if 'directory' in kwargs: directory = kwargs['directory']
-            else: directory = 'H'
-                     
+                                        
             data = resampleProfiles(dailyProfiles(y, unit, directory), interval, aggfunc)
             Xbatch = data.dropna() #remove missing values
             Xbatch.reset_index(inplace=True)
@@ -410,13 +411,21 @@ def genX(year_range, **kwargs):
         X.reset_index(drop=True, inplace=True)
         X['date'] = pd.to_datetime(X['date'])
         feather.write_dataframe(X, xpath)
+        
+        if aggfunc != 'sum':
+            minx = X.iloc[:,2::].min()
+            maxx = X.iloc[:,2::].max()
+                
+            if len(minx[minx<0]) != 0: return print('Input dataset contains outliers and invalid data. Aborting....')
+            if len(maxx[maxx>1000]) != 0: return print('Input dataset may contain outliers and invalid data. Aborting....')
+      
+    X.set_index(['ProfileID','date'], inplace=True)
     
-        minx = X.iloc[:,2::].min()
-        maxx = X.iloc[:,2::].max()
-            
-        if len(minx[minx<0]) != 0: return print('Input dataset contains outliers and invalid data. Aborting....')
-        if len(maxx[maxx>1000]) != 0: return print('Input dataset may contain outliers and invalid data. Aborting....')
-    
-    return X.set_index(['ProfileID','date'])
+    #Clean and shape X by requirements
+    if drop_0 == True:
+        print('dropping all zeros rows')
+        X = X[~(X.sum(axis=1)==0)]
+        
+    return X
     
 #totaldaily = p99['Unitsread'].groupby([p99.ProfileID, p99.Datefield.dt.date]).sum()

@@ -15,9 +15,9 @@ from features.feature_socios import genS
 from features.feature_ts import genX
 from evaluation.evalClusters import bestLabels
 
-def genF(experiment, year_start, year_end, socios):
+def genF(experiment, year_start, year_end, drop_0, socios):
     
-    X = genX([year_start,year_end])
+    X = genX([1994,2014], drop_0)
     Xdd = pd.DataFrame(X.sum(axis=1), columns=['DD']).reset_index()
     del X
     # Add cluster labels

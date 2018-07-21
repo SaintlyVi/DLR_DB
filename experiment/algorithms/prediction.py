@@ -32,17 +32,17 @@ def features2array(data):
     Unsure if this function has much use going forward ...19 July 2018
     """
     for c in data.columns:
-        data[c].replace(np.nan, '', regex=True, inplace=True) #remove nan as BN inference cannot deal 
+        data[c].replace(np.nan, '', regex=True, inplace=True) #drop nan as this set obersatvions cannot be used to learn BN
     data.drop(columns='ProfileID', inplace=True)
     featuredict = data.to_dict('index') 
     e = []
     for f in featuredict.values(): 
         d = dict()
         for k, v in f.items():
-            if v is not str(''):
-                d[k] = v
+#            if v is not str(''):
+            d[k] = v
         e.append(d)  
-    evidence = np.array(e)
+    evidence = list(e)
     del data
     
     return evidence

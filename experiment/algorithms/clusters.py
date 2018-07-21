@@ -21,6 +21,7 @@ from datetime import date
 
 from experiment.algorithms.cluster_metrics import mean_index_adequacy, davies_bouldin_score #, cluster_dispersion_index
 from support import cluster_dir, results_dir
+from features.feature_ts import resampleProfiles
 
 def progress(n, stats):
     """Report progress information, return a string."""
@@ -119,6 +120,21 @@ def saveResults(experiment_name, cluster_stats, cluster_centroids, som_dim, save
         print('Results saved for', experiment_name, str(som_dim), str(n))
     
     return eval_results, centroid_results
+
+def amdBins(X):
+    Xdd_A = X.sum(axis=1)
+    Xdd = Xdd_A*230/1000
+    XmonthlyPower = resampleProfiles(Xdd, interval='M', aggfunc='sum')
+    Xamd = resampleProfiles(XmonthlyPower, interval='A', aggfunc='mean').reset_index(name='amd').groupby('ProfileID').mean()
+    Xamd.columns=['amd']
+    
+    amd_bins = [1, 50, 150, 400, 600, 1200, 2500]
+    
+    bin_labels = ['{0:.0f}-{1:.0f}'.format(x,y) for x, y in zip(amd_bins[:-1], amd_bins[1:])]
+    
+    Xamd['bins'] = pd.cut(Xamd.amd, amd_bins, labels=bin_labels, right=True)
+    
+    return Xamd
 
 def preprocessX(X, norm=None):  
     
