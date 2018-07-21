@@ -37,11 +37,11 @@ def selectClusters(cluster_results, n_best, experiment='all' ):
         
     return best_clusters
 
-def getLabels(experiment, count_best=1):
+def getLabels(experiment, drop_0=False, count_best=1):
     
     labels = feather.read_dataframe(os.path.join(data_dir, 'cluster_results', 
                                                  experiment+'_labels.feather')).iloc[:,:count_best]
-    X = ts.genX([1994,2014]).reset_index()   
+    X = ts.genX([1994,2014], drop_0).reset_index()   
     exp =  experiment.split('_',1)[-1]
     for i in range(0, count_best):
         X[exp+str(i+1)] = labels.iloc[:,i]

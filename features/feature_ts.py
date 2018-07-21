@@ -423,7 +423,7 @@ def genX(year_range, drop_0=False, **kwargs):
     
     #Clean and shape X by requirements
     if drop_0 == True:
-        print('dropping all zeros rows')
+        print('dropping all zero rows')
         X = X[~(X.sum(axis=1)==0)]
         
     return X
