@@ -61,7 +61,7 @@ for i in range(args.skip+1, len(param)): #skip first line with header info
     
     log_line = param[i]
     logs = pd.DataFrame([[args.params, (toc-tic)/60] + list(log_line)], columns = ['experiment','runtime','algorithm', 
-                         'start', 'end', 'preprocessing', 'range_n_dim', 'transform', 'range_n_clusters'])
+                         'start', 'end', 'drop_0', 'preprocessing', 'range_n_dim', 'transform', 'range_n_clusters'])
     writeLog(logs, os.path.join(log_dir,'log_runClusters'))
 
 print('\n>>>genClusters end<<<')

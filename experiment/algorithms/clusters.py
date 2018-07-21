@@ -125,16 +125,20 @@ def amdBins(X):
     Xdd_A = X.sum(axis=1)
     Xdd = Xdd_A*230/1000
     XmonthlyPower = resampleProfiles(Xdd, interval='M', aggfunc='sum')
-    Xamd = resampleProfiles(XmonthlyPower, interval='A', aggfunc='mean').reset_index(name='amd').groupby('ProfileID').mean()
+    Xamd = resampleProfiles(XmonthlyPower, interval='A', aggfunc='mean').reset_index().groupby('ProfileID').mean()
     Xamd.columns=['amd']
     
-    amd_bins = [1, 50, 150, 400, 600, 1200, 2500]
-    
-    bin_labels = ['{0:.0f}-{1:.0f}'.format(x,y) for x, y in zip(amd_bins[:-1], amd_bins[1:])]
-    
+    amd_bins = [0, 1, 50, 150, 400, 600, 1200, 2500, 4000]    
+    bin_labels = ['{0:.0f}-{1:.0f}'.format(x,y) for x, y in zip(amd_bins[:-1], amd_bins[1:])]    
     Xamd['bins'] = pd.cut(Xamd.amd, amd_bins, labels=bin_labels, right=True)
     
-    return Xamd
+    Xamd_dict = dict()
+    for c in Xamd.bins.cat.categories:
+        Xamd_dict[c] = Xamd[Xamd.bins==c].index.values
+    
+    del Xdd_A, Xdd, XmonthlyPower, Xamd
+    
+    return Xamd_dict
 
 def preprocessX(X, norm=None):  
     
@@ -154,7 +158,7 @@ def preprocessX(X, norm=None):
         
     return Xnorm
 
-def kmeans(X, range_n_clusters, top_lbls=10, preprocessing = None, experiment_name=None):
+def kmeans(X, range_n_clusters, top_lbls=10, preprocessing = None, bin_X=False, experiment_name=None):
     """
     This function applies the MiniBatchKmeans algorithm from sklearn on inputs X for range_n_clusters.
     If preprossing = True, X is normalised with sklearn.preprocessing.normalize()
@@ -173,36 +177,46 @@ def kmeans(X, range_n_clusters, top_lbls=10, preprocessing = None, experiment_na
     centroids = pd.DataFrame()
     stats = pd.DataFrame() 
     cluster_lbls = pd.DataFrame()
-        
-    X = preprocessX(X, norm=preprocessing)
-
-    dim = 0 #set dim to 0 to match SOM formating  
-    cluster_lbls_dim = {}
-    stats_dim = pd.DataFrame()
     
-    for n_clust in range_n_clusters:
-        
-        clusterer = MiniBatchKMeans(n_clusters=n_clust, random_state=10)
-                    
-        #2 Train clustering algorithm
-        tic = time.time()        
-        clusterer.fit(X)
-        cluster_labels = clusterer.predict(X)
-        toc = time.time()
-        
-         ## Calculate scores
-        cluster_stats = clusterStats({}, n_clust, X, cluster_labels, 
-                                     preprocessing = preprocessing, transform = None,
-                                     tic = tic, toc = toc)        
-        cluster_centroids = clusterer.cluster_centers_ 
-        
-        eval_results, centroid_results = saveResults(experiment_name, cluster_stats,
-                                                      cluster_centroids, dim, save)
-        
-        stats_dim = stats_dim.append(eval_results)
-        centroids = centroids.append(centroid_results)
+#apply pre-binning
+    if bin_X == True:
+        Xbin = amdBins(X)
+    else:
+        Xbin = dict({'0-4000':X})
 
-        cluster_lbls_dim[n_clust] = cluster_labels
+    for k, v in Xbin.items():
+        A = X.loc[v,:]
+
+#apply preprocessing    
+        A = preprocessX(A, norm=preprocessing)
+
+        dim = 0 #set dim to 0 to match SOM formating  
+        cluster_lbls_dim = {}
+        stats_dim = pd.DataFrame()
+        
+        for n_clust in range_n_clusters:
+            
+            clusterer = MiniBatchKMeans(n_clusters=n_clust, random_state=10)
+                        
+            #2 Train clustering algorithm
+            tic = time.time()        
+            clusterer.fit(A)
+            cluster_labels = clusterer.predict(A)
+            toc = time.time()
+            
+             ## Calculate scores
+            cluster_stats = clusterStats({}, n_clust, A, cluster_labels, 
+                                         preprocessing = preprocessing, transform = None,
+                                         tic = tic, toc = toc)        
+            cluster_centroids = clusterer.cluster_centers_ 
+            
+            eval_results, centroid_results = saveResults(experiment_name, cluster_stats,
+                                                          cluster_centroids, dim, save)
+            
+            stats_dim = stats_dim.append(eval_results)
+            centroids = centroids.append(centroid_results)
+    
+            cluster_lbls_dim[n_clust] = cluster_labels
     
     #outside n_clust loop
     best_clusters, best_stats = bestClusters(cluster_lbls_dim, stats_dim, top_lbls)
