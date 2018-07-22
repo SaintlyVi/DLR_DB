@@ -378,7 +378,6 @@ def resampleProfiles(dailyprofiles, interval, aggfunc = 'mean'):
 
 
 def genX(year_range, drop_0=False, **kwargs):
-
 #1 Get minibatch
     if 'interval' in kwargs: interval = kwargs['interval']
     else: interval = None
@@ -422,10 +421,8 @@ def genX(year_range, drop_0=False, **kwargs):
     X.set_index(['ProfileID','date'], inplace=True)
     
     #Clean and shape X by requirements
-    if drop_0 == True:
+    if drop_0 is True:
         print('dropping all zero rows')
         X = X[~(X.sum(axis=1)==0)]
         
     return X
-    
-#totaldaily = p99['Unitsread'].groupby([p99.ProfileID, p99.Datefield.dt.date]).sum()

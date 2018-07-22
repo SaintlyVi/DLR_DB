@@ -18,7 +18,7 @@ obs_dir = os.path.join(dlrdb_dir, 'observations')
 feature_dir = os.path.join(dlrdb_dir, 'features')
 data_dir = os.path.join(dlrdb_dir, 'data')
 eval_dir = os.path.join(dlrdb_dir, 'evaluation')
-image_dir = os.path.join(dlrdb_dir, 'images')
+image_dir = os.path.join(dlrdb_dir, 'img')
 log_dir = os.path.join(dlrdb_dir, 'log')
 results_dir = os.path.join(dlrdb_dir, 'results')
 

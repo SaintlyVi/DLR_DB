@@ -105,6 +105,7 @@ ENV/
 /GoogleDrive_DLR_DB
 /profiles
 /log
+/results
 # other
 .DS_Store
 temp-plot.html
