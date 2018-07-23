@@ -367,6 +367,8 @@ def householdEntropy(label_data):
     
     return cluster_entropy, max_entropy
 
-#hhe1, me1 = householdEntropy(lbls[lbls.date.dt.month==1].set_index(['ProfileID','date']))
-#Sent = pd.concat([S, (hhe1/me1)], axis=1, join='inner').rename(columns={0:'rele'})
-#Sent.groupby('monthly_income')['rele'].mean()
+def monthlyHHE(lbls, S, month_ix):
+    hhe, me = householdEntropy(lbls[lbls.date.dt.month==month_ix].set_index(['ProfileID','date']))
+    Sent = pd.concat([S, (hhe/me)], axis=1, join='inner').rename(columns={0:'rele'})
+    sg = Sent.groupby('monthly_income').aggregate({'rele':['mean','std']})
+    return sg
