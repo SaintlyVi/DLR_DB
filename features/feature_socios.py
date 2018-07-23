@@ -301,7 +301,7 @@ def generateSociosSetSingle(year, spec_file, set_id='ProfileID'):
             except KeyError:
                 data[k] = pd.cut(data[k], bins = bin_vals, labels = labels[k])                                  
         
-        data.set_index(set_id, inplace=True) #set AnswerID column as index
+    data.set_index(set_id, inplace=True) #set ID column as index
 
     return data
                  

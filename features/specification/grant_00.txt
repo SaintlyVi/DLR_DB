@@ -1,0 +1,18 @@
+{
+"year_range" : ["2000","2014"],
+"features" : ["monthly_income", "water_access", "roof_material", "wall_material", "cb_size", "floor_area", "years_electrified"],
+"searchlist" : ["earn per month", "watersource", "roof", "wall", "main switch", "floor area","electricity"],
+"transform": {
+	"monthly_income" : "x['earn per month']",
+	"water_access" : "x['watersource']",
+	"roof_material" : "x['roof']",
+	"wall_material" : "x['wall']",
+	"cb_size" : "x['main switch']",
+	"floor_area" : "x['floor area']",
+	"years_electrified" : "x['electricity']"
+	},
+"bins" : {},
+"labels" : {},
+"cut" : {},
+"geo" : "Municipality"
+}

@@ -1,0 +1,18 @@
+{
+"year_range" : ["1994","1999"],
+"features" : ["monthly_income", "water_access", "roof_material", "wall_material", "cb_size", "floor_area", "years_electrified"],
+"searchlist" : ["income", "watersource", "roof", "wall", "main switch", "floor area", "years"],
+"transform": {
+	"monthly_income" : "x['income']",
+	"water_access" : "4 - x['watersource']",
+	"roof_material" : "x['roof']+1",
+	"wall_material" : "x['wall']+1",
+	"cb_size" : "x['main switch']",
+	"floor_area" : "x['floor area']",
+	"years_electrified" : "x['years']"
+	},
+"bins" : {},
+"labels" : {},
+"cut" : {},
+"geo" : "Municipality"
+}
