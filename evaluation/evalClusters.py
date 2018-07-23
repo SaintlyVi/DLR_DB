@@ -348,3 +348,27 @@ def clusterEntropy(likelihood, random_likelihood=None):
     ##TODO need to check how to calculate entropy when variables are weighted
     
     return cluster_entropy, max_entropy    
+
+def householdEntropy(label_data):
+    
+    if len(label_data.columns)>1:
+        return('Too many columns to compute. Select 1 column only')
+    else:
+        label_data.columns = ['k']
+    df = label_data.reset_index()
+    
+    data = df.groupby(['ProfileID','k'])['date'].count().rename('day_count').reset_index()
+    hh_lbls = data.pivot(index='ProfileID',columns='k',values='day_count')
+    hh_likelihood = hh_lbls.divide(hh_lbls.sum(axis=1), axis=0)
+    random_likelihood = 1/47
+    
+    cluster_entropy = hh_likelihood.applymap(lambda x : -x*log(x,2)).sum(axis=1)
+    max_entropy = -random_likelihood*log(random_likelihood,2)*47
+    
+    return cluster_entropy, max_entropy
+
+def monthlyHHE(lbls, S, month_ix):
+    hhe, me = householdEntropy(lbls[lbls.date.dt.month==month_ix].set_index(['ProfileID','date']))
+    Sent = pd.concat([S, (hhe/me)], axis=1, join='inner').rename(columns={0:'rele'})
+    sg = Sent.groupby('monthly_income').aggregate({'rele':['mean','std']})
+    return sg

@@ -51,7 +51,7 @@ def plotF(F, columns, save_name=None):
     
     return fig
 
-def genF(experiment, year_start, year_end, drop_0, socios):
+def genF(experiment, year_start, year_end, drop_0, socios, save=False):
 
     X = genX([1994,2014], drop_0)
     Xdd = pd.DataFrame(X.sum(axis=1), columns=['DD']).reset_index()
@@ -70,7 +70,7 @@ def genF(experiment, year_start, year_end, drop_0, socios):
     Xdd['season'] = Xdd.season.where(Xdd.season=='summer', 'winter')
     Xdd['daytype'] = Xdd.weekday.where(~Xdd.weekday.isin(work_week), 'weekday')
     
-    S = genS(socios, year_start, year_end, 'csv').reset_index()
+    S = genS(socios, year_start, year_end, 'feather').reset_index()
     Sdd = pd.concat([S, Xdd.groupby(['ProfileID']).DD.mean()], axis=1, join='inner').rename(columns={'DD':'ADD'})
 
     Xdd.drop(columns=['date','month','weekday','DD'], inplace=True)
@@ -84,11 +84,13 @@ def genF(experiment, year_start, year_end, drop_0, socios):
     bin_labels = ['{0:.0f}-{1:.0f}'.format(x,y) for x, y in zip(daily_demand_bins[:-1], daily_demand_bins[1:])]
     F['ADD'] = pd.cut(F.ADD, daily_demand_bins, labels=bin_labels, right=False)
     F['ADD'] = F.ADD.where(~F.ADD.isna(), 0)
-    F.iloc[:,1:] = F.iloc[:,1:].apply(lambda x: x.astype('category'))
+    F['ADD'] = F.ADD.astype('category')
+#    F.iloc[:,1:] = F.iloc[:,1:].apply(lambda x: x.astype('category'))
     F.ADD.cat.reorder_categories([0]+bin_labels, ordered=True,inplace=True)
     
-    for c in F.columns.drop(['ProfileID']):
-        plotF(F, [c], socios)
+    if save is True:
+        for c in F.columns.drop(['ProfileID']):
+            plotF(F, [c], socios)
     
     return F
 

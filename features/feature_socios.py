@@ -223,7 +223,7 @@ def extractSocios(searchlist, year=None, col_names=None, geo=None):
             pass
         
     if geo is None:
-        pass
+        result = result.merge(sub_ids[['AnswerID', 'ProfileID']], how='left')
     else:
         result = result.merge(sub_ids[['AnswerID', 'ProfileID', geo]], how='left')
                           
@@ -297,6 +297,7 @@ def generateSociosSetSingle(year, spec_file, set_id='ProfileID'):
                 data[k] = pd.cut(data[k], bins = bin_vals, labels = labels[k],
                     right=eval(cut[k]['right']), 
                                include_lowest=eval(cut[k]['include_lowest']))
+                data[k].cat.reorder_categories(labels[k], inplace=True)
             except KeyError:
                 data[k] = pd.cut(data[k], bins = bin_vals, labels = labels[k])                                  
         
@@ -334,7 +335,7 @@ def generateSociosSetMulti(spec_files, year_start=1994, year_end=2014):
     
     return ff
 
-def genS(spec_files, year_start, year_end, filetype='txt'):
+def genS(spec_files, year_start, year_end, filetype='feather'):
     """
     This function saves an evidence dataset with observations in the data directory.
     
@@ -355,10 +356,8 @@ def genS(spec_files, year_start, year_end, filetype='txt'):
     
     try:
         try:
-            with open(file_path, 'r') as f:
-                e = json.load(f)
-                evidence = pd.DataFrame(e).rename_axis('ProfileID')
-                evidence.index = evidence.index.astype(int)
+            evidence = feather.read_dataframe(file_path)
+            evidence.set_index('ProfileID',inplace=True)
         except:
             evidence = pd.read_csv(file_path).set_index('ProfileID')
     
@@ -367,8 +366,8 @@ def genS(spec_files, year_start, year_end, filetype='txt'):
         evidence = generateSociosSetMulti(spec_files, year_start, year_end)
         status = 1      
         message = 'Success!'
-        if filetype == 'txt':
-            evidence.to_json(file_path)
+        if filetype == 'feather':
+            feather.write_dataframe(evidence.reset_index(), file_path)
         elif filetype == 'csv':
             evidence.to_csv(file_path)
         else:
