@@ -235,7 +235,7 @@ def generateSociosSetSingle(year, spec_file, set_id='ProfileID'):
     
     """
     #Get feature specficiations
-    files = glob(os.path.join(feature_dir, 'specification', spec_file + '*' + '.txt'))
+    files = glob(os.path.join(feature_dir, 'specification', spec_file + '*.txt'))
 
     for file_path in files:
         try:

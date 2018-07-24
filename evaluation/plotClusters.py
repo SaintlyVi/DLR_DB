@@ -24,19 +24,47 @@ from matplotlib.colors import LinearSegmentedColormap
 
 import evaluation.evalClusters as ec
 
-def plotClusterIndex(index, title, ylog=False):
+def plotPrettyColours():
+    
+    cluster_results = ec.readResults()    
+    experiments = pd.DataFrame(cluster_results.experiment_name.unique(), columns=['experiment'])
+    experiments['root'] = experiments.applymap(lambda x: '_'.join(x.split('_',2)[0:2]))
+    experiments['root'] = experiments.root.astype('category')
+    
+    colour_seq = ['Reds','OrRd','Oranges','YlOrBr','Greens','BuGn','YlGn','PuBu','Blues','Purples']
+    experiments.root.cat.rename_categories(colour_seq, inplace=True)
+    col_temp = experiments.groupby('root').apply(lambda x: len(x))
+    
+    my_cols = list()
+    for c, v in col_temp.items():
+        i = 0
+        while i < v:
+            my_cols.append(cl.scales['7']['seq'][c][-1-i])
+            i+=1
+    
+    colours = dict(zip(experiments.experiment, my_cols))
+    
+    return colours
+
+def plotClusterIndex(index, title, experiments, groupby='algorithm', ylog=False):
     cluster_results = ec.readResults()
-    experiments = cluster_results.experiment_name.unique()
-    colours = dict(zip(experiments, cl.scales[str(len(experiments))]['qual']['Paired']))
+    cluster_results = cluster_results.groupby(['experiment_name','som_dim','n_clust']).mean().reset_index() 
+    cluster_results = cluster_results[cluster_results.experiment_name.isin(experiments)]
+    cluster_results['series'] = cluster_results['som_dim'].where(
+         (cluster_results['n_clust'] != 0) & 
+         (cluster_results['som_dim'] != 0), '')
+    colours = plotPrettyColours()
     df = cluster_results.set_index(['experiment_name','series'])[[index,'clusters']]
     data = pd.pivot_table(df[[index,'clusters']], index='clusters', columns=df.index, values=index)
 
     #generate plot data
+    groupdict = dict(zip(['experiment','algorithm'],[0,1]))
     traces = []
     for c in data.columns:
+        t = c[0].split('_',1)+[str(c[1])]
         x = data.index
         y = data[c]
-        n = '_'.join([c[0].split('_',1)[1],str(c[1])])
+        n = ' '.join(t)
         hovertext = list()
         for i in x:
             hovertext.append('{}<br />{}: {:.3f}<br />{} clusters<br />'.format(n, index, y[i], i))
@@ -45,7 +73,7 @@ def plotClusterIndex(index, title, ylog=False):
             x=x,
             y=y,
             name=n,
-            legendgroup=c[0].split('_',1)[1],
+            legendgroup=t[groupdict[groupby]],
             mode='lines+markers',
             marker=dict(size=3),
             line=dict(color=colours[c[0]]),

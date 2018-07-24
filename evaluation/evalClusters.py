@@ -12,19 +12,30 @@ import datetime as dt
 from math import ceil, log
 import feather
 import os
+from glob import glob
 import peakutils
 
 import features.feature_ts as ts
 from support import data_dir, results_dir
 
+def getExperiments(exp_root):
+    """
+    Retrieve experiments with root name exp_root from the results directory. 
+    Returns list of unique experiments with root exp_root.
+    """
+    
+    exps = glob(os.path.join(data_dir,'cluster_results',exp_root + '*'))
+    experiments = list(pd.Series([('_').join(x.split('/')[-1].split('_')[:-1]) for x in exps]).drop_duplicates())
+    
+    return experiments
+
 def readResults():
     cluster_results = pd.read_csv('results/cluster_results.csv')
-    cluster_results.drop_duplicates(subset=['dbi','mia','experiment_name'],keep='last',inplace=True)
+    cluster_results.drop_duplicates(subset=['dbi','mia','experiment_name','amd_bin'],keep='last',inplace=True)
     cluster_results = cluster_results[cluster_results.experiment_name != 'test']
-    cluster_results['clusters'] = cluster_results['n_clust'].where(cluster_results['n_clust'] > 0, 
-                   cluster_results['som_dim']**2)
-    cluster_results['series'] = cluster_results['som_dim'].where(cluster_results['n_clust'] != 0, '')
-    cluster_results['score'] = cluster_results.dbi*cluster_results.mia/cluster_results.silhouette
+    cluster_results['clusters'] = cluster_results.loc[:, 'n_clust'].where( 
+            cluster_results['n_clust'] > 0,
+            cluster_results['som_dim']**2)
     
     return cluster_results
 
@@ -32,8 +43,13 @@ def selectClusters(cluster_results, n_best, experiment='all' ):
     if experiment=='all':
         experiment_clusters = cluster_results
     else:
-        experiment_clusters = cluster_results.loc[cluster_results.experiment_name==experiment,:]
-    best_clusters = experiment_clusters.loc[experiment_clusters.score>0,['experiment_name','som_dim','n_clust','dbi','mia','silhouette','score']].nsmallest(columns='score',n=n_best).reset_index(drop=True)
+        experiment_clusters = cluster_results.loc[cluster_results.experiment_name.str.contains(experiment),:]
+        
+    experiment_clusters = experiment_clusters.groupby(['experiment_name','som_dim',
+                                                       'n_clust']).mean().reset_index() 
+    best_clusters = experiment_clusters.loc[experiment_clusters.all_scores>0,:].nsmallest(
+            columns='all_scores',n=n_best).reset_index(drop=True).reindex(
+                    ['experiment_name','som_dim','n_clust','dbi','mia','silhouette','all_scores'],axis=1)
         
     return best_clusters
 
