@@ -16,6 +16,7 @@ from glob import glob
 import peakutils
 
 import features.feature_ts as ts
+from experiment.algorithms.clusters import amdBins
 from support import data_dir, results_dir
 
 def getExperiments(exp_root):
@@ -24,7 +25,7 @@ def getExperiments(exp_root):
     Returns list of unique experiments with root exp_root.
     """
     
-    exps = glob(os.path.join(data_dir,'cluster_results',exp_root + '*'))
+    exps = glob(os.path.join(data_dir,'cluster_results',exp_root + '*.csv'))
     experiments = list(pd.Series([('_').join(x.split('/')[-1].split('_')[:-1]) for x in exps]).drop_duplicates())
     
     return experiments
@@ -33,7 +34,8 @@ def readResults():
     cluster_results = pd.read_csv('results/cluster_results.csv')
     cluster_results.drop_duplicates(subset=['dbi','mia','experiment_name','amd_bin'],keep='last',inplace=True)
     cluster_results = cluster_results[cluster_results.experiment_name != 'test']
-    cluster_results['clusters'] = cluster_results.loc[:, 'n_clust'].where( 
+    cluster_results['score'] = cluster_results.dbi * cluster_results.mia / cluster_results.silhouette
+    cluster_results['clusters'] = cluster_results.loc[:, 'n_clust'].where(
             cluster_results['n_clust'] > 0,
             cluster_results['som_dim']**2)
     
@@ -47,22 +49,45 @@ def selectClusters(cluster_results, n_best, experiment='all' ):
         
     experiment_clusters = experiment_clusters.groupby(['experiment_name','som_dim',
                                                        'n_clust']).mean().reset_index() 
-    best_clusters = experiment_clusters.loc[experiment_clusters.all_scores>0,:].nsmallest(
-            columns='all_scores',n=n_best).reset_index(drop=True).reindex(
-                    ['experiment_name','som_dim','n_clust','dbi','mia','silhouette','all_scores'],axis=1)
+    best_clusters = experiment_clusters.loc[experiment_clusters.score>0,:].nsmallest(
+            columns='score',n=n_best).reset_index(drop=True).reindex(
+                    ['experiment_name','som_dim','n_clust','dbi','mia','silhouette','score'],axis=1)
         
     return best_clusters
 
-def getLabels(experiment, drop_0=False, count_best=1):
+def getLabels(experiment, drop_0=False):
+
+    X = ts.genX([1994,2014], drop_0)
+
+    if int(experiment[3]) < 4:
+        path = glob(os.path.join(data_dir, 'cluster_results', experiment+'_*_labels.feather'))[0]
+        labels = feather.read_dataframe(path).iloc[:, 0]
+        X.reset_index(inplace=True)
+        X['k'] = labels
+        XL = X.set_index(['ProfileID','date'])
+    elif int(experiment[3]) == 4: #reconstruct full X for experiment 4
+        Xbin = amdBins(X)
+        XL = pd.DataFrame()
+        for b, ids in Xbin.items():
+            paths = glob(os.path.join(data_dir, 'cluster_results', experiment+'*'+b+'_labels.feather'))
+            paths.sort()
+            path = paths[0]
+            labels = feather.read_dataframe(path).iloc[:, 0]
+            
+            if XL.empty == True:
+                cluster_add = 1
+            else:
+                cluster_add = XL['k'].max() + 1
+                print(cluster_add)
+            A = X.loc[ids,:].reset_index()   
+            A['k'] = labels + cluster_add       
+            XL = XL.append(A)
+        XL.set_index(['ProfileID','date'], inplace=True)
+        del Xbin
+        
+    del X
     
-    labels = feather.read_dataframe(os.path.join(data_dir, 'cluster_results', 
-                                                 experiment+'_labels.feather')).iloc[:,:count_best]
-    X = ts.genX([1994,2014], drop_0).reset_index()   
-    exp =  experiment.split('_',1)[-1]
-    for i in range(0, count_best):
-        X[exp+str(i+1)] = labels.iloc[:,i]
-    
-    return X.set_index(['ProfileID','date'])
+    return XL
 
 def bestLabels(experiment, n_best=1):
     X = getLabels(experiment, n_best)

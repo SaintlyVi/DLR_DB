@@ -31,7 +31,7 @@ def plotPrettyColours():
     experiments['root'] = experiments.applymap(lambda x: '_'.join(x.split('_',2)[0:2]))
     experiments['root'] = experiments.root.astype('category')
     
-    colour_seq = ['Reds','OrRd','Oranges','YlOrBr','Greens','BuGn','YlGn','PuBu','Blues','Purples']
+    colour_seq = ['Reds','Oranges','YlOrBr','Greens','BuGn','YlGn','PuBu','Blues','Purples']
     experiments.root.cat.rename_categories(colour_seq, inplace=True)
     col_temp = experiments.groupby('root').apply(lambda x: len(x))
     
