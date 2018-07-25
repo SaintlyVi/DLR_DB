@@ -135,15 +135,14 @@ def plotClusterCentroids(centroids, cluster_size, meta, n_best=1):
     
 def plotClusterLabels(label_data, year, n_clust=None, som_dim=0):
     
-    if n_clust is None:
-        c = label_data.columns[0]
-    else:
-        c = str(som_dim)+'_'+str(n_clust)
-    df = label_data.loc[pd.IndexSlice[:,str(year)],[c]].reset_index()
+#    if n_clust is None:
+#        c = label_data.columns[0]
+#    else:
+#        c = str(som_dim)+'_'+str(n_clust)
+    df = label_data.loc[pd.IndexSlice[:,str(year)],'k'].reset_index()
     df.date = df.date.dt.date
     
-    fig = df.iplot(kind='heatmap', title='Daily cluster labels for profiles in '+str(year)+
-                   ' (cluster ='+c+')', x='date', y='ProfileID', z=c, colorscale='spectral', asFigure=True)
+    fig = df.iplot(kind='heatmap', title='Daily cluster labels for profiles in '+str(year), x='date', y='ProfileID', z='k', colorscale='spectral', asFigure=True)
 
     fig['layout']['yaxis'].update(dict(type='category',title='ProfileID'))
     fig['layout']['xaxis'].update(dict(title='Date'))
@@ -236,7 +235,7 @@ def plotClusterSpecificity(data, corr_list, n_clust=None):
     print('n_clust options: \n', data.columns.values)
     
     if n_clust is None:
-        n_clust = data.columns[0]
+        n_clust = data.columns[-1]
 
     n_corr = len(corr_list)    
     
