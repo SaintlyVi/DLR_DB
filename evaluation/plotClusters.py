@@ -126,7 +126,7 @@ def plotClusterCentroids(centroids, cluster_size, meta, n_best=1):
     
     fig['layout']['xaxis1'].update(title='time of day')
     fig['layout']['xaxis2'].update(tickangle=270)
-    fig['layout']['yaxis1'].update(title='normalised load profile')
+    fig['layout']['yaxis1'].update(title='load profile')
     fig['layout']['yaxis2'].update(title='profile count')
     fig['layout']['margin'].update(t=50,r=80,b=100,l=90,pad=10),
     fig['layout'].update(height=700, hovermode = "closest")
