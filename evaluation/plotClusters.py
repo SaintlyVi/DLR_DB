@@ -31,7 +31,7 @@ def plotPrettyColours():
     experiments['root'] = experiments.applymap(lambda x: '_'.join(x.split('_',2)[0:2]))
     experiments['root'] = experiments.root.astype('category')
     
-    colour_seq = ['Reds','Oranges','YlOrBr','Greens','BuGn','YlGn','PuBu','Blues','Purples']
+    colour_seq = ['Reds','Oranges','YlOrBr','Greens','BuGn','YlGn','PuBu','Blues','Purples','PuRd']
     experiments.root.cat.rename_categories(colour_seq, inplace=True)
     col_temp = experiments.groupby('root').apply(lambda x: len(x))
     
@@ -101,15 +101,15 @@ def plotClusterIndex(index, title, experiments, groupby='algorithm', ylog=False)
 
 def plotClusterCentroids(centroids, cluster_size, meta, n_best=1):
     
-    traces = centroids.T
-    n_clust = traces.columns[-1]+1
-    traces.columns = ['cluster ' + str(k+1) for k in traces.columns.values]   
+    traces = centroids.iloc[:, 0:24].T
+    n_clust = traces.columns[-1]
+    traces.columns = ['cluster ' + str(k) for k in traces.columns.values]   
     largest = 'cluster '+str(cluster_size.idxmax()+1)
     
     n_best = meta['n_best']
     experiment_name = meta['experiment_name']
     
-    colours = cl.interp(cl.scales['12']['qual']['Paired'], 100)[:n_clust]
+    colours = cl.interp(cl.scales['12']['qual']['Paired'], 100)[:n_clust+1]
     
     fig = tools.make_subplots(rows=3, cols=1, shared_xaxes=False, specs=[[{'rowspan': 2}],[None],[{}]],
                               subplot_titles=['cluster profiles '+experiment_name+' (n='+str(n_clust)+
@@ -120,9 +120,12 @@ def plotClusterCentroids(centroids, cluster_size, meta, n_best=1):
             width = 3
         else:
             width = 1
-        fig.append_trace({'x': traces.index, 'y': traces[col], 'line':{'color':colours[i],'width':width}, 'type': 'scatter', 'name': col}, 1, 1)
+        fig.append_trace({'x': traces.index, 'y': traces[col], 'line':{'color':colours[i],'width':width}, 
+                          'type': 'scatter', 'legendgroup':centroids['amd_bins'][i+1], 'name': col}, 1, 1)
+#        fig.append_trace({'x': col, 'y': cluster_size[i+1], 'type': 'bar', 
+#                          'legendgroup':centroids['amd_bins'][i+1], 'name': col} , 3, 1)
         i+=1
-    fig.append_trace({'x': traces.columns, 'y': cluster_size, 'type': 'bar', 'name': str(n_clust)+' clusters'} , 3, 1)
+    fig.append_trace({'x': traces.columns, 'y': cluster_size, 'type': 'bar', 'legendgroup':centroids['amd_bins'][i+1], 'name': str(n_clust)+' clusters'} , 3, 1)
     
     fig['layout']['xaxis1'].update(title='time of day')
     fig['layout']['xaxis2'].update(tickangle=270)
@@ -234,8 +237,8 @@ def plotClusterSpecificity(data, corr_list, n_clust=None):
     
     print('n_clust options: \n', data.columns.values)
     
-    if n_clust is None:
-        n_clust = data.columns[-1]
+#    if n_clust is None:
+#        n_clust = data.columns[-1]
 
     n_corr = len(corr_list)    
     

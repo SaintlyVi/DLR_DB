@@ -56,7 +56,7 @@ def selectClusters(cluster_results, n_best, experiment='all' ):
                           ]).mean().reset_index() 
             experiment_clusters = experiment_clusters.append(i_ec, sort=True)
             
-        elif int(e[3]) == 4:
+        elif int(e[3]) >= 4:
             temp_ec = exc.loc[exc.loc[exc.experiment_name == e].groupby(['experiment_name', 'som_dim', 
                               'amd_bin'])['score'].idxmin(), ['experiment_name', 'som_dim', 'n_clust', 'amd_bin', 'dbi', 'mia', 'silhouette', 'score', 'total_sample']]
             
@@ -97,40 +97,43 @@ def getLabels(experiment, drop_0=False, n_best=1):
     label_path = os.path.join(data_dir, 'cluster_results', experiment+'BEST'+str(n_best)+'_labels.feather')
 
     try:
-        XL = feather.read_dataframe(label_path)
+        XL = feather.read_dataframe(label_path).set_index(['ProfileID','date'])
     
     except:    
-        print('Creating labelled dataframe...')
         X = ts.genX([1994,2014], drop_0)
     
         if int(experiment[3]) < 4:
             path = glob(os.path.join(data_dir, 'cluster_results', experiment+'_*_labels.feather'))[0]
             labels = feather.read_dataframe(path).iloc[:, n_best-1]
             X.reset_index(inplace=True)
-            X['k'] = labels
+            X['k'] = labels + 1
+            X['amd_bin'] = '0-4000'
             XL = X.set_index(['ProfileID','date'])
     
-        elif int(experiment[3]) == 4: #reconstruct full X for experiment 4
+        elif int(experiment[3]) >= 4: #reconstruct full X for experiment 4, 5
+            print('Creating labelled dataframe...')
+            Xbin = amdBins(X)
+            XL = pd.DataFrame()
     
-                Xbin = amdBins(X)
-                XL = pd.DataFrame()
-        
-                for b, ids in Xbin.items():
-                    paths = glob(os.path.join(data_dir, 'cluster_results', experiment+'*'+b+'_labels.feather'))
-                    paths.sort()
-                    path = paths[0]
-                    labels = feather.read_dataframe(path).iloc[:, n_best-1]
-                    
-                    if XL.empty == True:
-                        cluster_add = 1
-                    else:
-                        cluster_add = XL['k'].max() + 1
-                    A = X.loc[ids,:].reset_index()   
-                    A['k'] = labels + cluster_add       
-                    XL = XL.append(A)
-                XL.set_index(['ProfileID','date'], inplace=True)
-                feather.write_dataframe(label_path)
-                del Xbin
+            for b, ids in Xbin.items():
+                paths = glob(os.path.join(data_dir, 'cluster_results', experiment+'*'+b+'_labels.feather'))
+                paths.sort()
+                path = paths[0]
+                labels = feather.read_dataframe(path).iloc[:, n_best-1]
+                
+                if XL.empty == True:
+                    cluster_add = 1
+                else:
+                    cluster_add = XL['k'].max() + 1
+                A = X.loc[ids,:].reset_index()   
+                A['k'] = labels + cluster_add
+                A['amd_bin'] = b
+                XL = XL.append(A)
+                
+            feather.write_dataframe(XL, label_path)
+            XL.set_index(['ProfileID','date'], inplace=True)
+            
+            del Xbin
         del X
     
     return XL
@@ -153,6 +156,9 @@ def bestLabels(experiment, X, n_best=1):
     return data
 
 def getCentroids(selected_clusters, n_best=1):
+    """
+    Currently only useable for exp2 and exp3
+    """
 
     best_experiments = list(selected_clusters.experiment_name.unique())
     centroid_files = dict(zip(best_experiments,[e+'_centroids.csv' for e in best_experiments]))
@@ -178,19 +184,20 @@ def getCentroids(selected_clusters, n_best=1):
     
     return centroids, cluster_size, meta
 
-def realCentroids(labels, experiment, n_best=1):
+def realCentroids(xlabel, experiment, n_best=1):
     
-    centroids = labels.groupby('k').mean()
-    cluster_size = labels.groupby('k')['0'].count()    
+    centroids = xlabel.groupby('k').mean()
+    centroids['amd_bins'] = [xlabel.loc[xlabel.k==i,'amd_bin'].iloc[0] for i in centroids.index]
+    cluster_size = xlabel.groupby('k')['0'].count()    
     meta = dict(experiment_name=experiment, n_best=n_best)
     
     return centroids, cluster_size, meta
 
 def clusterColNames(data):    
-    data.columns = ['Cluster '+str(x+1) for x in data.columns]
+    data.columns = ['Cluster '+str(x) for x in data.columns]
     return data
 
-def consumptionError(experiment, compare='total', n_best=1):
+def consumptionError(xlabel, centroids, compare='total'):
     """
     Calculate error metrics for total daily consumption (compare=total) or peak daily consumption (compare=peak).
     Returns 
@@ -199,17 +206,13 @@ def consumptionError(experiment, compare='total', n_best=1):
     median log accuracy ratio (Q=predicted/actual)
     median symmetric accuracy
     """
-
-    X = getLabels(experiment, n_best)
-    centroids, cluster_size, meta = realCentroids(experiment, n_best)
     
     if compare == 'total':
-        X_dd = pd.concat([X.iloc[:,list(range(0,24))].sum(axis=1), X.iloc[:,-1]], axis=1, keys=['DD','k'])
+        X_dd = pd.concat([xlabel.iloc[:,list(range(0,24))].sum(axis=1), xlabel.iloc[:,-2]], axis=1, keys=['DD','k'])
         cent_dd = centroids.sum(axis=1).rename_axis('k',0).reset_index(name='DD')
     elif compare == 'peak':
-        X_dd = pd.concat([X.iloc[:,list(range(0,24))].max(axis=1), X.iloc[:,-1]], axis=1, keys=['DD','k'])
+        X_dd = pd.concat([xlabel.iloc[:,list(range(0,24))].max(axis=1), xlabel.iloc[:,-2]], axis=1, keys=['DD','k'])
         cent_dd = centroids.max(axis=1).rename_axis('k',0).reset_index(name='DD')
-    del X  
 
     X_dd['ae'] = 0
     X_dd['logq'] = 0
@@ -233,32 +236,33 @@ def consumptionError(experiment, compare='total', n_best=1):
            
     return mape, mdape, mdlq, mdsyma
 
-def centroidPeaks(experiment, n_best=1):
-    centroids, cluster_size, meta = realCentroids(experiment, n_best)
+def centroidPeaks(centroids, meta):
+    
+    cents = centroids.iloc[:, 0:24]
     cent_peak = dict()
-    for i in centroids.iterrows():
+    for i in cents.iterrows():
         h = peakutils.peak.indexes(i[1], thres=0.5, min_dist=1)
-        val = centroids.iloc[i[0], h].values
+        val = cents.iloc[i[0]-1, h].values
         cent_peak[i[0]] = dict(zip(h,val))
         
-    return cent_peak
+    return cent_peak, meta
 
-def peakCoincidence(experiment, n_best=1):
+def peakCoincidence(xlabel, centroids, meta):
+    
+    mod_xl = xlabel.drop(columns='amd_bin')
     
     try:
         #get peakcoincidence from csv
         data=pd.read_csv(os.path.join(results_dir, 'peak_coincidence.csv'))
-        peak_eval = data.loc[(data['experiment']==experiment)&(data['n_best']==n_best),:]
-        peak_eval = peak_eval.drop_duplicates(subset=['k', 'experiment', 'n_best'], inplace=False, keep='last')
+        peak_eval = data.loc[data['meta']==meta,:]
+        peak_eval = peak_eval.drop_duplicates(subset=['k', 'meta'], inplace=False, keep='last')
         if len(peak_eval) == 0:
             raise Exception
     except:
-        X = getLabels(experiment, n_best)
-        X2 = pd.concat([X.iloc[:,list(range(0,24))], X.iloc[:,-1]], axis=1)
+        X2 = pd.concat([mod_xl.iloc[:,list(range(0,24))], mod_xl.iloc[:,-1]], axis=1)
         X2.columns = list(range(0,24))+['k']
-        del X
         
-        cent_peak = centroidPeaks(experiment, n_best)
+        cent_peak, meta = centroidPeaks(centroids, meta)
     
         clusters = X2.iloc[:,-1].unique()
         clusters.sort()
@@ -276,8 +280,7 @@ def peakCoincidence(experiment, n_best=1):
         peak_eval = pd.DataFrame(list(X_peak.items()), columns=['k','mean_coincidence'])
         count_cent_peaks = [len(cent_peak[i].keys()) for i in cent_peak.keys()]
         peak_eval['coincidence_ratio'] = peak_eval.mean_coincidence/count_cent_peaks
-        peak_eval['experiment'] = experiment
-        peak_eval['n_best'] = n_best
+        peak_eval['meta'] = meta
         
         pcpath = os.path.join(results_dir, 'peak_coincidence.csv')
         if os.path.isfile(pcpath):
@@ -293,15 +296,16 @@ def meanError(metric_vals):
     err = metric_vals.where(~np.isinf(metric_vals)).mean()    
     return err
 
-def demandCorr(experiment, compare='total', n_best=1):
+def demandCorr(xlabel, compare='total'):
 
-    X = getLabels(experiment, n_best)
+    mod_xl = xlabel.drop(columns='amd_bin')
+    
     if compare == 'total':
-        data = pd.concat([X.iloc[:,list(range(0,24))].sum(axis=1), X.iloc[:,-1]], axis=1, keys=['DD','k'])
+        data = pd.concat([mod_xl.iloc[:,list(range(0,24))].sum(axis=1), mod_xl.iloc[:,-1]], axis=1, keys=['DD','k'])
     elif compare == 'peak':
-        data = pd.concat([X.iloc[:,list(range(0,24))].max(axis=1), X.iloc[:,-1]], axis=1, keys=['DD','k'])
-
-    del X #clear memory
+        data = pd.concat([mod_xl.iloc[:,list(range(0,24))].max(axis=1), mod_xl.iloc[:,-1]], axis=1, keys=['DD','k'])
+        
+    del mod_xl
     
     data.reset_index(inplace=True)
     data.date = data.date.astype(dt.date)#pd.to_datetime(data.date)
@@ -332,13 +336,15 @@ def demandCorr(experiment, compare='total', n_best=1):
     
     return int100_likelihood, q100_likelihood
 
-def weekdayCorr(label_data):
+def weekdayCorr(xlabel):
 
-    if len(label_data.columns)>1:
-        return('Too many columns to compute. Select 1 column only')
-    else:
-        label_data.columns = ['k']
-    df = label_data.reset_index()
+    df = xlabel['k'].reset_index()
+    
+#    if len(label_data.columns)>1:
+#        return('Too many columns to compute. Select 1 column only')
+#    else:
+#        label_data.columns = ['k']
+#    df = label_data.reset_index()
     weekday_lbls = df.groupby(['k',df.date.dt.weekday])['ProfileID'].count().unstack(level=0)
     weekday_lbls.set_axis(['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'], axis=0, inplace=True)
     weekday_lbls = clusterColNames(weekday_lbls)
@@ -353,13 +359,15 @@ def weekdayCorr(label_data):
     
     return weekday_likelihood, relative_likelihood
 
-def monthlyCorr(label_data):
+def monthlyCorr(xlabel):
+
+    df = xlabel['k'].reset_index()
     
-    if len(label_data.columns)>1:
-        return('Too many columns to compute. Select 1 column only')
-    else:
-        label_data.columns = ['k']
-    df = label_data.reset_index()
+#    if len(label_data.columns)>1:
+#        return('Too many columns to compute. Select 1 column only')
+#    else:
+#        label_data.columns = ['k']
+#    df = label_data.reset_index()
     month_lbls = df.groupby(['k',df.date.dt.month])['ProfileID'].count().unstack(level=0)
     month_lbls = clusterColNames(month_lbls)
     month_likelihood = month_lbls.divide(month_lbls.sum(axis=0), axis=1)
@@ -369,13 +377,15 @@ def monthlyCorr(label_data):
     
     return month_likelihood, relative_likelihood
 
-def yearlyCorr(label_data):
+def yearlyCorr(xlabel):
+
+    df = xlabel['k'].reset_index()
     
-    if len(label_data.columns)>1:
-        return('Too many columns to compute. Select 1 column only')
-    else:
-        label_data.columns = ['k']
-    df = label_data.reset_index()
+#    if len(label_data.columns)>1:
+#        return('Too many columns to compute. Select 1 column only')
+#    else:
+#        label_data.columns = ['k']
+#    df = label_data.reset_index()
     year_lbls = df.groupby(['k',df.date.dt.year])['ProfileID'].count().unstack(level=0)
     year_lbls = clusterColNames(year_lbls).T
     year_likelihood = year_lbls.divide(year_lbls.sum(axis=0), axis=1)    
@@ -385,13 +395,15 @@ def yearlyCorr(label_data):
     
     return year_likelihood, relative_likelihood, 
 
-def daytypeCorr(label_data):
+def daytypeCorr(xlabel):
+
+    df = xlabel['k'].reset_index()
     
-    if len(label_data.columns)>1:
-        return('Too many columns to compute. Select 1 column only')
-    else:
-        label_data.columns = ['k']
-    df = label_data.reset_index()
+#    if len(label_data.columns)>1:
+#        return('Too many columns to compute. Select 1 column only')
+#    else:
+#        label_data.columns = ['k']
+#    df = label_data.reset_index()
     weekday_lbls = df.groupby(['k',df.date.dt.weekday])['ProfileID'].count().unstack(level=0)
     weekday_lbls.set_axis(['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'], axis=0, inplace=True)
     daytype = weekday_lbls[weekday_lbls.index.isin(['Monday','Tuesday','Wednesday','Thursday','Friday'])].sum(axis=0).to_frame('weekday').T
@@ -404,13 +416,15 @@ def daytypeCorr(label_data):
    
     return daytype_likelihood, relative_likelihood
 
-def seasonCorr(label_data):
+def seasonCorr(xlabel):
+
+    df = xlabel['k'].reset_index()
     
-    if len(label_data.columns)>1:
-        return('Too many columns to compute. Select 1 column only')
-    else:
-        label_data.columns = ['k']
-    df = label_data.reset_index()
+#    if len(label_data.columns)>1:
+#        return('Too many columns to compute. Select 1 column only')
+#    else:
+#        label_data.columns = ['k']
+#    df = label_data.reset_index()
     month_lbls = df.groupby(['k',df.date.dt.month])['ProfileID'].count().unstack(level=0)    
     summer = month_lbls[~month_lbls.index.isin([5, 6, 7, 8])].sum(axis=0).to_frame('summer').T
     winter = month_lbls[month_lbls.index.isin([5, 6, 7, 8])].sum(axis=0).to_frame('winter').T        
@@ -437,7 +451,9 @@ def clusterEntropy(likelihood, random_likelihood=None):
     
     return cluster_entropy, max_entropy    
 
-def householdEntropy(label_data):
+def householdEntropy(xlabel):
+
+    label_data = xlabel['k']
     
     if len(label_data.columns)>1:
         return('Too many columns to compute. Select 1 column only')
