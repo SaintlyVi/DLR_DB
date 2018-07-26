@@ -24,25 +24,41 @@ from matplotlib.colors import LinearSegmentedColormap
 
 import evaluation.evalClusters as ec
 
-def plotPrettyColours():
-    
-    cluster_results = ec.readResults()    
-    experiments = pd.DataFrame(cluster_results.experiment_name.unique(), columns=['experiment'])
-    experiments['root'] = experiments.applymap(lambda x: '_'.join(x.split('_',2)[0:2]))
-    experiments['root'] = experiments.root.astype('category')
-    
-    colour_seq = ['Reds','Oranges','YlOrBr','Greens','BuGn','YlGn','PuBu','Blues','Purples','PuRd']
-    experiments.root.cat.rename_categories(colour_seq, inplace=True)
-    col_temp = experiments.groupby('root').apply(lambda x: len(x))
+def plotPrettyColours(data, grouping):
+   
+    if grouping == 'experiments':
+        colour_seq = ['Reds','Oranges','YlOrBr','YlGn','Greens','BuGn','Blues',
+                      'PuBu','Purples','PuRd']
+        df = pd.DataFrame(data.experiment_name.unique(), columns=['name'])
+        df['root'] = df.applymap(lambda x: '_'.join(x.split('_',2)[0:2]))
+        df['root'] = df.root.astype('category')
+        
+    elif grouping == 'amd_bins':
+        colour_seq = ['YlGn','PuRd','Blues','YlOrBr','Greens','Oranges',
+                      'Purples','PuBu','BuGn','Reds']
+        df = data['amd_bins'].reset_index().rename({'amd_bins':'root', 'k':'name'}, axis=1)
+                
+    df.root.cat.rename_categories(colour_seq[:len(df.root.cat.categories)], inplace=True)
+    col_temp = df.groupby('root').apply(lambda x: len(x))
     
     my_cols = list()
     for c, v in col_temp.items():
-        i = 0
-        while i < v:
-            my_cols.append(cl.scales['7']['seq'][c][-1-i])
-            i+=1
+        try:
+            i = 0
+            gcol=list()
+            while i < v:
+                gcol.append(cl.scales['9']['seq'][c][2+i])
+                i+=1
+        except:
+            i = 0
+            gcol=list()
+            jump = int(80/v)
+            while i < v:
+                gcol.append(cl.to_rgb(cl.interp(cl.scales['9']['seq'][c], 100))[-1-jump*i])
+                i+=1
+        my_cols+=gcol
     
-    colours = dict(zip(experiments.experiment, my_cols))
+    colours = dict(zip(df.name, my_cols))
     
     return colours
 
@@ -53,7 +69,8 @@ def plotClusterIndex(index, title, experiments, groupby='algorithm', ylog=False)
     cluster_results['series'] = cluster_results['som_dim'].where(
          (cluster_results['n_clust'] != 0) & 
          (cluster_results['som_dim'] != 0), '')
-    colours = plotPrettyColours()
+    
+    colours = plotPrettyColours(cluster_results,'experiments')
     df = cluster_results.set_index(['experiment_name','series'])[[index,'clusters']]
     data = pd.pivot_table(df[[index,'clusters']], index='clusters', columns=df.index, values=index)
 
@@ -104,13 +121,12 @@ def plotClusterCentroids(centroids, cluster_size, meta, n_best=1):
     traces = centroids.iloc[:, 0:24].T
     n_clust = traces.columns[-1]
     traces.columns = ['cluster ' + str(k) for k in traces.columns.values]   
-    largest = 'cluster '+str(cluster_size.idxmax()+1)
+    largest = 'cluster '+str(cluster_size.idxmax())
     
     n_best = meta['n_best']
     experiment_name = meta['experiment_name']
     
-    colours = cl.interp(cl.scales['12']['qual']['Paired'], 100)[:n_clust+1]
-    
+    colours =  plotPrettyColours(centroids, 'amd_bins')    
     fig = tools.make_subplots(rows=3, cols=1, shared_xaxes=False, specs=[[{'rowspan': 2}],[None],[{}]],
                               subplot_titles=['cluster profiles '+experiment_name+' (n='+str(n_clust)+
                                               ') TOP '+str(n_best),'cluster sizes'], print_grid=False)  
@@ -120,12 +136,16 @@ def plotClusterCentroids(centroids, cluster_size, meta, n_best=1):
             width = 3
         else:
             width = 1
-        fig.append_trace({'x': traces.index, 'y': traces[col], 'line':{'color':colours[i],'width':width}, 
+        fig.append_trace({'x': traces.index, 'y': traces[col], 'line':{'color':colours[i+1],'width':width}, 
                           'type': 'scatter', 'legendgroup':centroids['amd_bins'][i+1], 'name': col}, 1, 1)
 #        fig.append_trace({'x': col, 'y': cluster_size[i+1], 'type': 'bar', 
 #                          'legendgroup':centroids['amd_bins'][i+1], 'name': col} , 3, 1)
         i+=1
-    fig.append_trace({'x': traces.columns, 'y': cluster_size, 'type': 'bar', 'legendgroup':centroids['amd_bins'][i+1], 'name': str(n_clust)+' clusters'} , 3, 1)
+    for b in centroids['amd_bins'].unique():
+        t = cluster_size[centroids.index[centroids.amd_bins==b]]
+        fig.append_trace({'x': t.index.values, 'y': t.values, 'type': 'bar', 'legendgroup':b, 'name': b, 
+                          'marker': dict(color=[colours[k] for k in t.index.values])} , 3, 1)
+#        fig.append_trace({'x': traces.columns, 'y': cluster_size, 'type': 'bar', 'legendgroup':centroids['amd_bins'][i+1], 'name': str(n_clust)+' clusters'} , 3, 1)
     
     fig['layout']['xaxis1'].update(title='time of day')
     fig['layout']['xaxis2'].update(tickangle=270)

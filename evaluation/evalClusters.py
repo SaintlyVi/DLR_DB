@@ -78,18 +78,21 @@ def selectClusters(cluster_results, n_best, experiment='all' ):
 def exploreAMDBins(cluster_results, experiment, amd_bin=None):
 
     if amd_bin is None:
-        exc = cluster_results[['experiment_name', 'som_dim', 'n_clust', 'amd_bin', 
-                               'dbi', 'mia', 'silhouette', 'score', 'total_sample']]
+        exc = cluster_results[['experiment_name','som_dim','n_clust','amd_bin',
+                               'dbi','mia','silhouette','score','total_sample']]
     else:
-        exc = cluster_results.loc[cluster_results['amd_bin']==amd_bin, ['experiment_name', 'som_dim', 'n_clust',
-                                  'amd_bin', 'dbi', 'mia', 'silhouette', 'score', 'total_sample']]
-
-    temp_ec = exc.loc[exc.loc[exc.experiment_name.str.contains(experiment)].groupby(['experiment_name', 'som_dim', 
-                              'amd_bin'])['score'].idxmin(), ['experiment_name', 'som_dim', 'n_clust', 'amd_bin', 'dbi', 'mia', 'silhouette', 'score', 'total_sample']]
-        
-    temp_ec.set_index(['experiment_name','som_dim','n_clust'],inplace=True)
-    ec_amd = temp_ec.loc[:,['amd_bin','score','total_sample']]    
+        exc = cluster_results.loc[cluster_results['amd_bin']==amd_bin,['experiment_name','som_dim','n_clust',
+                                  'amd_bin','dbi','mia','silhouette','score','total_sample']]
     
+    temp_ec = exc.loc[exc.loc[exc.experiment_name.str.contains(experiment)].groupby(['experiment_name', 'som_dim','amd_bin'])['score'].idxmin(), ['experiment_name','som_dim','n_clust','amd_bin','dbi','mia', 'silhouette','score','total_sample']]
+    ordered_cats = [i for i in exc.amd_bin.unique() if i in temp_ec.amd_bin.unique()]
+    temp_ec.amd_bin = temp_ec.amd_bin.astype('category')
+    temp_ec.amd_bin = temp_ec.amd_bin.cat.reorder_categories(ordered_cats, ordered=True)
+    temp_ec.sort_values('amd_bin', inplace=True)
+    
+    temp_ec.set_index(['experiment_name','som_dim','n_clust'],inplace=True)
+    ec_amd = temp_ec.loc[:,['amd_bin','score','total_sample']]
+   
     return ec_amd
 
 def getLabels(experiment, drop_0=False, n_best=1):
@@ -136,7 +139,7 @@ def getLabels(experiment, drop_0=False, n_best=1):
             del Xbin
         del X
     
-    return XL
+    return XL.sort_index()
 
 def bestLabels(experiment, X, n_best=1):
     """
@@ -190,6 +193,10 @@ def realCentroids(xlabel, experiment, n_best=1):
     centroids['amd_bins'] = [xlabel.loc[xlabel.k==i,'amd_bin'].iloc[0] for i in centroids.index]
     cluster_size = xlabel.groupby('k')['0'].count()    
     meta = dict(experiment_name=experiment, n_best=n_best)
+    
+    ordered_cats = centroids.amd_bins.unique()
+    centroids.amd_bins = centroids.amd_bins.astype('category')
+    centroids.amd_bins = centroids.amd_bins.cat.reorder_categories(ordered_cats, ordered=True)
     
     return centroids, cluster_size, meta
 
@@ -280,7 +287,8 @@ def peakCoincidence(xlabel, centroids, meta):
         peak_eval = pd.DataFrame(list(X_peak.items()), columns=['k','mean_coincidence'])
         count_cent_peaks = [len(cent_peak[i].keys()) for i in cent_peak.keys()]
         peak_eval['coincidence_ratio'] = peak_eval.mean_coincidence/count_cent_peaks
-        peak_eval['meta'] = meta
+        peak_eval['experiment'] = meta['experiment_name']
+        peak_eval['n_best'] = meta['n_best']
         
         pcpath = os.path.join(results_dir, 'peak_coincidence.csv')
         if os.path.isfile(pcpath):
