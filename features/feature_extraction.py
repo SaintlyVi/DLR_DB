@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Sun Jul 23 13:59:37 2017
@@ -11,10 +12,9 @@ import numpy as np
 import datetime as dt
 import matplotlib.pyplot as plt
 
-from support import fdata_dir, writeLog, image_dir
+from support import writeLog, image_dir, data_dir, experiment_dir
 from features.feature_socios import genS
-from features.feature_ts import genX
-from evaluation.evalClusters import bestLabels
+from evaluation.eval_clusters import getLabels, getExpDetails
 
 def plotF(F, columns, save_name=None):
     """
@@ -51,44 +51,53 @@ def plotF(F, columns, save_name=None):
     
     return fig
 
-def genF(experiment, year_start, year_end, drop_0, socios, save=False):
+def genF(experiment, socios, savefig=False):
+    
+    year_start, year_end, drop_0, prepro, exp_root = getExpDetails(experiment)
+    
+    kf_path = os.path.join(data_dir, 'cluster_evaluation','k_features', experiment+'_'+socios+'.csv')
+    
+    if os.path.exists(kf_path) is True:
+        F = pd.read_csv(kf_path)
 
-    X = genX([1994,2014], drop_0)
-    Xdd = pd.DataFrame(X.sum(axis=1), columns=['DD']).reset_index()
-    del X
-    # Add cluster labels
-    Xdd['k'] = bestLabels(experiment, n_best=1).values + 1
-    # Add temporal features
-    Xdd['year']=Xdd.date.dt.year
-    Xdd['month']=Xdd.date.dt.month_name()
-    Xdd['weekday']=Xdd.date.dt.weekday_name
+    else:
+        print('Extracting and creating feature data...')
+        # Get cluster labels
+        XL = getLabels(experiment, n_best=1)
+        XL['DD'] = XL.iloc[:,list(range(0,24))].sum(axis=1)
+        XL = XL.drop(columns=[str(i) for i in range(0,24)], axis=0).reset_index()
     
-    winter = ['May','June','July','August']
-    work_week = ['Monday','Tuesday','Wednesday','Thursday']
-    
-    Xdd['season'] = Xdd.month.where(Xdd.month.isin(winter), 'summer')
-    Xdd['season'] = Xdd.season.where(Xdd.season=='summer', 'winter')
-    Xdd['daytype'] = Xdd.weekday.where(~Xdd.weekday.isin(work_week), 'weekday')
-    
-    S = genS(socios, year_start, year_end, 'feather').reset_index()
-    Sdd = pd.concat([S, Xdd.groupby(['ProfileID']).DD.mean()], axis=1, join='inner').rename(columns={'DD':'ADD'})
-
-    Xdd.drop(columns=['date','month','weekday','DD'], inplace=True)
+        # Add temporal features
+        XL['year']=XL.date.dt.year
+        XL['month']=XL.date.dt.month_name()
+        XL['weekday']=XL.date.dt.weekday_name
         
-    #merge socio-demographic, geographic and temporal features
-    F = pd.merge(Xdd, Sdd, how='inner',on='ProfileID')
-    del Xdd, S, Sdd
+        winter = ['May','June','July','August']
+        work_week = ['Monday','Tuesday','Wednesday','Thursday']
+        
+        XL['season'] = XL.month.where(XL.month.isin(winter), 'summer')
+        XL['season'] = XL.season.where(XL.season=='summer', 'winter')
+        XL['daytype'] = XL.weekday.where(~XL.weekday.isin(work_week), 'weekday')
+        
+        S = genS(socios, year_start, year_end, 'feather').reset_index()
     
-    monthly_consumption_bins = [5, 50, 150, 400, 600, 1200, 2500, 4000]
-    daily_demand_bins = [x /30*1000/230 for x in monthly_consumption_bins]
-    bin_labels = ['{0:.0f}-{1:.0f}'.format(x,y) for x, y in zip(daily_demand_bins[:-1], daily_demand_bins[1:])]
-    F['ADD'] = pd.cut(F.ADD, daily_demand_bins, labels=bin_labels, right=False)
-    F['ADD'] = F.ADD.where(~F.ADD.isna(), 0)
-    F['ADD'] = F.ADD.astype('category')
-#    F.iloc[:,1:] = F.iloc[:,1:].apply(lambda x: x.astype('category'))
-    F.ADD.cat.reorder_categories([0]+bin_labels, ordered=True,inplace=True)
+        XL.drop(columns=['date','month','weekday'], inplace=True)
+            
+        #merge socio-demographic, geographic and temporal features
+        F = pd.merge(XL, S, how='inner',on='ProfileID')
+        del XL, S
+        
+        monthly_consumption_bins = [5, 50, 150, 400, 600, 1200, 2500, 4000]
+        daily_demand_bins = [x /30*1000/230 for x in monthly_consumption_bins]
+        bin_labels = ['{0:.0f}-{1:.0f}'.format(x,y) for x, y in zip(daily_demand_bins[:-1], daily_demand_bins[1:])]
+        F['DD'] = pd.cut(F.DD, daily_demand_bins, labels=bin_labels, right=False)
+        F['DD'] = F.DD.where(~F.DD.isna(), 0)
+        F['DD'] = F.DD.astype('category')
+        F.DD.cat.reorder_categories([0]+bin_labels, ordered=True,inplace=True)
+        
+        F.to_csv(kf_path)
     
-    if save is True:
+    if savefig is True:
         for c in F.columns.drop(['ProfileID']):
             plotF(F, [c], socios)
     
@@ -99,6 +108,16 @@ def features2dict(data):
     This function converts a dataframe into a dict formatted for use as evidence in libpgm BN inference.
     
     Unsure if this function has much use going forward ...19 July 2018
+    
+    if drop_0 is False:
+        f_path = os.path.join(data_dir, 'cluster_evaluation', 'k_features', 
+                                  experiment+'_'+socios+str(year_start)+str(year_end)+'.feather')
+    elif drop_0 is True:
+        f_path = os.path.join(data_dir, 'cluster_evaluation', 'k_features', 
+                                  experiment+'_'+socios+'drop0'+str(year_start)+str(year_end)+'.feather')  
+
+    if os.path.exists(f_path) is True:
+        F = feather.read_dataframe(f_path)
     """
     for c in data.columns:
         data[c].replace(np.nan, '', regex=True, inplace=True) #remove nan as BN inference cannot deal 

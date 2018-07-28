@@ -70,7 +70,7 @@ def clusterStats(cluster_stats, n, X, cluster_labels, preprocessing, transform, 
 
     return cluster_stats
 
-def saveResults(experiment_name, cluster_stats, cluster_centroids, som_dim, amd_bin, save=True):
+def saveResults(experiment_name, cluster_stats, cluster_centroids, som_dim, elec_bin, save=True):
     """
     Saves cluster stats results and centroids for a single clustering iteration. 
     Called inside kmeans() and som() functions.
@@ -83,7 +83,7 @@ def saveResults(experiment_name, cluster_stats, cluster_centroids, som_dim, amd_
     evals['experiment_name'] = experiment_name
     evals['som_dim'] = som_dim
     evals['n_clust'] = n
-    evals['amd_bin'] = amd_bin
+    evals['elec_bin'] = elec_bin
     eval_results = evals.drop(labels='cluster_size', axis=1).reset_index(drop=True)
 #    eval_results.rename({'index':'k'}, axis=1, inplace=True)
     eval_results[['dbi','mia','silhouette']] = eval_results[['dbi','mia','silhouette']].astype(float)
@@ -94,7 +94,7 @@ def saveResults(experiment_name, cluster_stats, cluster_centroids, som_dim, amd_
     centroid_results['experiment_name'] = experiment_name
     centroid_results['som_dim'] = som_dim
     centroid_results['n_clust'] = n
-    centroid_results['amd_bin'] = amd_bin
+    centroid_results['elec_bin'] = elec_bin
     try:
         centroid_results['cluster_size'] = evals['cluster_size'][n]
     except:
@@ -123,7 +123,7 @@ def saveResults(experiment_name, cluster_stats, cluster_centroids, som_dim, amd_
     
     return eval_results, centroid_results
 
-def amdBins(X):
+def xBins(X):
     Xdd_A = X.sum(axis=1)
     Xdd = Xdd_A*230/1000
     XmonthlyPower = resampleProfiles(Xdd, interval='M', aggfunc='sum')
@@ -134,13 +134,13 @@ def amdBins(X):
     bin_labels = ['{0:.0f}-{1:.0f}'.format(x,y) for x, y in zip(amd_bins[:-1], amd_bins[1:])]    
     Xamd['bins'] = pd.cut(Xamd.amd, amd_bins, labels=bin_labels, right=True)
     
-    Xamd_dict = dict()
+    Xbin_dict = dict()
     for c in Xamd.bins.cat.categories:
-        Xamd_dict[c] = Xamd[Xamd.bins==c].index.values
+        Xbin_dict[c] = Xamd[Xamd.bins==c].index.values
     
     del Xdd_A, Xdd, XmonthlyPower, Xamd
     
-    return Xamd_dict
+    return Xbin_dict
 
 def preprocessX(X, norm=None):  
     
@@ -177,10 +177,10 @@ def kmeans(X, range_n_clusters, top_lbls=10, preprocessing = None, bin_X=False, 
         save = True
     
     #apply pre-binning
-    if bin_X == True:
-        Xbin = amdBins(X)
+    if bin_X != False:
+        Xbin = xBins(X)
     else:
-        Xbin = {'0-4000':X}
+        Xbin = {'all':X}
 
     for b, ids in Xbin.items():
         try:
@@ -262,7 +262,7 @@ def som(X, range_n_dim, top_lbls=10, preprocessing = None, bin_X=False, transfor
 
     #apply pre-binning
     if bin_X == True:
-        Xbin = amdBins(X)
+        Xbin = xBins(X)
     else:
         Xbin = {'0-4000':X}
 
