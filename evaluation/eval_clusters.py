@@ -46,9 +46,9 @@ def getExpDetails(experiment_name):
     exp = pd.DataFrame(param[1:], columns=param[0])
     exp = exp.drop('range_n_clusters', axis=1)
     
-    year_start = exp.loc[exp.preprocessing==prepro, 'start'].at[1]
-    year_end = exp.loc[exp.preprocessing==prepro, 'end'].at[1]
-    drop_0 = exp.loc[exp.preprocessing==prepro, 'drop_0'].at[1]
+    year_start = exp.loc[exp.preprocessing==prepro, 'start'].unique()[0]
+    year_end = exp.loc[exp.preprocessing==prepro, 'end'].unique()[0]
+    drop_0 = exp.loc[exp.preprocessing==prepro, 'drop_0'].unique()[0]
     
     return year_start, year_end, drop_0, prepro, exp_root
 
