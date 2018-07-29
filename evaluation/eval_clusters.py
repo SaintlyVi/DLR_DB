@@ -340,8 +340,8 @@ def peakCoincidence(xlabel, centroids):
         peak_eval = pd.DataFrame(list(X_peak.items()), columns=['k','mean_coincidence'])
         count_cent_peaks = [len(cent_peak[i].keys()) for i in cent_peak.keys()]
         peak_eval['coincidence_ratio'] = peak_eval.mean_coincidence/count_cent_peaks
-        peak_eval['experiment'] = centroids['experiment'].unique()
-        peak_eval['n_best'] = centroids['n_best'].unique()
+        peak_eval['experiment'] = centroids['experiment'].unique()[0]
+        peak_eval['n_best'] = centroids['n_best'].unique()[0]
         
         pcpath = os.path.join(data_dir, 'cluster_evaluation', 'peak_coincidence.csv')
         if os.path.isfile(pcpath):
