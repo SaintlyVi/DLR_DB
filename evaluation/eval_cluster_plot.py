@@ -316,7 +316,7 @@ def plotClusterMetrics(metrics_dict, title, metric=None, make_area_plot=False, y
     else:
         fillme = None
     
-    colours = ['Red','Green','Orange','Blues','Purple']
+    colours = ['Red','Green','Orange','Blue','Purple','Brown','Black','Yellow','PuBu','BuGn',]
 #    colours = cl.scales[str(len(metrics_dict.keys()))]['div']['Spectral']
 
     #generate plot data
@@ -339,7 +339,7 @@ def plotClusterMetrics(metrics_dict, title, metric=None, make_area_plot=False, y
                 y=y,
                 name=k+' | '+i,
                 legendgroup=grouped,
-                mode='lines+markers',
+                mode='lines',
                 marker=dict(size=3),
                 line=dict(color=colours[s]),
                 fill=fillme,

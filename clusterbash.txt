@@ -9,6 +9,4 @@ git commit -m 'pre-run commit'
 git pull origin master
 git push origin master
 
-python runClusters.py exp3_kmeans -top 5 -skip 2
-python runClusters.py exp3_som -top 5 -skip 2
-python runClusters.py exp3_som+kmeans -top 5 -skip 2
+python runClusters.py exp6_kmeans -top 5 -skip 0
