@@ -42,7 +42,7 @@ for i in range(skip_experiments+1, len(param)): #skip first line with header inf
     algorithm = param[i][0]
     start = param[i][1]
     end = param[i][2]
-    drop_0 = param[i][3]
+    drop = param[i][3]
     preprocessing = param[i][4]
     bin_X = param[i][5]
     range_n_dim = param[i][6]
@@ -53,7 +53,7 @@ for i in range(skip_experiments+1, len(param)): #skip first line with header inf
     
     tic = time.time()
     
-    X = genX([start, end], drop_0)
+    X = genX([start, end], drop_0=drop) # TODO This line might cause trouble reading X... change drop_0 dtype from boolean if that is the case
 
     if algorithm == 'som':
         stats, centroids, cluster_lbls = som(X, range_n_dim, args.top, preprocessing, bin_X, transform, args.params,

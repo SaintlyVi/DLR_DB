@@ -396,7 +396,7 @@ def genX(year_range, drop_0=False, **kwargs):
     
     try:
         X = feather.read_dataframe(xpath)
-    
+        
     except:
         X = pd.DataFrame()
         
@@ -421,7 +421,7 @@ def genX(year_range, drop_0=False, **kwargs):
     X.set_index(['ProfileID','date'], inplace=True)
     
     #Clean and shape X by requirements
-    if drop_0 is True:
+    if drop_0 == True:
         print('dropping all zero rows')
         X = X[~(X.sum(axis=1)==0)]
         

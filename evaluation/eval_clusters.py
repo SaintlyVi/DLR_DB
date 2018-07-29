@@ -63,11 +63,15 @@ def readResults():
     
     return cluster_results
 
-def selectClusters(cluster_results, n_best, experiment='all' ):
+def selectClusters(cluster_results, n_best, threshold=1200, experiment='all' ):
+
+    cluster_results = cluster_results[cluster_results.total_sample>threshold] #drop clusters with too small sample size    
+    
     if experiment=='all':
         exc = cluster_results.loc[cluster_results.score > 0,:]
     else:
-        exc = cluster_results.loc[(cluster_results.experiment_name == experiment) & (cluster_results.score>0), :]
+        exc = cluster_results.loc[(cluster_results.experiment_name == experiment) &
+                                  (cluster_results.score>0), :]
 
     experiment_clusters = pd.DataFrame()
     
@@ -84,8 +88,7 @@ def selectClusters(cluster_results, n_best, experiment='all' ):
             i_ec = temp_ec.groupby(['experiment_name', 'som_dim']).mean().drop(columns ='total_sample'
                                   ).reset_index()
             experiment_clusters = experiment_clusters.append(i_ec, sort=True) 
-            
-            
+        
     best_clusters = experiment_clusters.nsmallest(columns='score',n=n_best).reset_index(drop=True).reindex(
                         ['som_dim','n_clust','dbi','mia','silhouette','score','experiment_name'],axis=1)
 
@@ -118,12 +121,12 @@ def exploreAMDBins(cluster_results, experiment, elec_bin=None):
 
 def getLabels(experiment, n_best=1):
     
-    year_start, year_end, drop_0, prepro, exp_root = getExpDetails(experiment)
+    year_start, year_end, drop, prepro, exp_root = getExpDetails(experiment)
 
-    if drop_0 == False:
+    if drop == False:
         label_path = os.path.join(data_dir, 'cluster_evaluation', 'best_labels', 
                                   experiment+'BEST'+str(n_best)+'_labels.feather')
-    elif drop_0 == True:
+    elif drop == True:
         label_path = os.path.join(data_dir, 'cluster_evaluation', 'best_labels', 
                                   experiment+'drop0BEST'+str(n_best)+'_labels.feather')
 
@@ -131,7 +134,7 @@ def getLabels(experiment, n_best=1):
         XL = feather.read_dataframe(label_path).set_index(['ProfileID','date'])
     
     else:    
-        X = ts.genX([1994,2014], drop_0)
+        X = ts.genX([1994,2014], drop_0=drop)
         print('Creating labelled dataframe...')
         
         if int(experiment[3]) < 4:
@@ -169,52 +172,6 @@ def getLabels(experiment, n_best=1):
         del X
     
     return XL.sort_index()
-
-#def bestLabels(experiment, X, n_best=1):
-#    """
-#    This function has become redundant... Use getLabels. Will remove in future.
-#    """
-#    X = getLabels(experiment, n_best)
-#    data = X.iloc[:,-n_best:]
-#    data.columns = ['0_'+str(l) for l in data.max()+1]
-#    del X #clear memory
-#
-#    data.reset_index(inplace=True)
-#    data.date = data.date.astype(dt.date)#pd.to_datetime(data.date)
-#    data.ProfileID = data.ProfileID.astype('category')
-#    data.set_index(['ProfileID','date'], inplace=True)
-#    data.sort_index(level=['ProfileID','date'], inplace=True)
-#    
-#    return data
-
-#def getCentroids(selected_clusters, n_best=1):
-#    """
-#    Currently only useable for exp2 and exp3
-#    """
-#
-#    best_experiments = list(selected_clusters.experiment_name.unique())
-#    centroid_files = dict(zip(best_experiments,[e+'_centroids.csv' for e in best_experiments]))
-#    centroids = {}
-#    for k, v in centroid_files.items():
-#        centroids[k] = pd.read_csv(os.path.join(data_dir, 'cluster_results', v))
-#    
-#    best_centroids = pd.DataFrame()
-#    for row in selected_clusters.itertuples():
-#        df = centroids[row.experiment_name]
-#        c = df.loc[(df.som_dim==row.som_dim)&(df.n_clust==row.n_clust),:]
-#        best_centroids = best_centroids.append(c)
-#    best_centroids.drop_duplicates(subset=['som_dim','n_clust','k','experiment_name'],keep='last',inplace=True)
-#    
-#    experiment_name, som_dim, n_clust = selected_clusters.loc[n_best-1,['experiment_name','som_dim','n_clust']]    
-#    
-#    data = best_centroids.set_index(['experiment_name','som_dim','n_clust','k'])
-#    data.sort_index(level=['experiment_name','som_dim','n_clust'], inplace=True)    
-#    centroids = data.loc[(experiment_name, som_dim, n_clust), 
-#                         [str(i) for i in range(0,24)]].reset_index(drop=True)
-#    cluster_size = data.loc[(experiment_name, som_dim, n_clust), 'cluster_size'].reset_index(drop=True)
-#    meta = dict(experiment_name=experiment_name.split('_',1)[1], n_best=n_best)
-#    
-#    return centroids, cluster_size, meta
 
 def realCentroids(xlabel, experiment):
     
@@ -512,3 +469,50 @@ def monthlyHHE(lbls, S, month_ix):
     Sent = pd.concat([S, (hhe/me)], axis=1, join='inner').rename(columns={0:'rele'})
     sg = Sent.groupby('monthly_income').aggregate({'rele':['mean','std']})
     return sg
+
+
+#def bestLabels(experiment, X, n_best=1):
+#    """
+#    This function has become redundant... Use getLabels. Will remove in future.
+#    """
+#    X = getLabels(experiment, n_best)
+#    data = X.iloc[:,-n_best:]
+#    data.columns = ['0_'+str(l) for l in data.max()+1]
+#    del X #clear memory
+#
+#    data.reset_index(inplace=True)
+#    data.date = data.date.astype(dt.date)#pd.to_datetime(data.date)
+#    data.ProfileID = data.ProfileID.astype('category')
+#    data.set_index(['ProfileID','date'], inplace=True)
+#    data.sort_index(level=['ProfileID','date'], inplace=True)
+#    
+#    return data
+
+#def getCentroids(selected_clusters, n_best=1):
+#    """
+#    Currently only useable for exp2 and exp3
+#    """
+#
+#    best_experiments = list(selected_clusters.experiment_name.unique())
+#    centroid_files = dict(zip(best_experiments,[e+'_centroids.csv' for e in best_experiments]))
+#    centroids = {}
+#    for k, v in centroid_files.items():
+#        centroids[k] = pd.read_csv(os.path.join(data_dir, 'cluster_results', v))
+#    
+#    best_centroids = pd.DataFrame()
+#    for row in selected_clusters.itertuples():
+#        df = centroids[row.experiment_name]
+#        c = df.loc[(df.som_dim==row.som_dim)&(df.n_clust==row.n_clust),:]
+#        best_centroids = best_centroids.append(c)
+#    best_centroids.drop_duplicates(subset=['som_dim','n_clust','k','experiment_name'],keep='last',inplace=True)
+#    
+#    experiment_name, som_dim, n_clust = selected_clusters.loc[n_best-1,['experiment_name','som_dim','n_clust']]    
+#    
+#    data = best_centroids.set_index(['experiment_name','som_dim','n_clust','k'])
+#    data.sort_index(level=['experiment_name','som_dim','n_clust'], inplace=True)    
+#    centroids = data.loc[(experiment_name, som_dim, n_clust), 
+#                         [str(i) for i in range(0,24)]].reset_index(drop=True)
+#    cluster_size = data.loc[(experiment_name, som_dim, n_clust), 'cluster_size'].reset_index(drop=True)
+#    meta = dict(experiment_name=experiment_name.split('_',1)[1], n_best=n_best)
+#    
+#    return centroids, cluster_size, meta

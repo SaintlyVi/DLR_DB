@@ -27,13 +27,13 @@ import evaluation.eval_clusters as ec
 def plotPrettyColours(data, grouping):
    
     if grouping == 'experiments':
-        colour_seq = ['Reds','Oranges','YlOrBr','YlGn','Greens','BuGn','Blues',
+        colour_seq = ['Reds','Oranges','YlOrBr','YlGn','Greens','BuGn','Blues','RdPu',
                       'PuBu','Purples','PuRd']
         df = pd.DataFrame(data.experiment_name.unique(), columns=['name'])
         df['root'] = df.applymap(lambda x: '_'.join(x.split('_',2)[0:2]))
         
     elif grouping == 'elec_bin':
-        colour_seq = ['YlGn','PuRd','Blues','YlOrBr','Greens','Oranges',
+        colour_seq = ['YlGn','PuRd','Blues','YlOrBr','Greens','RdPu','Oranges',
                       'Purples','PuBu','BuGn','Reds']
         df = data['elec_bin'].reset_index().rename({'elec_bin':'root', 'k':'name'}, axis=1)
 
@@ -62,8 +62,10 @@ def plotPrettyColours(data, grouping):
     
     return colours
 
-def plotClusterIndex(index, title, experiments, groupby='algorithm', ylog=False):
+def plotClusterIndex(index, title, experiments, threshold=1200, groupby='algorithm', ylog=False):
+    
     cluster_results = ec.readResults()
+    cluster_results = cluster_results[cluster_results.total_sample>threshold]
     cluster_results = cluster_results.groupby(['experiment_name','som_dim','n_clust']).mean().reset_index() 
     cluster_results = cluster_results[cluster_results.experiment_name.isin(experiments)]
     cluster_results['series'] = cluster_results['som_dim'].where(
