@@ -352,7 +352,7 @@ def bestClusters(cluster_lbls, stats, top_lbls):
         best_clusters = labels.loc[:, best_lbls['n_clust'].values]    
     
     else:
-        best_lbls = stats[['n_clust','som_dim','amd_bin']]
+        best_lbls = stats[['n_clust','som_dim','elec_bin']]
         best_clusters = labels
     
 #    best_clusters.columns = pd.MultiIndex.from_arrays([best_lbls['som_dim'], best_lbls['n_clust']],names=('som_dim','n_clust'))    
@@ -363,8 +363,8 @@ def bestClusters(cluster_lbls, stats, top_lbls):
 def saveLabels(cluster_lbls, stats):    
 
     experiment_name = stats.experiment_name[0]
-    amd_bin = stats.amd_bin[0]
-    best_lbls = stats.loc[stats.best_clusters==1,['n_clust','som_dim','amd_bin']]
+    elec_bin = stats.elec_bin[0]
+    best_lbls = stats.loc[stats.best_clusters==1,['n_clust','som_dim','elec_bin']]
     best_lbls['experiment_name'] = experiment_name     
       
 #    cluster_lbls[['ProfileID','date']] = pd.DataFrame(X).reset_index()[['ProfileID','date']]
@@ -378,7 +378,7 @@ def saveLabels(cluster_lbls, stats):
     print(cols)
     cluster_lbls.columns = cols
 
-    wpath = os.path.join(cluster_dir, experiment_name + '_' + amd_bin + '_labels.feather')
+    wpath = os.path.join(cluster_dir, experiment_name + '_' + elec_bin + '_labels.feather')
     feather.write_dataframe(cluster_lbls, wpath)
     
     blpath = os.path.join(results_dir, 'best_clusters.csv')
