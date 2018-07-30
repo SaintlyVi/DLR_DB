@@ -330,29 +330,36 @@ def demandCorr(xlabel, compare='total'):
     data.ProfileID = data.ProfileID.astype('category')
     
     #bin daily demand into 100 equally sized bins
-    data['int100_bins']=pd.cut(data.loc[data.DD!=0,'DD'], bins = range(0,1000,10), 
-        labels=np.arange(1, 100), include_lowest=False, right=True)
-    data.int100_bins = data.int100_bins.cat.add_categories([0])
-    data.int100_bins = data.int100_bins.cat.reorder_categories(range(0,100), ordered=True)
-    data.loc[data.DD==0,'int100_bins'] = 0   
-    
+    if len(data.loc[data.DD==0,'DD']) > 0:
+        data['int100_bins']=pd.cut(data.loc[data.DD!=0,'DD'], bins = range(0,1000,10), labels=np.arange(1, 100),
+            include_lowest=False, right=True)
+        data.int100_bins = data.int100_bins.cat.add_categories([0])
+        data.int100_bins = data.int100_bins.cat.reorder_categories(range(0,100), ordered=True)
+        data.loc[data.DD==0,'int100_bins'] = 0  
+    else:
+        data['int100_bins']=pd.cut(data['DD'], bins = range(0,1010,10), labels=np.arange(0, 100), include_lowest=True, right=True)
+           
     #NB: use int100 for entropy calculation!
     int100_lbls = data.groupby(['k', data.int100_bins])['ProfileID'].count().unstack(level=0)
-    int100_lbls = clusterColNames(int100_lbls)
+#    int100_lbls = clusterColNames(int100_lbls)
     int100_likelihood = int100_lbls.divide(int100_lbls.sum(axis=0), axis=1)
-
-    data['q100_bins'] = pd.qcut(data.loc[data.DD!=0,'DD'], q=99, labels=np.arange(1, 100))
-    data.q100_bins = data.q100_bins.cat.add_categories([0])
-    data.q100_bins = data.q100_bins.cat.reorder_categories(range(0,100), ordered=True)    
-    data.loc[data.DD==0,'q100_bins'] = 0
-    cats = data.groupby('q100_bins')['DD'].max().round(2)
-    data.q100_bins.cat.categories = cats
+    
+    if len(data.loc[data.DD==0,'DD']) > 0:
+        data['q100_bins'] = pd.qcut(data.loc[data.DD!=0,'DD'], q=99, labels=np.arange(1, 100))
+        data.q100_bins = data.q100_bins.cat.add_categories([0])
+        data.q100_bins = data.q100_bins.cat.reorder_categories(range(0,100), ordered=True)    
+        data.loc[data.DD==0,'q100_bins'] = 0
+    else:
+        data['q100_bins'] = pd.qcut(data['DD'], q=100, labels=np.arange(1, 101))
+        
+#    cats = data.groupby('q100_bins')['DD'].max().round(2)
+#    data.q100_bins.cat.categories = cats
     
     q100_lbls = data.groupby(['k', data.q100_bins])['ProfileID'].count().unstack(level=0)
-    q100_lbls = clusterColNames(q100_lbls)
+#    q100_lbls = clusterColNames(q100_lbls)
     q100_likelihood = q100_lbls.divide(q100_lbls.sum(axis=0), axis=1)
     
-    return int100_likelihood, q100_likelihood
+    return int100_likelihood.sort_index(axis=0).T, q100_likelihood.sort_index(axis=0).T
 
 def weekdayCorr(xlabel):
 
@@ -360,16 +367,12 @@ def weekdayCorr(xlabel):
     
     weekday_lbls = df.groupby(['k',df.date.dt.weekday])['ProfileID'].count().unstack(level=0)
     weekday_lbls.set_axis(['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'], axis=0, inplace=True)
-    weekday_lbls = clusterColNames(weekday_lbls)
+#    weekday_lbls = clusterColNames(weekday_lbls)
     weekday_likelihood = weekday_lbls.divide(weekday_lbls.sum(axis=0), axis=1) # likelihood of assignment
     
     random_likelihood = 1/len(weekday_likelihood) # null hypothesis
     relative_likelihood = weekday_likelihood.divide(random_likelihood, axis=1)
 
-    random_loglike = log(random_likelihood,2)#-random_likelihood*log(random_likelihood,2)    
-    weekday_loglike = weekday_likelihood.applymap(lambda x : log(x,2))#-x*log(x,2)) 
-    relative_loglike = weekday_loglike.divide(random_loglike, axis=1)
-    
     return weekday_likelihood, relative_likelihood
 
 def monthlyCorr(xlabel):
@@ -377,7 +380,7 @@ def monthlyCorr(xlabel):
     df = xlabel['k'].reset_index()
     
     month_lbls = df.groupby(['k',df.date.dt.month])['ProfileID'].count().unstack(level=0)
-    month_lbls = clusterColNames(month_lbls)
+#    month_lbls = clusterColNames(month_lbls)
     month_likelihood = month_lbls.divide(month_lbls.sum(axis=0), axis=1)
     
     random_likelihood = 1/len(month_likelihood)    
@@ -390,8 +393,8 @@ def yearlyCorr(xlabel):
     df = xlabel['k'].reset_index()
     
     year_lbls = df.groupby(['k',df.date.dt.year])['ProfileID'].count().unstack(level=0)
-    year_lbls = clusterColNames(year_lbls).T
-    year_likelihood = year_lbls.divide(year_lbls.sum(axis=0), axis=1)    
+#    year_lbls = clusterColNames(year_lbls)
+    year_likelihood = year_lbls.T.divide(year_lbls.T.sum(axis=0), axis=1)    
     
     random_likelihood = 1/len(year_likelihood)    
     relative_likelihood = year_likelihood.divide(random_likelihood, axis=1)
@@ -405,8 +408,8 @@ def daytypeCorr(xlabel):
     weekday_lbls = df.groupby(['k',df.date.dt.weekday])['ProfileID'].count().unstack(level=0)
     weekday_lbls.set_axis(['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'], axis=0, inplace=True)
     daytype = weekday_lbls[weekday_lbls.index.isin(['Monday','Tuesday','Wednesday','Thursday','Friday'])].sum(axis=0).to_frame('weekday').T
-    daytype = daytype.append(weekday_lbls.loc[['Saturday','Sunday'], :])
-    daytype_lbls = clusterColNames(daytype)
+    daytype_lbls = daytype.append(weekday_lbls.loc[['Saturday','Sunday'], :])
+#    daytype_lbls = clusterColNames(daytype)
     daytype_likelihood = daytype_lbls.divide(daytype_lbls.sum(axis=0), axis=1)
 
     random_likelihood = [5/7, 1/7, 1/7]
@@ -421,8 +424,8 @@ def seasonCorr(xlabel):
     month_lbls = df.groupby(['k',df.date.dt.month])['ProfileID'].count().unstack(level=0)    
     summer = month_lbls[~month_lbls.index.isin([5, 6, 7, 8])].sum(axis=0).to_frame('summer').T
     winter = month_lbls[month_lbls.index.isin([5, 6, 7, 8])].sum(axis=0).to_frame('winter').T        
-    season = summer.append(winter)
-    season_lbls = clusterColNames(season)
+    season_lbls = summer.append(winter)
+#    season_lbls = clusterColNames(season)
     season_likelihood = season_lbls.divide(season_lbls.sum(axis=0), axis=1)    
     
     random_likelihood = [8/12, 4/12]
@@ -430,7 +433,56 @@ def seasonCorr(xlabel):
     
     return season_likelihood, relative_likelihood
 
+def saveCorr(xlabel, experiment):
+    
+    corr_list = ['daytype','weekday','monthly','season','yearly']
+
+    for corr in corr_list:
+        function = corr+'Corr(xlabel)'
+        corr_lklhd, rel_lklhd = eval(function)  
+        index = pd.MultiIndex.from_product([[corr,'relative'], rel_lklhd.index])
+        df = pd.concat([corr_lklhd.T, rel_lklhd.T], axis=1)
+        df.set_axis(index, axis=1, inplace=True) 
+        df['experiment'] = experiment
+        df.set_index('experiment', append=True, inplace=True)
+        
+        corrdir = os.path.join(data_dir, 'cluster_evaluation','k_correlations')
+        os.makedirs(corrdir, exist_ok=True)
+        corrpath = os.path.join(corrdir, corr+'_corr.csv')
+        if os.path.isfile(corrpath):
+            df.to_csv(corrpath, mode='a', index=True, header=False)
+        else:
+            df.to_csv(corrpath, index=True)
+            
+    for compare in ['total','peak']:
+        corr = 'demand'
+        int100, q100 = demandCorr(xlabel, compare)
+        int100.columns = int100.columns.add_categories(['experiment','compare'])
+        q100.columns = q100.columns.add_categories(['experiment','compare'])
+        int100['experiment'] = experiment
+        int100['compare'] = compare
+        q100['experiment'] = experiment
+        q100['compare'] = compare
+        int100.set_index(['experiment','compare'], append=True, inplace=True)
+        q100.set_index(['experiment','compare'], append=True, inplace=True)
+        
+        corrdir = os.path.join(data_dir, 'cluster_evaluation','k_correlations')
+        os.makedirs(corrdir, exist_ok=True)
+        corrpathi = os.path.join(corrdir, corr+'i_corr.csv')
+        corrpathq = os.path.join(corrdir, corr+'q_corr.csv')
+        if os.path.isfile(corrpathi):
+            int100.to_csv(corrpathi, mode='a', index=True, header=False)
+        else:
+            int100.to_csv(corrpathi, index=True)
+        if os.path.isfile(corrpathq):
+            q100.to_csv(corrpathq, mode='a', index=True, header=False)
+        else:
+            q100.to_csv(corrpathq, index=True)
+        
+    return
+
 def clusterEntropy(likelihood, random_likelihood=None):
+    
     if random_likelihood is None:
         try:
             random_likelihood = 1/len(likelihood)

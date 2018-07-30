@@ -281,27 +281,31 @@ def plotClusterSpecificity(data, corr_list, n_clust=None):
     i = 1
     for corr in corr_list:
         function = 'ec.'+corr+'Corr(data)'
-        rndm_lklhd, lbls2 = eval(function)   
+        corr_lklhd, rel_lklhd = eval(function)   
 
         #Create colorscales
-        colorscl= asymmetric_colorscale(lbls2, label_cmap, ref_point=1.0)
+        colorscl= asymmetric_colorscale(rel_lklhd, label_cmap, ref_point=1.0)
 #        colorscl=[[0.0, 'rgb(112,138,144)'],[white, 'rgb(255,255,255)'],[1.0, 'rgb(239,138,98)']]
 
         #Create traces
-        heatmap = go.Heatmap(z = lbls2.T.values, x = lbls2.index, y = lbls2.columns, name = corr, 
-                          colorscale=colorscl, colorbar=dict(title='likelihood',len=0.9/n_corr, y= 1-i/n_corr+0.05/i, yanchor='bottom'))
-        bargraph = lbls2.iplot(kind='bar', colors=smarties, showlegend=False, asFigure=True)
+        heatmap = go.Heatmap(z = rel_lklhd.T.values, x = rel_lklhd.index, y = rel_lklhd.columns, 
+                             name = corr, colorscale=colorscl, colorbar=dict(title='likelihood',
+                                                                             len=0.9/n_corr, 
+                                                                             y= 1-i/n_corr+0.05/i, 
+                                                                             yanchor='bottom'))
+        bargraph = rel_lklhd.iplot(kind='bar', colors=smarties, showlegend=False, asFigure=True)
 
         fig.append_trace(heatmap, i, 1)
         for b in bargraph['data']:
             fig.append_trace(b, i, 2)
-        random_likelihood=dict(type='scatter', x=[lbls2.index[0], lbls2.index[-1]], y=[1, 1], 
+        random_likelihood=dict(type='scatter', x=[rel_lklhd.index[0], rel_lklhd.index[-1]], y=[1, 1], 
                                        mode='lines', line=dict(color='black',dash='dash'))
         fig.append_trace(random_likelihood, i, 2)
         
         fig['layout']['yaxis'+str(i*2)].update(title='greater than random Passignment')
-        fig['layout']['annotations'].extend([dict(x = lbls2.index[int(len(lbls2.index)*0.5)], y = 1, showarrow=True, yshift=5,
-                                              text="random assignment",ax=10, ay=-70, xref='x'+str(i*2), yref='y'+str(i*2))])
+        fig['layout']['annotations'].extend([dict(x = rel_lklhd.index[int(len(rel_lklhd.index)*0.5)], y = 1,
+           showarrow=True, yshift=5, text="random assignment",ax=10, ay=-70, 
+           xref='x'+str(i*2), yref='y'+str(i*2))])
         
         i += 1
 

@@ -11,7 +11,7 @@ import os
 import pandas as pd
 import time
 
-from evaluation.eval_clusters import getLabels, realCentroids, consumptionError, peakCoincidence
+from evaluation.eval_clusters import getLabels, realCentroids, consumptionError, peakCoincidence, saveCorr
 from features.feature_extraction import genF
 
 # Set up argument parser to run from terminal
@@ -26,4 +26,5 @@ centroids = realCentroids(xl, args.experiment)
 consumptionError(xl, centroids, compare='total')
 consumptionError(xl, centroids, compare='peak')
 peakCoincidence(xl, centroids)
+saveCorr(xl, args.experiment)
 F = genF(args.experiment, args.socios, savefig=False)
