@@ -22,10 +22,10 @@ parser.add_argument('socios', type=str, help='Specification of socio_demographic
 args = parser.parse_args()
 
 
-#xl = getLabels(args.experiment, args.n_best)
+xl = getLabels(args.experiment, args.n_best)
 #centroids = realCentroids(xl, args.experiment, args.n_best)
 #consumptionError(xl, centroids, compare='total')
 #consumptionError(xl, centroids, compare='peak')
 #peak_eval = peakCoincidence(xl, centroids)
-#saveCorr(xl, args.experiment)
-F = genF(args.experiment, args.socios, savefig=False)
+saveCorr(xl, args.experiment, ['yearly'])
+#F = genF(args.experiment, args.socios, savefig=False)

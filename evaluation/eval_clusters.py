@@ -396,7 +396,7 @@ def yearlyCorr(xlabel):
     
     year_lbls = df.groupby(['k',df.date.dt.year])['ProfileID'].count().unstack(level=0)
 #    year_lbls = clusterColNames(year_lbls)
-    year_likelihood = year_lbls.T.divide(year_lbls.T.sum(axis=0), axis=1)    
+    year_likelihood = year_lbls.divide(year_lbls.sum(axis=0), axis=1)    
     
     random_likelihood = 1/len(year_likelihood)    
     relative_likelihood = year_likelihood.divide(random_likelihood, axis=1)
@@ -435,9 +435,12 @@ def seasonCorr(xlabel):
     
     return season_likelihood, relative_likelihood
 
-def saveCorr(xlabel, experiment, n_best=1):
-    
-    corr_list = ['daytype','weekday','monthly','season','yearly']
+def saveCorr(xlabel, experiment, corr='all', n_best=1):
+
+    if corr == 'all':    
+        corr_list = ['daytype','weekday','monthly','season','yearly']
+    else:
+        corr_list = corr
 
     for corr in corr_list:
         function = corr+'Corr(xlabel)'
@@ -479,8 +482,7 @@ def saveCorr(xlabel, experiment, n_best=1):
         if os.path.isfile(corrpathq):
             q100.to_csv(corrpathq, mode='a', index=True, header=False)
         else:
-            q100.to_csv(corrpathq, index=True)
-        
+            q100.to_csv(corrpathq, index=True)        
     return
 
 def clusterEntropy(likelihood, random_likelihood=None):
@@ -493,10 +495,86 @@ def clusterEntropy(likelihood, random_likelihood=None):
 
     cluster_entropy = likelihood.applymap(lambda x : -x*log(x,2)).sum(axis=0)
     max_entropy = -random_likelihood*log(random_likelihood,2)*len(likelihood)
-    
     ##TODO need to check how to calculate entropy when variables are weighted
     
     return cluster_entropy, max_entropy    
+
+def getMeasures(best_exps):
+    
+    eval_dir = os.path.join(data_dir,'cluster_evaluation')
+
+    #Set parameters for reading evaluation data from files
+    total_consE = dict()
+    peak_consE = dict()
+    cepath = os.path.join(eval_dir, 'consumption_error.csv')
+    consumption_error = pd.read_csv(cepath, index_col='k', usecols=['k','experiment','compare',
+                                                                    'mape','mdape','mdlq','mdsyma']).drop_duplicates()
+    consumption_error.rename({'experiment':'experiment_name'}, axis=1)
+    
+    peak_coincR = dict()
+    pcrpath = os.path.join(eval_dir, 'peak_coincidence.csv')
+    peak_eval = pd.read_csv(pcrpath, index_col='k').drop_duplicates()
+    
+    temporal_entropy = dict(zip(best_exps, [dict()]*len(best_exps)))   
+    corr_path = os.path.join(data_dir, 'cluster_evaluation', 'k_correlations')
+    temp_files = ['yearly', 'weekday', 'monthly']
+
+    context_entropy = dict(zip(best_exps, [dict()]*len(best_exps)))
+    compare = ['total','peak']
+    
+    for e in best_exps:
+        #total consumption err0r
+        consE = consumption_error.loc[(consumption_error.experiment==e)&(consumption_error.compare=='total'),:]
+        total_consE[e] = {'mape':consE.mape,'mdape':consE.mdape,'mdlq':consE.mdlq,'mdsyma':consE.mdsyma}     
+        #peak consumption error
+        consE = consumption_error.loc[(consumption_error.experiment==e)&(consumption_error.compare=='peak'),:]
+        peak_consE[e] = {'mape':consE.mape,'mdape':consE.mdape,'mdlq':consE.mdlq,'mdsyma':consE.mdsyma}
+        #peak coincidence ratio
+        peak_coincR[e] = {'coincidence_ratio': peak_eval.loc[peak_eval['experiment']==e,'coincidence_ratio']}
+
+        te = dict()
+        for temp in temp_files:
+            df = pd.read_csv(os.path.join(corr_path, temp+'_corr.csv'), index_col=[0,1], header=[0,1]).drop_duplicates()
+            df_temp = df[temp].reset_index(level=-1)
+    
+            likelihood = df_temp[df_temp.experiment == e+'BEST1'].drop('experiment', axis=1)
+            entropy, maxE = clusterEntropy(likelihood.T)
+            te[temp+'_entropy'] = entropy.reset_index(drop=True)
+        temporal_entropy.update({e:te})      
+    
+        co = dict()
+        df = pd.read_csv(os.path.join(corr_path, 'demandi_corr.csv'), index_col=[0,1,2], header=[0]).drop_duplicates()
+        df_temp = df.reset_index(level=[-2,-1])
+        for c in compare:
+            likelihood = df_temp[(df_temp.experiment == e+'BEST1')&(df_temp.compare==c)].drop(['experiment','compare'], axis=1)
+            entropy, maxE = clusterEntropy(likelihood.T)
+            co[c+'_entropy'] = entropy.reset_index(drop=True)
+        context_entropy.update({e:co})
+    
+    return total_consE, peak_consE, peak_coincR, temporal_entropy, context_entropy
+
+def saveMeasures(best_exps):
+    
+    measures = zip(['total_consE', 'peak_consE', 'peak_coincR', 'temporal_entropy', 
+                    'context_entropy'], getMeasures(best_exps))
+    mean_measures = list()
+
+    for m, m_data in measures:
+        for k,v in m_data.items():
+            for i,j in v.items():
+                me = meanError(j)
+                mean_measures.append([m, k, i, me])   
+            
+    evaluation_table = pd.DataFrame(mean_measures, columns=['measure','experiment','metric','value'])
+    evalcrit = evaluation_table.measure.apply(lambda x: x.split('_',1)[1])
+    evaluation_table.insert(0, 'evaluation_criteria', evalcrit)
+
+    complete_eval = evaluation_table.pivot_table(index=['evaluation_criteria','measure','metric'], columns='experiment').reset_index()
+    
+    complete_eval.T.to_csv(os.path.join(data_dir,'cluster_evaluation','cluster_entropy.csv'), 
+                           index=True, header=False)
+    
+    return complete_eval.T
 
 def householdEntropy(xlabel):
 
