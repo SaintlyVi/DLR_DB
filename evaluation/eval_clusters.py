@@ -173,7 +173,7 @@ def getLabels(experiment, n_best=1):
     
     return XL.sort_index()
 
-def realCentroids(xlabel, experiment):
+def realCentroids(xlabel, experiment, n_best=1):
     
     year_start, year_end, drop_0, prepro, exp_root = getExpDetails(experiment)
     
@@ -181,14 +181,15 @@ def realCentroids(xlabel, experiment):
     centroids['elec_bin'] = [xlabel.loc[xlabel.k==i,'elec_bin'].iloc[0] for i in centroids.index]
     centroids['cluster_size'] = xlabel.groupby('k')['0'].count()
     centroids['experiment'] = experiment
-    centroids['n_best'] = 1    
+    centroids['n_best'] = n_best    
     
     ordered_cats = centroids.elec_bin.unique()
     centroids.elec_bin = centroids.elec_bin.astype('category')
     centroids.elec_bin = centroids.elec_bin.cat.reorder_categories(ordered_cats, ordered=True)
     
     os.makedirs(os.path.join(data_dir, 'cluster_evaluation', 'best_centroids'), exist_ok = True)
-    centpath = os.path.join(data_dir, 'cluster_evaluation', 'best_centroids', experiment+'_centroids.csv')
+    centpath = os.path.join(data_dir, 'cluster_evaluation', 'best_centroids', 
+                            experiment+'BEST'+str(n_best)+'_centroids.csv')
     centroids.to_csv(centpath, index=True)
     print('Real centroids computed and recorded.')
     
@@ -241,6 +242,7 @@ def consumptionError(xlabel, centroids, compare='total'):
     write_eval = pd.DataFrame([mape, mdape, mdlq, mdsyma], index=['mape', 'mdape', 'mdlq', 'mdsyma']).T
     write_eval['compare'] = compare
     write_eval['experiment'] = centroids['experiment'].unique()[0]
+    write_eval['n_best'] = centroids['n_best'].unique()[0]
     
     cepath = os.path.join(data_dir, 'cluster_evaluation', 'consumption_error.csv')
     if os.path.isfile(cepath):
@@ -433,7 +435,7 @@ def seasonCorr(xlabel):
     
     return season_likelihood, relative_likelihood
 
-def saveCorr(xlabel, experiment):
+def saveCorr(xlabel, experiment, n_best=1):
     
     corr_list = ['daytype','weekday','monthly','season','yearly']
 
@@ -443,7 +445,7 @@ def saveCorr(xlabel, experiment):
         index = pd.MultiIndex.from_product([[corr,'relative'], rel_lklhd.index])
         df = pd.concat([corr_lklhd.T, rel_lklhd.T], axis=1)
         df.set_axis(index, axis=1, inplace=True) 
-        df['experiment'] = experiment
+        df['experiment'] = experiment+'BEST'+str(n_best)
         df.set_index('experiment', append=True, inplace=True)
         
         corrdir = os.path.join(data_dir, 'cluster_evaluation','k_correlations')
@@ -459,9 +461,9 @@ def saveCorr(xlabel, experiment):
         int100, q100 = demandCorr(xlabel, compare)
         int100.columns = int100.columns.add_categories(['experiment','compare'])
         q100.columns = q100.columns.add_categories(['experiment','compare'])
-        int100['experiment'] = experiment
+        int100['experiment'] = experiment+'BEST'+str(n_best)
         int100['compare'] = compare
-        q100['experiment'] = experiment
+        q100['experiment'] = experiment+'BEST'+str(n_best)
         q100['compare'] = compare
         int100.set_index(['experiment','compare'], append=True, inplace=True)
         q100.set_index(['experiment','compare'], append=True, inplace=True)

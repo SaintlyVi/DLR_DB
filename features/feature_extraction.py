@@ -51,11 +51,12 @@ def plotF(F, columns, save_name=None):
     
     return fig
 
-def genF(experiment, socios, savefig=False):
+def genF(experiment, socios, n_best=1, savefig=False):
     
     year_start, year_end, drop_0, prepro, exp_root = getExpDetails(experiment)
     
-    kf_path = os.path.join(data_dir, 'cluster_evaluation','k_features', experiment+'_'+socios+'.csv')
+    kf_path = os.path.join(data_dir, 'cluster_evaluation','k_features', 
+                           experiment+'_'+socios+'BEST'+str(n_best)+'.csv')
     
     if os.path.exists(kf_path) is True:
         F = pd.read_csv(kf_path)
@@ -63,7 +64,7 @@ def genF(experiment, socios, savefig=False):
     else:
         print('Extracting and creating feature data...')
         # Get cluster labels
-        XL = getLabels(experiment, n_best=1)
+        XL = getLabels(experiment, n_best)
         XL['DD'] = XL.iloc[:,list(range(0,24))].sum(axis=1)
         XL = XL.drop(columns=[str(i) for i in range(0,24)], axis=0).reset_index()
     
@@ -95,7 +96,8 @@ def genF(experiment, socios, savefig=False):
         F['DD'] = F.DD.astype('category')
         F.DD.cat.reorder_categories([0]+bin_labels, ordered=True,inplace=True)
         
-        F.to_csv(kf_path)
+        F.drop('ProfileID', axis=1, inplace=True)
+        F.to_csv(kf_path, index=False)
     
     if savefig is True:
         for c in F.columns.drop(['ProfileID']):
