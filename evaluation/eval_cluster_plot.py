@@ -8,6 +8,7 @@ Created on Tue Jul 17 09:31:48 2018
 
 import pandas as pd
 import numpy as np
+import os
 
 import plotly.plotly as py
 import plotly.offline as po
@@ -23,6 +24,7 @@ from matplotlib import colors
 from matplotlib.colors import LinearSegmentedColormap
 
 import evaluation.eval_clusters as ec
+from support import data_dir
 
 def plotPrettyColours(data, grouping):
    
@@ -120,14 +122,17 @@ def plotClusterIndex(index, title, experiments, threshold=1200, groupby='algorit
 
 def plotClusterCentroids(centroids, n_best=1):
 
+    n_best = centroids['n_best'].unique()[0]
+    experiment_name = centroids['experiment'].unique()[0]
+    
+    if len(centroids.elec_bin.unique()) == 1: 
+        centroids = ec.rebinCentroids(centroids)    
+    
     traces = centroids.iloc[:, 0:24].T
     n_clust = traces.columns[-1]
     traces.columns = ['cluster ' + str(k) for k in traces.columns.values]   
     largest = 'cluster '+str(centroids.cluster_size.idxmax())
-    
-    n_best = centroids['n_best'].unique()[0]
-    experiment_name = centroids['experiment'].unique()[0]
-    
+        
     colours =  plotPrettyColours(centroids, 'elec_bin')    
     fig = tools.make_subplots(rows=3, cols=1, shared_xaxes=False, specs=[[{'rowspan': 2}],[None],[{}]],
                               subplot_titles=['cluster profiles '+experiment_name+' (n='+str(n_clust)+
@@ -255,8 +260,9 @@ def asymmetric_colorscale(data,  div_cmap, ref_point=0.0, step=0.05):
 #---------------------------
 
 
-def plotClusterSpecificity(data, corr_list, n_clust=None):
+def plotClusterSpecificity(experiment, corr_list, n_clust=None):
     
+    corr_path = os.path.join(data_dir, 'cluster_evaluation', 'k_correlations')
     n_corr = len(corr_list)    
     
     #Create dataframes for plot
@@ -280,8 +286,10 @@ def plotClusterSpecificity(data, corr_list, n_clust=None):
     
     i = 1
     for corr in corr_list:
-        function = 'ec.'+corr+'Corr(data)'
-        corr_lklhd, rel_lklhd = eval(function)   
+        
+        df = pd.read_csv(os.path.join(corr_path, corr+'_corr.csv'), index_col=[0,1], header=[0,1]).drop_duplicates()
+        df_temp = df['relative'].reset_index(level=-1)
+        rel_lklhd = df_temp[df_temp.experiment == experiment+'BEST1'].drop('experiment', axis=1)
 
         #Create colorscales
         colorscl= asymmetric_colorscale(rel_lklhd, label_cmap, ref_point=1.0)

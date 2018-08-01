@@ -195,6 +195,21 @@ def realCentroids(xlabel, experiment, n_best=1):
     
     return centroids
 
+def rebinCentroids(centroids):
+    
+    centroids['AMD'] = centroids.iloc[:,0:24].sum(axis=1)
+    
+    monthly_consumption_bins = [1, 50, 150, 400, 600, 1200, 2500, 4000]
+    daily_demand_bins = [x /30*1000/230 for x in monthly_consumption_bins]
+    bin_labels = ['{0:.0f}-{1:.0f}'.format(x,y) for x, y in zip(monthly_consumption_bins[:-1], monthly_consumption_bins[1:])]
+    centroids['elec_bin'] = pd.cut(centroids['AMD'], daily_demand_bins, labels=bin_labels, right=False)
+    centroids['elec_bin'] = centroids.elec_bin.where(~centroids.elec_bin.isna(), '0-1')
+    centroids['elec_bin'] = centroids.elec_bin.astype('category')
+    ordered_cats = ['0-1']+[i for i in bin_labels if i in centroids.elec_bin.cat.categories]
+    centroids.elec_bin.cat.reorder_categories(ordered_cats, ordered=True,inplace=True)
+
+    return centroids
+
 def clusterColNames(data):    
     data.columns = ['Cluster '+str(x) for x in data.columns]
     return data
