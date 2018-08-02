@@ -547,7 +547,7 @@ def getMeasures(best_exps, threshold):
         #temporal entropy
         te = dict()
         for temp in temp_files:
-            df = pd.read_csv(os.path.join(corr_path, temp+'_corr.csv'), index_col=[0], header=[0,1]).drop_duplicates()    
+            df = pd.read_csv(os.path.join(corr_path, temp+'_corr.csv'), index_col=[0], header=[0]).drop_duplicates()    
             likelihood = df[df.experiment == e+'BEST1'].drop('experiment', axis=1)
             entropy, maxE = clusterEntropy(likelihood, threshold)
             te[temp+'_entropy'] = entropy.reset_index(drop=True)
