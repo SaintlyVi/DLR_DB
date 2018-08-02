@@ -99,8 +99,9 @@ def selectClusters(cluster_results, n_best, threshold=1200, experiment='all' ):
     
     return best_clusters
 
-def exploreAMDBins(cluster_results, experiment, elec_bin=None):
+def exploreAMDBins(experiment, elec_bin=None):
 
+    cluster_results = readResults()
     if elec_bin is None:
         exc = cluster_results[['experiment_name','som_dim','n_clust','elec_bin',
                                'dbi','mia','silhouette','score','total_sample']]
@@ -313,7 +314,7 @@ def peakCoincidence(xlabel, centroids):
     
         peak_eval = pd.DataFrame(list(X_peak.items()), columns=['k','mean_coincidence'])
         count_cent_peaks = [len(cent_peak[i].keys()) for i in cent_peak.keys()]
-        peak_eval['coincidence_ratio'] = peak_eval.mean_coincidence/count_cent_peaks
+        peak_eval['coincidence_ratio'] = peak_eval.mean_coincidence/count_cent_peaks #normalise for number of peaks
         peak_eval['experiment'] = centroids['experiment'].unique()[0]
         peak_eval['n_best'] = centroids['n_best'].unique()[0]
         
@@ -381,6 +382,7 @@ def demandCorr(xlabel, compare='total'):
 def weekdayCorr(xlabel):
 
     df = xlabel['k'].reset_index()
+    cluster_size = df.groupby('k')['ProfileID'].count().rename('cluster_size')
     
     weekday_lbls = df.groupby(['k',df.date.dt.weekday])['ProfileID'].count().unstack(level=0)
     weekday_lbls.set_axis(['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'], axis=0, inplace=True)
@@ -389,25 +391,29 @@ def weekdayCorr(xlabel):
     
     random_likelihood = 1/len(weekday_likelihood) # null hypothesis
     relative_likelihood = weekday_likelihood.divide(random_likelihood, axis=1)
+    relative_likelihood.loc['cluster_size'] = cluster_size
 
     return weekday_likelihood, relative_likelihood
 
 def monthlyCorr(xlabel):
 
     df = xlabel['k'].reset_index()
+    cluster_size = df.groupby('k')['ProfileID'].count().rename('cluster_size')
     
     month_lbls = df.groupby(['k',df.date.dt.month])['ProfileID'].count().unstack(level=0)
 #    month_lbls = clusterColNames(month_lbls)
     month_likelihood = month_lbls.divide(month_lbls.sum(axis=0), axis=1)
     
     random_likelihood = 1/len(month_likelihood)    
-    relative_likelihood = month_likelihood.divide(random_likelihood, axis=1)    
+    relative_likelihood = month_likelihood.divide(random_likelihood, axis=1)  
+    relative_likelihood.loc['cluster_size'] = cluster_size
     
     return month_likelihood, relative_likelihood
 
 def yearlyCorr(xlabel):
 
     df = xlabel['k'].reset_index()
+    cluster_size = df.groupby('k')['ProfileID'].count().rename('cluster_size')
     
     year_lbls = df.groupby(['k',df.date.dt.year])['ProfileID'].count().unstack(level=0)
 #    year_lbls = clusterColNames(year_lbls)
@@ -415,12 +421,14 @@ def yearlyCorr(xlabel):
     
     random_likelihood = 1/len(year_likelihood)    
     relative_likelihood = year_likelihood.divide(random_likelihood, axis=1)
+    relative_likelihood.loc['cluster_size'] = cluster_size
     
-    return year_likelihood, relative_likelihood, 
+    return year_likelihood, relative_likelihood 
 
 def daytypeCorr(xlabel):
 
     df = xlabel['k'].reset_index()
+    cluster_size = df.groupby('k')['ProfileID'].count().rename('cluster_size')
     
     weekday_lbls = df.groupby(['k',df.date.dt.weekday])['ProfileID'].count().unstack(level=0)
     weekday_lbls.set_axis(['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'], axis=0, inplace=True)
@@ -431,12 +439,14 @@ def daytypeCorr(xlabel):
 
     random_likelihood = [5/7, 1/7, 1/7]
     relative_likelihood = daytype_likelihood.divide(random_likelihood, axis=0)
-   
+    relative_likelihood.loc['cluster_size'] = cluster_size
+    
     return daytype_likelihood, relative_likelihood
 
 def seasonCorr(xlabel):
 
     df = xlabel['k'].reset_index()
+    cluster_size = df.groupby('k')['ProfileID'].count().rename('cluster_size')
     
     month_lbls = df.groupby(['k',df.date.dt.month])['ProfileID'].count().unstack(level=0)    
     summer = month_lbls[~month_lbls.index.isin([5, 6, 7, 8])].sum(axis=0).to_frame('summer').T
@@ -447,6 +457,7 @@ def seasonCorr(xlabel):
     
     random_likelihood = [8/12, 4/12]
     relative_likelihood = season_likelihood.divide(random_likelihood, axis=0)
+    relative_likelihood.loc['cluster_size'] = cluster_size
     
     return season_likelihood, relative_likelihood
 
@@ -460,11 +471,11 @@ def saveCorr(xlabel, experiment, corr='all', n_best=1):
     for corr in corr_list:
         function = corr+'Corr(xlabel)'
         corr_lklhd, rel_lklhd = eval(function)  
-        index = pd.MultiIndex.from_product([[corr,'relative'], rel_lklhd.index])
+        index = pd.MultiIndex.from_product([[corr,'relative'], corr_lklhd.index])
         df = pd.concat([corr_lklhd.T, rel_lklhd.T], axis=1)
-        df.set_axis(index, axis=1, inplace=True) 
         df['experiment'] = experiment+'BEST'+str(n_best)
-        df.set_index('experiment', append=True, inplace=True)
+        df.set_index(['experiment','cluster_size'], append=True, inplace=True)
+        df.set_axis(index, axis=1, inplace=True) 
         
         corrdir = os.path.join(data_dir, 'cluster_evaluation','k_correlations')
         os.makedirs(corrdir, exist_ok=True)
@@ -477,14 +488,16 @@ def saveCorr(xlabel, experiment, corr='all', n_best=1):
     for compare in ['total','peak']:
         corr = 'demand'
         int100, q100 = demandCorr(xlabel, compare)
-        int100.columns = int100.columns.add_categories(['experiment','compare'])
-        q100.columns = q100.columns.add_categories(['experiment','compare'])
+        int100.columns = int100.columns.add_categories(['experiment','compare','cluster_size'])
+        q100.columns = q100.columns.add_categories(['experiment','compare','cluster_size'])
         int100['experiment'] = experiment+'BEST'+str(n_best)
         int100['compare'] = compare
+        int100['cluster_size'] = df.index.get_level_values(-1)
         q100['experiment'] = experiment+'BEST'+str(n_best)
         q100['compare'] = compare
-        int100.set_index(['experiment','compare'], append=True, inplace=True)
-        q100.set_index(['experiment','compare'], append=True, inplace=True)
+        q100['cluster_size'] = df.index.get_level_values(-1)
+        int100.set_index(['experiment','cluster_size','compare'], append=True, inplace=True)
+        q100.set_index(['experiment','cluster_size','compare'], append=True, inplace=True)
         
         corrdir = os.path.join(data_dir, 'cluster_evaluation','k_correlations')
         os.makedirs(corrdir, exist_ok=True)
@@ -497,24 +510,26 @@ def saveCorr(xlabel, experiment, corr='all', n_best=1):
         if os.path.isfile(corrpathq):
             q100.to_csv(corrpathq, mode='a', index=True, header=False)
         else:
-            q100.to_csv(corrpathq, index=True)        
+            q100.to_csv(corrpathq, index=True)
+            
+    print('Successfully saved correlation measures for ', experiment)
     return
 
-def clusterEntropy(likelihood, random_likelihood=None):
+def clusterEntropy(likelihood, threshold):
     
-    if random_likelihood is None:
-        try:
-            random_likelihood = 1/len(likelihood)
-        except:
-            return('This function cannot compute entropy for weighted probabilities yet.')
+    try:
+        random_likelihood = 1/len(likelihood)
+    except:
+        return('This function cannot compute entropy for weighted probabilities yet.')
 
-    cluster_entropy = likelihood.applymap(lambda x : -x*log(x,2)).sum(axis=0)
+    likelihood = likelihood.where(likelihood.cluster_size>threshold, np.nan).drop('cluster_size', axis=1) #exclude k with low membership from calculation - scew by appearing more specific than they really are
+    cluster_entropy = likelihood.T.applymap(lambda x : -x*log(x,2)).sum(axis=0)
+    cluster_entropy.where(cluster_entropy!=0, inplace=True)
     max_entropy = -random_likelihood*log(random_likelihood,2)*len(likelihood)
-    ##TODO need to check how to calculate entropy when variables are weighted
     
     return cluster_entropy, max_entropy    
 
-def getMeasures(best_exps):
+def getMeasures(best_exps, threshold):
     
     eval_dir = os.path.join(data_dir,'cluster_evaluation')
 
@@ -537,6 +552,7 @@ def getMeasures(best_exps):
     context_entropy = dict(zip(best_exps, [dict()]*len(best_exps)))
     compare = ['total','peak']
     
+    #Generate evaluation measures for each experiment in best experiments list
     for e in best_exps:
         #total consumption err0r
         consE = consumption_error.loc[(consumption_error.experiment==e)&(consumption_error.compare=='total'),:]
@@ -547,31 +563,32 @@ def getMeasures(best_exps):
         #peak coincidence ratio
         peak_coincR[e] = {'coincidence_ratio': peak_eval.loc[peak_eval['experiment']==e,'coincidence_ratio']}
 
+        #temporal entropy
         te = dict()
         for temp in temp_files:
-            df = pd.read_csv(os.path.join(corr_path, temp+'_corr.csv'), index_col=[0,1], header=[0,1]).drop_duplicates()
-            df_temp = df[temp].reset_index(level=-1)
+            df = pd.read_csv(os.path.join(corr_path, temp+'_corr.csv'), index_col=[0,1,2], header=[0,1]).drop_duplicates()
+            df_temp = df[temp].reset_index(level=[-2,-1])
     
             likelihood = df_temp[df_temp.experiment == e+'BEST1'].drop('experiment', axis=1)
-            entropy, maxE = clusterEntropy(likelihood.T)
+            entropy, maxE = clusterEntropy(likelihood, threshold)
             te[temp+'_entropy'] = entropy.reset_index(drop=True)
         temporal_entropy.update({e:te})      
-    
+        
+        #context entropy
         co = dict()
-        df = pd.read_csv(os.path.join(corr_path, 'demandi_corr.csv'), index_col=[0,1,2], header=[0]).drop_duplicates()
-        df_temp = df.reset_index(level=[-2,-1])
+        df_temp = pd.read_csv(os.path.join(corr_path, 'demandi_corr.csv'), index_col=[0], header=[0]).drop_duplicates()
         for c in compare:
             likelihood = df_temp[(df_temp.experiment == e+'BEST1')&(df_temp.compare==c)].drop(['experiment','compare'], axis=1)
-            entropy, maxE = clusterEntropy(likelihood.T)
+            entropy, maxE = clusterEntropy(likelihood, threshold)
             co[c+'_entropy'] = entropy.reset_index(drop=True)
         context_entropy.update({e:co})
     
     return total_consE, peak_consE, peak_coincR, temporal_entropy, context_entropy
 
-def saveMeasures(best_exps):
+def saveMeasures(best_exps, threshold):
     
     measures = zip(['total_consE', 'peak_consE', 'peak_coincR', 'temporal_entropy', 
-                    'context_entropy'], getMeasures(best_exps))
+                    'context_entropy'], getMeasures(best_exps, threshold))
     mean_measures = list()
 
     for m, m_data in measures:
