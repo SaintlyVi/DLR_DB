@@ -284,7 +284,8 @@ def plotClusterSpecificity(experiment, corr_list, threshold, relative=False):
     i = 1
     for corr in corr_list:
         
-        df = pd.read_csv(os.path.join(corr_path, corr+'_corr.csv'), index_col=[0], header=[0]).drop_duplicates()
+        df = pd.read_csv(os.path.join(corr_path, corr+'_corr.csv'), header=[0]).drop_duplicates(
+                    subset=['k','experiment'], keep='last').set_index('k', drop=True)
         df = df.where(df.cluster_size>threshold, np.nan) #exclude k with low membership from viz
         lklhd = df[df.experiment == experiment+'BEST1'].drop(['experiment','cluster_size'], axis=1)
         

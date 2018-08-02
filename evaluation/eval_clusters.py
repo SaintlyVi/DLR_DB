@@ -26,7 +26,7 @@ def getExperiments(exp_root):
     """
     
     exps = glob(os.path.join(data_dir,'cluster_results',exp_root + '*.csv'))
-    experiments = list(pd.Series([('_').join(x.split('/')[-1].split('_')[:-1]) for x in exps]).drop_duplicates())
+    experiments = list(pd.Series([('_').join(x.split('/')[-1].split('_')[:-1]) for x in exps]).drop_duplicates(keep='last'))
     experiments.sort()
     
     return experiments
@@ -106,8 +106,7 @@ def exploreAMDBins(experiment, elec_bin=None):
         exc = cluster_results[['experiment_name','som_dim','n_clust','elec_bin',
                                'dbi','mia','silhouette','score','total_sample']]
     else:
-        exc = cluster_results.loc[cluster_results['elec_bin']==elec_bin,['experiment_name','som_dim','n_clust',
-                                  'elec_bin','dbi','mia','silhouette','score','total_sample']]
+        exc = cluster_results.loc[cluster_results['elec_bin']==elec_bin,['experiment_name','som_dim','n_clust','elec_bin','dbi','mia','silhouette','score','total_sample']]
     
     temp_ec = exc.loc[exc.loc[exc.experiment_name.str.contains(experiment)].groupby(['experiment_name', 'som_dim','elec_bin'])['score'].idxmin(), ['experiment_name','som_dim','n_clust','elec_bin','dbi','mia', 'silhouette','score','total_sample']]
     ordered_cats = [i for i in exc.elec_bin.unique() if i in temp_ec.elec_bin.unique()]
@@ -518,13 +517,12 @@ def getMeasures(best_exps, threshold):
     total_consE = dict()
     peak_consE = dict()
     cepath = os.path.join(eval_dir, 'consumption_error.csv')
-    consumption_error = pd.read_csv(cepath, index_col='k', usecols=['k','experiment','compare',
-                                                                    'mape','mdape','mdlq','mdsyma']).drop_duplicates()
+    consumption_error = pd.read_csv(cepath, usecols=['k','experiment','compare','mape','mdape','mdlq','mdsyma']).drop_duplicates(subset=['k','experiment','compare'], keep='last').set_index('k', drop=True)
     consumption_error.rename({'experiment':'experiment_name'}, axis=1)
     
     peak_coincR = dict()
     pcrpath = os.path.join(eval_dir, 'peak_coincidence.csv')
-    peak_eval = pd.read_csv(pcrpath, index_col='k').drop_duplicates()
+    peak_eval = pd.read_csv(pcrpath).drop_duplicates(subset=['k','experiment'], keep='last').set_index('k', drop=True)
     
     temporal_entropy = dict(zip(best_exps, [dict()]*len(best_exps)))   
     corr_path = os.path.join(data_dir, 'cluster_evaluation', 'k_correlations')
@@ -547,7 +545,8 @@ def getMeasures(best_exps, threshold):
         #temporal entropy
         te = dict()
         for temp in temp_files:
-            df = pd.read_csv(os.path.join(corr_path, temp+'_corr.csv'), index_col=[0], header=[0]).drop_duplicates()    
+            df = pd.read_csv(os.path.join(corr_path, temp+'_corr.csv'), header=[0]).drop_duplicates(
+                    subset=['k','experiment'], keep='last').set_index('k', drop=True) 
             likelihood = df[df.experiment == e+'BEST1'].drop('experiment', axis=1)
             entropy, maxE = clusterEntropy(likelihood, threshold)
             te[temp+'_entropy'] = entropy.reset_index(drop=True)
@@ -555,7 +554,8 @@ def getMeasures(best_exps, threshold):
         
         #context entropy
         co = dict()
-        df_temp = pd.read_csv(os.path.join(corr_path, 'demandi_corr.csv'), index_col=[0], header=[0]).drop_duplicates()
+        df_temp = pd.read_csv(os.path.join(corr_path, 'demandi_corr.csv'), header=[0]).drop_duplicates(
+                subset=['k','experiment','compare'], keep='last').set_index('k', drop=True)
         for c in compare:
             likelihood = df_temp[(df_temp.experiment == e+'BEST1')&(df_temp.compare==c)].drop(['experiment','compare'], axis=1)
             entropy, maxE = clusterEntropy(likelihood, threshold)
