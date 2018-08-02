@@ -132,7 +132,7 @@ def xBins(X):
     
     amd_bins = [0, 1, 50, 150, 400, 600, 1200, 2500, 4000]    
     bin_labels = ['{0:.0f}-{1:.0f}'.format(x,y) for x, y in zip(amd_bins[:-1], amd_bins[1:])]    
-    Xamd['bins'] = pd.cut(Xamd.amd, amd_bins, labels=bin_labels, right=True)
+    Xamd['bins'] = pd.cut(Xamd.amd, amd_bins, labels=bin_labels, right=True, include_lowest=True)
     
     Xbin_dict = dict()
     for c in Xamd.bins.cat.categories:

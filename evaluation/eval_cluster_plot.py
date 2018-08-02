@@ -259,18 +259,16 @@ def asymmetric_colorscale(data,  div_cmap, ref_point=0.0, step=0.05):
 # end colorbar functions
 #---------------------------
 
-def plotClusterSpecificity(experiment, corr_list, threshold):
+def plotClusterSpecificity(experiment, corr_list, threshold, relative=False):
     
     corr_path = os.path.join(data_dir, 'cluster_evaluation', 'k_correlations')
     n_corr = len(corr_list)    
     
     #Create dataframes for plot
-#    df = data.reset_index()
-    
     subplt_titls = ()
     titles = []
     for corr in corr_list:
-        title = 'Relative likelihood of '+corr+' assigned to cluster'
+        title = corr+' cluster assignment'
         titles.append((title, None))    
     for t in titles:
         subplt_titls += t
@@ -279,42 +277,41 @@ def plotClusterSpecificity(experiment, corr_list, threshold):
     fig = tools.make_subplots(rows=n_corr, cols=2, shared_xaxes=False, print_grid=False, 
                               subplot_titles=subplt_titls)
     #Create colour scale
-    smarties = cl.scales['8']['qual']['Dark2']
+    colours = cl.scales['8']['qual']['Dark2']
     slatered=['#232c2e', '#ffffff','#c34513']
     label_cmap, label_cs = colorscale_from_list(slatered, 'label_cmap') 
     
     i = 1
     for corr in corr_list:
         
-        df = pd.read_csv(os.path.join(corr_path, corr+'_corr.csv'), index_col=[0,1,2], header=[0,1]).drop_duplicates()
-        df_temp = df['relative'].reset_index(level=[-2,-1])
-        df_temp = df_temp.where(df_temp.cluster_size>threshold, np.nan) #exclude k with low membership from viz
-        rel_lklhd = df_temp[df_temp.experiment == experiment+'BEST1'].drop(['experiment','cluster_size'], axis=1)
+        df = pd.read_csv(os.path.join(corr_path, corr+'_corr.csv'), index_col=[0], header=[0]).drop_duplicates()
+        df = df.where(df.cluster_size>threshold, np.nan) #exclude k with low membership from viz
+        lklhd = df[df.experiment == experiment+'BEST1'].drop(['experiment','cluster_size'], axis=1)
+        
+        if relative == False:
+            pass
+        else:
+            lklhd = lklhd.divide(relative[i-1], axis=1)
+        try:
+            ref = 1/sum(relative[i-1])
+            weight = 'weighted'
+        except:
+            ref = 1/lklhd.shape[1]
+            weight = ''
 
         #Create colorscales
-        colorscl= asymmetric_colorscale(rel_lklhd, label_cmap, ref_point=1.0)
-#        colorscl=[[0.0, 'rgb(112,138,144)'],[white, 'rgb(255,255,255)'],[1.0, 'rgb(239,138,98)']]
+        colorscl= asymmetric_colorscale(lklhd, label_cmap, ref_point=ref) #cl.scales['3']['div']['RdYlBu']
 
         #Create traces
-        heatmap = go.Heatmap(z = rel_lklhd.T.values, x = rel_lklhd.index, y = rel_lklhd.columns, 
-                             name = corr, colorscale=colorscl, colorbar=dict(title='likelihood',
-                                                                             len=0.9/n_corr, 
-                                                                             y= 1-i/n_corr+0.05/i, 
-                                                                             yanchor='bottom'))
-        linegraph = rel_lklhd.iplot(kind='line', colors=smarties, showlegend=True, asFigure=True)
+        heatmap = go.Heatmap(z = lklhd.T.values, x = lklhd.index, y = lklhd.columns, name = corr,
+                             colorscale=colorscl, colorbar=dict(title=weight+' likelihood', len=0.9/n_corr, 
+                                                                y= 1-i/n_corr+0.05/i, yanchor='bottom'))
+        linegraph = lklhd.iplot(kind='line', colors=colours, showlegend=True, asFigure=True)
 
         fig.append_trace(heatmap, i, 1)
         for l in linegraph['data']:
-            fig.append_trace(l, i, 2)
-        random_likelihood=dict(type='scatter', x=[rel_lklhd.index[0], rel_lklhd.index[-1]], y=[1, 1], 
-                                       mode='lines', line=dict(color='black',dash='dash'))
-        fig.append_trace(random_likelihood, i, 2)
-        
-        fig['layout']['yaxis'+str(i*2)].update(title='relative probability of assignment')
-        fig['layout']['annotations'].extend([dict(x = rel_lklhd.index[int(len(rel_lklhd.index)*0.5)], y = 1,
-           showarrow=True, yshift=5, text="random assignment",ax=10, ay=-70, 
-           xref='x'+str(i*2), yref='y'+str(i*2))])
-        
+            fig.append_trace(l, i, 2)       
+        fig['layout']['yaxis'+str(i*2)].update(title=weight+' likelihood of assignment')        
         i += 1
 
     #Update layout
