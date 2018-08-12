@@ -12,7 +12,7 @@ import pandas as pd
 import time
 
 from evaluation.eval_clusters import getLabels, realCentroids, consumptionError, peakCoincidence, saveCorr
-from features.feature_extraction import genF
+from features.feature_extraction import genFProfiles, 
 
 # Set up argument parser to run from terminal
 parser = argparse.ArgumentParser(description='Evaluate DLR timeseries clusters.')
@@ -28,4 +28,4 @@ consumptionError(xl, centroids, compare='total')
 consumptionError(xl, centroids, compare='peak')
 peak_eval = peakCoincidence(xl, centroids)
 saveCorr(xl, args.experiment)
-F = genF(args.experiment, args.socios, savefig=False)
+F = genFProfiles(args.experiment, args.socios, savefig=False)

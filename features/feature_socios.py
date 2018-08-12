@@ -285,10 +285,10 @@ def generateSociosSetSingle(year, spec_file, set_id='ProfileID'):
     #adjust monthly income for inflation baselined to December 2016. 
     #Important that this happens here, after columns have been renamed and before income data is binned
     if 'monthly_income' in features:
-        cpi_percentage=(0.265,0.288,0.309,0.336,0.359,0.377,0.398,0.42,0.459,0.485,0.492,0.509,
-                    0.532,0.57,0.636,0.678,0.707,0.784,0.829,0.88,0.92,0.979,1.03)
-        cpi = dict(zip(list(range(1994,2015)),cpi_percentage))
-        data['monthly_income'] = data['monthly_income']/cpi[year]
+#        cpi_percentage=(0.265,0.288,0.309,0.336,0.359,0.377,0.398,0.42,0.459,0.485,0.492,0.509,
+#                    0.532,0.57,0.636,0.678,0.707,0.784,0.829,0.88,0.92,0.979,1.03)
+#        cpi = dict(zip(list(range(1994,2015)),cpi_percentage))
+#        data['monthly_income'] = data['monthly_income']/cpi[year]
     
         #Cut columns into datatypes that match factors of BN node variables    
         for k, v in bins.items():

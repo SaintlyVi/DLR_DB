@@ -549,7 +549,7 @@ def getMeasures(best_exps, threshold):
                     subset=['k','experiment'], keep='last').set_index('k', drop=True) 
             likelihood = df[df.experiment == e+'BEST1'].drop('experiment', axis=1)
             entropy, maxE = clusterEntropy(likelihood, threshold)
-            te[temp+'_entropy'] = entropy.reset_index(drop=True)
+            te[temp+'_entropy'] = entropy#.reset_index(drop=True)
         temporal_entropy.update({e:te})      
         
         #context entropy
@@ -557,9 +557,10 @@ def getMeasures(best_exps, threshold):
         df_temp = pd.read_csv(os.path.join(corr_path, 'demandi_corr.csv'), header=[0]).drop_duplicates(
                 subset=['k','experiment','compare'], keep='last').set_index('k', drop=True)
         for c in compare:
-            likelihood = df_temp[(df_temp.experiment == e+'BEST1')&(df_temp.compare==c)].drop(['experiment','compare'], axis=1)
+            likelihood = df_temp[(df_temp.experiment == e+'BEST1')&(df_temp.compare==c)].drop(['experiment',
+                                 'compare'], axis=1)
             entropy, maxE = clusterEntropy(likelihood, threshold)
-            co[c+'_entropy'] = entropy.reset_index(drop=True)
+            co[c+'_entropy'] = entropy#.reset_index(drop=True)
         context_entropy.update({e:co})
     
     return total_consE, peak_consE, peak_coincR, temporal_entropy, context_entropy
@@ -594,8 +595,7 @@ def householdEntropy(xlabel):
     if len(label_data.columns)>1:
         return('Too many columns to compute. Select 1 column only')
     else:
-        label_data.columns = ['k']
-    df = label_data.reset_index()
+        df = label_data.reset_index()
     
     data = df.groupby(['ProfileID','k'])['date'].count().rename('day_count').reset_index()
     hh_lbls = data.pivot(index='ProfileID',columns='k',values='day_count')

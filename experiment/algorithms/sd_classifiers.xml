@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!DOCTYPE object
+[
+   <!ELEMENT object (#PCDATA|object)*>
+   <!ATTLIST object name      CDATA #REQUIRED>
+   <!ATTLIST object class     CDATA #REQUIRED>
+   <!ATTLIST object primitive CDATA "no">
+   <!ATTLIST object array     CDATA "no">   <!-- the dimensions of the array; no=0, yes=1 -->
+   <!ATTLIST object null      CDATA "no">
+   <!ATTLIST object version   CDATA "3.8.2">
+]
+>
+
+<object class="weka.classifiers.bayes.BayesNet" name="__root__" version="3.8.2">
+   <object class="boolean" name="debug" primitive="yes">false</object>
+   <object array="yes" class="java.lang.String" name="options">
+      <object class="java.lang.String" name="0">-D</object>
+      <object class="java.lang.String" name="1">-Q</object>
+      <object class="java.lang.String" name="2">weka.classifiers.bayes.net.search.local.RepeatedHillClimber</object>
+      <object class="java.lang.String" name="3">--</object>
+      <object class="java.lang.String" name="4">-U</object>
+      <object class="java.lang.String" name="5">10</object>
+      <object class="java.lang.String" name="6">-A</object>
+      <object class="java.lang.String" name="7">1</object>
+      <object class="java.lang.String" name="8">-P</object>
+      <object class="java.lang.String" name="9">1</object>
+      <object class="java.lang.String" name="10">-S</object>
+      <object class="java.lang.String" name="11">BAYES</object>
+      <object class="java.lang.String" name="12">-E</object>
+      <object class="java.lang.String" name="13">weka.classifiers.bayes.net.estimate.SimpleEstimator</object>
+      <object class="java.lang.String" name="14">--</object>
+      <object class="java.lang.String" name="15">-A</object>
+      <object class="java.lang.String" name="16">0.5</object>
+   </object>
+</object>

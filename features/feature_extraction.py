@@ -51,21 +51,25 @@ def plotF(F, columns, save_name=None):
     
     return fig
 
-def genF(experiment, socios, n_best=1, savefig=False):
+def genFProfiles(experiment, socios, n_best=1, savefig=False):
+    """
+    generates a socio-demographic feature set
+    """
     
     year_start, year_end, drop_0, prepro, exp_root = getExpDetails(experiment)
     
-    kf_path = os.path.join(data_dir, 'cluster_evaluation','k_features', 
-                           experiment+'_'+socios+'BEST'+str(n_best)+'.csv')
-    
+    kf_dir = os.path.join(data_dir, 'cluster_evaluation','k_features', experiment+'_'+socios+'BEST'+
+                          str(n_best))
+    kf_path = kf_dir+'.csv'
     if os.path.exists(kf_path) is True:
         F = pd.read_csv(kf_path)
 
     else:
+        os.makedirs(kf_dir, exist_ok=True)
         print('Extracting and creating feature data...')
         # Get cluster labels
         XL = getLabels(experiment, n_best)
-        XL['DD'] = XL.iloc[:,list(range(0,24))].sum(axis=1)
+#        XL['DD'] = XL.iloc[:,list(range(0,24))].sum(axis=1)
         XL = XL.drop(columns=[str(i) for i in range(0,24)], axis=0).reset_index()
     
         # Add temporal features
@@ -79,29 +83,84 @@ def genF(experiment, socios, n_best=1, savefig=False):
         XL['season'] = XL.month.where(XL.month.isin(winter), 'summer')
         XL['season'] = XL.season.where(XL.season=='summer', 'winter')
         XL['daytype'] = XL.weekday.where(~XL.weekday.isin(work_week), 'weekday')
+#        XL.drop(columns=['date','month','weekday','elec_bin'], inplace=True)
+
+        kXL = XL.groupby(['ProfileID','year','season','daytype'])['k'].value_counts().reset_index(name='k_count')
+        kXL = kXL[kXL.k_count>1] #keep rows with two or more occurences of k
         
-        S = genS(socios, year_start, year_end, 'feather').reset_index()
-    
-        XL.drop(columns=['date','month','weekday'], inplace=True)
-            
+        S = genS(socios, year_start, year_end, 'feather').reset_index()  
+        
         #merge socio-demographic, geographic and temporal features
-        F = pd.merge(XL, S, how='inner',on='ProfileID')
+        F = pd.merge(kXL, S, how='inner',on='ProfileID')
         del XL, S
         
-        monthly_consumption_bins = [5, 50, 150, 400, 600, 1200, 2500, 4000]
-        daily_demand_bins = [x /30*1000/230 for x in monthly_consumption_bins]
-        bin_labels = ['{0:.0f}-{1:.0f}'.format(x,y) for x, y in zip(daily_demand_bins[:-1], daily_demand_bins[1:])]
-        F['DD'] = pd.cut(F.DD, daily_demand_bins, labels=bin_labels, right=False)
-        F['DD'] = F.DD.where(~F.DD.isna(), 0)
-        F['DD'] = F.DD.astype('category')
-        F.DD.cat.reorder_categories([0]+bin_labels, ordered=True,inplace=True)
+#        monthly_consumption_bins = [5, 50, 150, 400, 600, 1200, 2500, 4000]
+#        daily_demand_bins = [x /30*1000/230 for x in monthly_consumption_bins]
+#        bin_labels = ['{0:.0f}-{1:.0f}'.format(x,y) for x, y in zip(daily_demand_bins[:-1], daily_demand_bins[1:])]
+#        F['DD'] = pd.cut(F.DD, daily_demand_bins, labels=bin_labels, right=False)
+#        F['DD'] = F.DD.where(~F.DD.isna(), 0)
+#        F['DD'] = F.DD.astype('category')
+#        F.DD.cat.reorder_categories([0]+bin_labels, ordered=True,inplace=True)
         
-        F.drop('ProfileID', axis=1, inplace=True)
+#        F.drop('ProfileID', axis=1, inplace=True)
+        columns = F.columns.tolist()
+        columns.remove('k')
+        F = F[columns + ['k']]
+        F['k'] = F['k'].astype('category')
+        
         F.to_csv(kf_path, index=False)
+        
+        for y in range(year_start, year_end+1):
+            for c in F.columns:
+                F[c] = F[c].astype('category')
+            Y = F[F.year==y]
+            Y.drop(columns=['ProfileID','year'], inplace=True)
+            Y.to_csv(os.path.join(kf_dir, str(y)+'.csv'), index=False)
     
     if savefig is True:
-        for c in F.columns.drop(['ProfileID']):
+        for c in F.columns:#.drop(['ProfileID']):
             plotF(F, [c], socios)
+    
+    return F
+
+def genArffFile(experiment, socios, n_best=1):
+    
+    kf_name = experiment+'_'+socios+'BEST'+ str(n_best)
+    kf_dir = os.path.join(data_dir, 'cluster_evaluation','k_features', kf_name)
+    kf_path = kf_dir+'.arff'
+    
+    F = genFProfiles(experiment, socios, n_best)
+    F.drop('ProfileID', axis=1, inplace=True)
+    F.fillna('?', inplace=True)
+    attributes = []
+    for c in F.columns:
+        if c in ['k_count']:
+            pass
+        else:
+            att = '@attribute ' + c
+            cats = F[c].astype('category')
+            att += ' {'+",".join(map(str, cats.cat.categories))+'}'
+            attributes.append(att)   
+            
+    with open(kf_path, 'a+') as myfile:
+        myfile.write('@relation ' + kf_name + '\n\n')
+        for a in attributes:  
+            myfile.write(a+'\n')
+        myfile.write('\n@data\n')
+        for r in F.iterrows(): 
+            weight = r[1]['k_count']
+            vals = r[1].drop('k_count')
+            myfile.write(','.join(map(str,vals)) + ',{'+str(weight)+'}\n')
+
+    return print('Successfully created .arff file')
+
+def genFHouseholds(experiment, socios, season, daytype, n_best=1, savefig=False):
+    
+    F = genFProfiles(experiment, socios, n_best, savefig)        
+    Fsub = F.loc[(F['season']==season)&(F['daytype']==daytype),:]    
+    Fsub = Fsub.iloc[Fsub.groupby('ProfileID')['k_count'].idxmax()]
+    
+#    Fsub.to_csv(kf_path, index=False)
     
     return F
 
