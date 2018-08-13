@@ -395,7 +395,7 @@ def checkAnswer(answerid, features):
     groups = loadTable('groups')
     year = int(groups.loc[groups.GroupID == groupid, 'Year'].reset_index(drop=True)[0])
     
-    ans = extractSocios(features, year)[0].loc[extractSocios(features, year)[0]['AnswerID']==answerid]
+    ans = extractSocios(features, year).loc[extractSocios(features, year)['AnswerID']==answerid]
     return ans
 
 def recorderLocations(year = 2014):

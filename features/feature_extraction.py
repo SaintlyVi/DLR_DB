@@ -131,7 +131,6 @@ def genArffFile(experiment, socios, n_best=1):
     
     F = genFProfiles(experiment, socios, n_best)
     F.drop('ProfileID', axis=1, inplace=True)
-    F.fillna('?', inplace=True)
     attributes = []
     for c in F.columns:
         if c in ['k_count']:
@@ -140,7 +139,9 @@ def genArffFile(experiment, socios, n_best=1):
             att = '@attribute ' + c
             cats = F[c].astype('category')
             att += ' {'+",".join(map(str, cats.cat.categories))+'}'
-            attributes.append(att)   
+            attributes.append(att)
+    
+    F.fillna('?', inplace=True)
             
     with open(kf_path, 'a+') as myfile:
         myfile.write('@relation ' + kf_name + '\n\n')
