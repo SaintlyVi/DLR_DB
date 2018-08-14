@@ -123,18 +123,24 @@ def genFProfiles(experiment, socios, n_best=1, savefig=False):
     
     return F
 
-def genArffFile(experiment, socios, n_best=1):
+def genArffFile(experiment, socios, skip_cat=None, weighted=True, n_best=1):
     
     kf_name = experiment+'_'+socios+'BEST'+ str(n_best)
     kf_dir = os.path.join(data_dir, 'cluster_evaluation','k_features', kf_name)
-    kf_path = kf_dir+'.arff'
+    if weighted == True:
+        kf_path = kf_dir+'.arff'
+    elif weighted == False:
+        kf_path = kf_dir+'noW.arff'
     
     F = genFProfiles(experiment, socios, n_best)
     F.drop('ProfileID', axis=1, inplace=True)
-    attributes = []
+    attributes = [] 
     for c in F.columns:
-        if c in ['k_count']:
+        if c == 'k_count':
             pass
+        if c in skip_cat:
+            att = '@attribute ' + c + ' numeric'
+            attributes.append(att)
         else:
             att = '@attribute ' + c
             cats = F[c].astype('category')
@@ -147,23 +153,25 @@ def genArffFile(experiment, socios, n_best=1):
         myfile.write('@relation ' + kf_name + '\n\n')
         for a in attributes:  
             myfile.write(a+'\n')
-        myfile.write('\n@data\n')
+        myfile.write('\n@data\n')        
         for r in F.iterrows(): 
-            weight = r[1]['k_count']
+            if weighted == True:
+                weight = r[1]['k_count']
+            elif weighted == False:
+                weight = ''
             vals = r[1].drop('k_count')
             myfile.write(','.join(map(str,vals)) + ',{'+str(weight)+'}\n')
 
-    return print('Successfully created .arff file')
+    return print('Successfully created',experiment, socios, 'arff file.')
 
-def genFHouseholds(experiment, socios, season, daytype, n_best=1, savefig=False):
+def genFHouseholds(experiment, socios, n_best=1):
     
-    F = genFProfiles(experiment, socios, n_best, savefig)        
-    Fsub = F.loc[(F['season']==season)&(F['daytype']==daytype),:]    
-    Fsub = Fsub.iloc[Fsub.groupby('ProfileID')['k_count'].idxmax()]
+    F = genFProfiles(experiment, socios, n_best, savefig=False)  
+    Fhh = F.iloc[F.groupby(['ProfileID','season','daytype'])['k_count'].idxmax()]     
     
 #    Fsub.to_csv(kf_path, index=False)
     
-    return F
+    return Fhh
 
 def features2dict(data):      
     """            

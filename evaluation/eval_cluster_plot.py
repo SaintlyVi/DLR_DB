@@ -19,7 +19,9 @@ import colorlover as cl
 import cufflinks as cf
 cf.go_offline()
 
-import matplotlib. pyplot as plt
+import matplotlib
+from matplotlib import cm
+import matplotlib.pyplot as plt
 from matplotlib import colors
 from matplotlib.colors import LinearSegmentedColormap
 
@@ -401,40 +403,104 @@ def plotKVariance(k, xlabel):
     return po.iplot(fig)
 
 def plotClusterReliability(xlabel):
+    """ 
+    This function creates a scatter plot of mean household entropy vs mean profile standard deviation for all clusters. The marker size provides an indication of the number of households that use a particular cluster most frequently.
+    """   
     
     cv_out = ec.clusterReliability(xlabel)
+    hovertext = list()
+    for k, c in cv_out.iterrows():
+        hovertext.append('cluster {}<br />max count for {} households<br />{:.0f}A mean daily demand'.format(k, int(c['hh_count']), c['daily_demand']))
     trace1 = go.Scatter(
             x=cv_out['entropy'],
             y=cv_out['stdev'],
             mode='markers',
             marker=dict(
-                size=cv_out.hh_count**0.75,
+                size=cv_out.hh_count**0.5 + 5,
                 color = cv_out['daily_demand'], #set color equal to a variable
-                colorscale='Portland',
-                showscale=True
-            )
+                colorscale='Blackbody',
+                showscale=True,
+                colorbar=dict(title='daily demand')),
+            text=hovertext,
+            hoverinfo='text'
         )
-    data = [trace1]
-       
-    return po.iplot(data)
+            
+    layout = go.Layout(
+            title= 'Cluster Characterisation: entropy vs standard deviation',
+            xaxis = dict(title='mean cluster entropy of households assigned to cluster (based on frequency of use)'),
+            yaxis = dict(title='mean standard deviation of profiles assigned to cluster'),
+            hovermode= 'closest'
+            )
+            
+    fig= go.Figure(data=[trace1], layout=layout)
+    
+    return po.iplot(fig)
 
 def plotHouseholdReliability(xlabel, colorvar):
-    
-    cv_out = ec.householdReliability(xlabel)
+    """ 
+    This function creates a scatter plot of household entropy vs mean daily demand for all households.
+    colorvar displays an additional dimensino and can be one of Year, Municipality, k, stdev
+    """
+   
+    hh_out = ec.householdReliability(xlabel)
+    hovertext = list()
+    for k, h in hh_out.iterrows():
+        hovertext.append('most used cluster: {}<br />frequency: {} days<br />{}'.format(int(h['k']), int(h['k_count']), h['Year']))
     trace1 = go.Scatter(
-            x=cv_out['entropy'],
-            y=cv_out['daily_demand'],
+            x=hh_out['entropy'],
+            y=hh_out['daily_demand'],
             mode='markers',
             marker=dict(
-                size=1,
-                color = cv_out[colorvar], #set color equal to a variable
-                colorscale='Portland',
-                showscale=True
+                width=0,
+                size=hh_out['k_count']**0.3 + 1,
+                color = hh_out[colorvar], #set color equal to a variable
+                colorscale='Blackbody',
+                showscale=True,
+                colorbar=dict(title=colorvar)),
+            text=hovertext,
+            hoverinfo='text'
             )
-        )
-    data = [trace1]
+            
+    layout = go.Layout(
+            title= 'Household Characterisation: entropy vs daily energy demand (A)',
+            xaxis = dict(title='household entropy'),
+            yaxis = dict(title='mean daily demand (A)'),
+            hovermode= 'closest'
+            )
+            
+    fig= go.Figure(data=[trace1], layout=layout)
        
-    return po.iplot(data)
+    return po.iplot(fig)
+
+def plotHouseholdVolatility(F, month, daytype):
+        
+    Xsub = F[(F['season']==month)&(F['daytype']==daytype)].groupby(['elec_bin','k','ProfileID'])['DD'].count().reset_index()
+    
+    colour_data = Xsub.drop_duplicates(subset=['k','elec_bin']).set_index('k',drop=True)
+    
+    sub_plots = Xsub.elec_bin.unique()
+    fig = tools.make_subplots(rows=len(sub_plots), cols=1, shared_xaxes=False, 
+                              subplot_titles=sub_plots, print_grid=False)  
+    
+    colours =  plotPrettyColours(colour_data, 'elec_bin')  
+    
+    i = 1
+    for s in sub_plots:
+        for j in Xsub.loc[Xsub.elec_bin==s, 'k'].unique():
+            fig.append_trace({
+                'x' : ['p'+ str(p) for p in Xsub.loc[(Xsub.elec_bin==s) & (Xsub.k==j), 'ProfileID'].values],
+                'y' : Xsub.loc[(Xsub.elec_bin==s) & (Xsub.k==j),'DD'],
+                'name' : j,
+                'legendgroup' : s,
+                'marker' : dict(color=colours[j]),
+                'type' : 'bar'}, i, 1)
+        i += 1
+
+    fig['layout'].update(barmode='stack',
+                         height=len(sub_plots)*300,
+                         title=month + ' ' + daytype + ' cluster count for households')
+
+    return po.iplot(fig)
 
 #plot = cv_out.plot.scatter(x='entropy', y='stdev', s=np.sqrt(cv_out.hh_count)*5, c='daily_demand', colormap='nipy_spectral')
     
