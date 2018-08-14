@@ -375,3 +375,66 @@ def plotClusterMetrics(metrics_dict, title, metric=None, make_area_plot=False, y
 
     fig = {'data':traces, 'layout':layout }
     return po.iplot(fig)
+
+def plotKVariance(k, xlabel):
+    
+    colour_in = xlabel[['k','elec_bin']].drop_duplicates().reset_index(drop=True).set_index('k').sort_index()
+    colours = plotPrettyColours(colour_in, 'elec_bin')
+    
+    kxl = xlabel[xlabel['k'] == k]
+    
+    data = [{
+            'y': kxl.loc[:,str(i)], 
+            'type':'box',
+            'marker':{'color': colours[k]},
+            'name':i,
+            'boxpoints':'outliers',
+            'boxmean':True
+            } for i in range(0,24)]
+
+    layout = {'title':'Hourly variance of all load profiles assigned to cluster '+str(k),
+              'showlegend':False
+          }
+
+    fig = go.Figure(data=data, layout=layout)
+    
+    return po.iplot(fig)
+
+def plotClusterReliability(xlabel):
+    
+    cv_out = ec.clusterReliability(xlabel)
+    trace1 = go.Scatter(
+            x=cv_out['entropy'],
+            y=cv_out['stdev'],
+            mode='markers',
+            marker=dict(
+                size=cv_out.hh_count**0.75,
+                color = cv_out['daily_demand'], #set color equal to a variable
+                colorscale='Portland',
+                showscale=True
+            )
+        )
+    data = [trace1]
+       
+    return po.iplot(data)
+
+def plotHouseholdReliability(xlabel, colorvar):
+    
+    cv_out = ec.householdReliability(xlabel)
+    trace1 = go.Scatter(
+            x=cv_out['entropy'],
+            y=cv_out['daily_demand'],
+            mode='markers',
+            marker=dict(
+                size=1,
+                color = cv_out[colorvar], #set color equal to a variable
+                colorscale='Portland',
+                showscale=True
+            )
+        )
+    data = [trace1]
+       
+    return po.iplot(data)
+
+#plot = cv_out.plot.scatter(x='entropy', y='stdev', s=np.sqrt(cv_out.hh_count)*5, c='daily_demand', colormap='nipy_spectral')
+    

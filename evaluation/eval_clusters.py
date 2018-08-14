@@ -16,6 +16,7 @@ from glob import glob
 import peakutils
 
 import features.feature_ts as ts
+import features.feature_socios as soc
 from experiment.algorithms.clusters import xBins
 from support import data_dir, results_dir, experiment_dir
 
@@ -181,7 +182,7 @@ def realCentroids(xlabel, experiment, n_best=1):
     centroids['elec_bin'] = [xlabel.loc[xlabel.k==i,'elec_bin'].iloc[0] for i in centroids.index]
     centroids['cluster_size'] = xlabel.groupby('k')['0'].count()
     centroids['experiment'] = experiment
-    centroids['n_best'] = n_best    
+    centroids['n_best'] = n_best
     
     ordered_cats = centroids.elec_bin.unique()
     centroids.elec_bin = centroids.elec_bin.astype('category')
@@ -592,10 +593,7 @@ def householdEntropy(xlabel):
 
     label_data = xlabel['k']
     
-    if len(label_data.columns)>1:
-        return('Too many columns to compute. Select 1 column only')
-    else:
-        df = label_data.reset_index()
+    df = label_data.reset_index()
     
     data = df.groupby(['ProfileID','k'])['date'].count().rename('day_count').reset_index()
     hh_lbls = data.pivot(index='ProfileID',columns='k',values='day_count')
@@ -613,6 +611,33 @@ def monthlyHHE(lbls, S, month_ix):
     sg = Sent.groupby('monthly_income').aggregate({'rele':['mean','std']})
     return sg
 
+def clusterReliability(xlabel):
+    
+    kxl = xlabel.groupby(by='ProfileID', level=0)['k'].value_counts().reset_index(name='k_count')
+    maxkxl = kxl.iloc[kxl.groupby('ProfileID')['k_count'].idxmax()]
+    he = householdEntropy(xlabel)[0].reset_index(name='entropy')
+    cv = pd.merge(maxkxl, he, on='ProfileID', sort=True)
+    cv_out = cv.groupby('k').agg({'k_count':'count', 'entropy':'mean'}).rename(columns={'k_count':'hh_count'})
+    cv_out['stdev'] = xlabel.groupby('k').std().mean(axis=1)
+    cv_out['daily_demand'] = xlabel.groupby('k').mean().sum(axis=1)
+        
+    return cv_out
+
+def householdReliability(xlabel):
+    
+    kxl = xlabel.groupby(by='ProfileID', level=0)['k'].value_counts().reset_index(name='k_count')
+    maxkxl = kxl.iloc[kxl.groupby('ProfileID')['k_count'].idxmax()]
+    he = householdEntropy(xlabel)[0].reset_index(name='entropy')
+    cv = pd.merge(maxkxl, he, on='ProfileID', sort=True).set_index('ProfileID')
+    cv['stdev'] = xlabel.loc[:,'0':'23'].groupby('ProfileID').std().mean(axis=1)
+    cv['daily_demand'] = xlabel.loc[:,'0':'23'].groupby('ProfileID').mean().sum(axis=1)
+    
+    idload = soc.loadID()
+    ids = idload.loc[idload['Unit of measurement']==2,['ProfileID','Year','Municipality']].set_index('ProfileID')
+    
+    cv_out = pd.merge(cv, ids, on='ProfileID')
+        
+    return cv_out
 
 #def bestLabels(experiment, X, n_best=1):
 #    """
