@@ -275,8 +275,8 @@ def som(X, range_n_dim, top_lbls=10, preprocessing = None, bin_X=False, transfor
         save = True
 
     #apply pre-binning
-    if bin_X == True:
-        Xbin = xBins(X)
+    if bin_X != False:
+        Xbin = xBins(X, bin_X)
     else:
         Xbin = {'0-4000':X}
 
