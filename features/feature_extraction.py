@@ -138,9 +138,10 @@ def genArffFile(experiment, socios, skip_cat=None, weighted=True, n_best=1):
     for c in F.columns:
         if c == 'k_count':
             pass
-        elif (type(skip_cat) is list) & (c in skip_cat):
-            att = '@attribute ' + c + ' numeric'
-            attributes.append(att)
+        elif type(skip_cat) is list:
+            if c in skip_cat:
+                att = '@attribute ' + c + ' numeric'
+                attributes.append(att)
         else:
             att = '@attribute ' + c
             cats = F[c].astype('category')

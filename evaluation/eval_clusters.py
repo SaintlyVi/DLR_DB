@@ -123,13 +123,14 @@ def exploreAMDBins(experiment, elec_bin=None):
 def getLabels(experiment, n_best=1):
     
     year_start, year_end, drop, prepro, exp_root = getExpDetails(experiment)
+    
+    label_dir = os.path.join(data_dir, 'cluster_evaluation', 'best_labels')
+    os.path.makedirs(label_dir, exist_ok=True)
 
     if drop == False:
-        label_path = os.path.join(data_dir, 'cluster_evaluation', 'best_labels', 
-                                  experiment+'BEST'+str(n_best)+'_labels.feather')
+        label_path = os.path.join(label_dir, experiment+'BEST'+str(n_best)+'_labels.feather')
     elif drop == True:
-        label_path = os.path.join(data_dir, 'cluster_evaluation', 'best_labels', 
-                                  experiment+'drop0BEST'+str(n_best)+'_labels.feather')
+        label_path = os.path.join(label_dir, experiment+'drop0BEST'+str(n_best)+'_labels.feather')
 
     if os.path.exists(label_path) is True:
         XL = feather.read_dataframe(label_path).set_index(['ProfileID','date'])
