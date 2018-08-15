@@ -56,7 +56,7 @@ def genFProfiles(experiment, socios, n_best=1, savefig=False):
     generates a socio-demographic feature set
     """
     
-    year_start, year_end, drop_0, prepro, exp_root = getExpDetails(experiment)
+    year_start, year_end, drop_0, prepro, bin_X, exp_root = getExpDetails(experiment)
     
     kf_dir = os.path.join(data_dir, 'cluster_evaluation','k_features', experiment+'_'+socios+'BEST'+
                           str(n_best))
@@ -136,17 +136,25 @@ def genArffFile(experiment, socios, skip_cat=None, weighted=True, n_best=1):
     F.drop('ProfileID', axis=1, inplace=True)
     attributes = [] 
     for c in F.columns:
-        if c == 'k_count':
-            pass
-        elif type(skip_cat) is list:
-            if c in skip_cat:
-                att = '@attribute ' + c + ' numeric'
+        if type(skip_cat) is list:
+            if c == 'k_count':
+                pass
+            elif c in skip_cat:
+                    att = '@attribute ' + c + ' numeric'
+                    attributes.append(att)
+            else:
+                att = '@attribute ' + c
+                cats = F[c].astype('category')
+                att += ' {'+",".join(map(str, cats.cat.categories))+'}'
                 attributes.append(att)
         else:
-            att = '@attribute ' + c
-            cats = F[c].astype('category')
-            att += ' {'+",".join(map(str, cats.cat.categories))+'}'
-            attributes.append(att)
+            if c == 'k_count':
+                pass
+            else:
+                att = '@attribute ' + c
+                cats = F[c].astype('category')
+                att += ' {'+",".join(map(str, cats.cat.categories))+'}'
+                attributes.append(att)
     
     F.fillna('?', inplace=True)
             

@@ -32,7 +32,7 @@ def plotPrettyColours(data, grouping):
    
     if grouping == 'experiments':
         colour_seq = ['Reds','Oranges','YlOrBr','YlGn','Greens','BuGn','Blues','RdPu',
-                      'PuBu','Purples','PuRd']
+                      'PuBu','Purples','PuRd','YlGnBu','YlOrRd']
         df = pd.DataFrame(data.experiment_name.unique(), columns=['name'])
         df['root'] = df.applymap(lambda x: '_'.join(x.split('_',2)[0:2]))
         

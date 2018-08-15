@@ -50,8 +50,9 @@ def getExpDetails(experiment_name):
     year_start = exp.loc[exp.preprocessing==prepro, 'start'].unique()[0]
     year_end = exp.loc[exp.preprocessing==prepro, 'end'].unique()[0]
     drop_0 = exp.loc[exp.preprocessing==prepro, 'drop_0'].unique()[0]
+    bin_X = exp.loc[exp.preprocessing==prepro, 'bin_X'].unique()[0]
     
-    return year_start, year_end, drop_0, prepro, exp_root
+    return year_start, year_end, drop_0, prepro, bin_X, exp_root
 
 def readResults():
     cluster_results = pd.read_csv('results/cluster_results.csv')
@@ -122,10 +123,10 @@ def exploreAMDBins(experiment, elec_bin=None):
 
 def getLabels(experiment, n_best=1):
     
-    year_start, year_end, drop, prepro, exp_root = getExpDetails(experiment)
+    year_start, year_end, drop, prepro, bin_X, exp_root = getExpDetails(experiment)
     
     label_dir = os.path.join(data_dir, 'cluster_evaluation', 'best_labels')
-    os.path.makedirs(label_dir, exist_ok=True)
+    os.makedirs(label_dir, exist_ok=True)
 
     if drop == False:
         label_path = os.path.join(label_dir, experiment+'BEST'+str(n_best)+'_labels.feather')
@@ -148,7 +149,7 @@ def getLabels(experiment, n_best=1):
             XL = X
     
         elif int(experiment[3]) >= 4: #reconstruct full X for experiment 4, 5
-            Xbin = xBins(X)
+            Xbin = xBins(X, bin_X)
             XL = pd.DataFrame()
     
             for b, ids in Xbin.items():
@@ -177,7 +178,7 @@ def getLabels(experiment, n_best=1):
 
 def realCentroids(xlabel, experiment, n_best=1):
     
-    year_start, year_end, drop_0, prepro, exp_root = getExpDetails(experiment)
+    year_start, year_end, drop_0, prepro, bin_X, exp_root = getExpDetails(experiment)
     
     centroids = xlabel.groupby('k').mean()
     centroids['elec_bin'] = [xlabel.loc[xlabel.k==i,'elec_bin'].iloc[0] for i in centroids.index]
