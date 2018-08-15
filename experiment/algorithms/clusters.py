@@ -123,23 +123,32 @@ def saveResults(experiment_name, cluster_stats, cluster_centroids, som_dim, elec
     
     return eval_results, centroid_results
 
-def xBins(X):
-    Xdd_A = X.sum(axis=1)
-    Xdd = Xdd_A*230/1000
-    XmonthlyPower = resampleProfiles(Xdd, interval='M', aggfunc='sum')
-    Xamd = resampleProfiles(XmonthlyPower, interval='A', aggfunc='mean').reset_index().groupby('ProfileID').mean()
-    Xamd.columns=['amd']
-    
-    amd_bins = [0, 1, 50, 150, 400, 600, 1200, 2500, 4000]    
-    bin_labels = ['{0:.0f}-{1:.0f}'.format(x,y) for x, y in zip(amd_bins[:-1], amd_bins[1:])]    
-    Xamd['bins'] = pd.cut(Xamd.amd, amd_bins, labels=bin_labels, right=True, include_lowest=True)
-    
-    Xbin_dict = dict()
-    for c in Xamd.bins.cat.categories:
-        Xbin_dict[c] = Xamd[Xamd.bins==c].index.values
-    
-    del Xdd_A, Xdd, XmonthlyPower, Xamd
-    
+def xBins(X, bin_type):
+
+    if bin_type == 'amd':
+        Xdd_A = X.sum(axis=1)
+        Xdd = Xdd_A*230/1000
+        XmonthlyPower = resampleProfiles(Xdd, interval='M', aggfunc='sum')
+        Xamd = resampleProfiles(XmonthlyPower, interval='A', aggfunc='mean').reset_index().groupby('ProfileID').mean()
+        Xamd.columns=['amd']
+        
+        amd_bins = [0, 1, 50, 150, 400, 600, 1200, 2500, 4000]    
+        bin_labels = ['{0:.0f}-{1:.0f}'.format(x,y) for x, y in zip(amd_bins[:-1], amd_bins[1:])]    
+        Xamd['bins'] = pd.cut(Xamd.amd, amd_bins, labels=bin_labels, right=True, include_lowest=True)
+        
+        Xbin_dict = dict()
+        for c in Xamd.bins.cat.categories:
+            Xbin_dict[c] = Xamd[Xamd.bins==c].index.values
+        
+        del Xdd_A, Xdd, XmonthlyPower, Xamd
+        
+    if bin_type == 'integral':
+        Xint = normalize(X).cumsum(axis=1)
+        Xintn = pd.DataFrame(Xint, index=X.index)
+        Xintn['max'] = X.max(axis=1)
+        for n_clust in range(4, 11):
+            clusterer = MiniBatchKMeans(n_clusters=n_clust, random_state=10)
+        
     return Xbin_dict
 
 def preprocessX(X, norm=None):  
@@ -178,7 +187,7 @@ def kmeans(X, range_n_clusters, top_lbls=10, preprocessing = None, bin_X=False, 
     
     #apply pre-binning
     if bin_X != False:
-        Xbin = xBins(X)
+        Xbin = xBins(X, bin_X)
     else:
         Xbin = {'all':X}
 

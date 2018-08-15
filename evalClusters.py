@@ -12,7 +12,7 @@ import pandas as pd
 import time
 
 from evaluation.eval_clusters import getLabels, realCentroids, consumptionError, peakCoincidence, saveCorr
-from features.feature_extraction import genFProfiles, 
+from features.feature_extraction import genFProfiles
 
 # Set up argument parser to run from terminal
 parser = argparse.ArgumentParser(description='Evaluate DLR timeseries clusters.')
