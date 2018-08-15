@@ -152,7 +152,7 @@ def xBins(X, bin_type):
         labl = pd.DataFrame(cluster_labels, index=X.index) 
         Xbin_dict = dict()
         for c in labl[0].unique():
-            Xbin_dict[c] = labl[labl[0]==c].index.values
+            Xbin_dict['bin'+str(c)] = labl[labl[0]==c].index.values
             
     return Xbin_dict
 
