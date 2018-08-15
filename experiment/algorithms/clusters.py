@@ -146,9 +146,14 @@ def xBins(X, bin_type):
         Xint = normalize(X).cumsum(axis=1)
         Xintn = pd.DataFrame(Xint, index=X.index)
         Xintn['max'] = X.max(axis=1)
-        for n_clust in range(4, 11):
-            clusterer = MiniBatchKMeans(n_clusters=n_clust, random_state=10)
-        
+        clusterer = MiniBatchKMeans(n_clusters=8, random_state=10)
+        clusterer.fit(np.array(Xintn))
+        cluster_labels = clusterer.predict(np.array(Xintn))
+        labl = pd.DataFrame(cluster_labels, index=X.index) 
+        Xbin_dict = dict()
+        for c in labl[0].unique():
+            Xbin_dict[c] = labl[labl[0]==c].index.values
+            
     return Xbin_dict
 
 def preprocessX(X, norm=None):  
