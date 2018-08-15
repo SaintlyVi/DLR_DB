@@ -138,7 +138,7 @@ def genArffFile(experiment, socios, skip_cat=None, weighted=True, n_best=1):
     for c in F.columns:
         if c == 'k_count':
             pass
-        if c in skip_cat:
+        elif (type(skip_cat) is list) & (c in skip_cat):
             att = '@attribute ' + c + ' numeric'
             attributes.append(att)
         else:
