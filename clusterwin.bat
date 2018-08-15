@@ -7,4 +7,4 @@ clear
 echo "Ready to roll."
 
 python runClusters.py exp5_kmeans -top 5
-python runClusters.py exp5_som+kmeans -top 5
+#python runClusters.py exp5_som+kmeans -top 5
