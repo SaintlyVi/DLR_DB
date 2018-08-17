@@ -65,9 +65,21 @@ def readResults():
     
     return cluster_results
 
-def selectClusters(cluster_results, n_best, threshold=1200, experiment='all' ):
+def weightScore(cluster, score):
+    """ 
+    ***adpated from http://pbpython.com/weighted-average.html***
+    http://stackoverflow.com/questions/10951341/pandas-dataframe-aggregate-function-using-multiple-columns
+    In rare instance, we may not have weights, so just return the mean. Customize this if your business case
+    should return otherwise.
+    """
+    d = cluster[score]
+    w = cluster['total_sample']
+    try:
+        return (d * w).sum() / w.sum()
+    except ZeroDivisionError:
+        return d.mean()
 
-    cluster_results = cluster_results[cluster_results.total_sample>threshold] #drop clusters with too small sample size    
+def selectClusters(cluster_results, n_best, experiment='all' ):
     
     if experiment=='all':
         exc = cluster_results.loc[cluster_results.score > 0,:]
@@ -87,8 +99,11 @@ def selectClusters(cluster_results, n_best, threshold=1200, experiment='all' ):
             temp_ec = exc.loc[exc.loc[exc.experiment_name == e].groupby(['experiment_name', 'som_dim', 
                               'elec_bin'])['score'].idxmin(), ['experiment_name', 'som_dim', 'n_clust', 'elec_bin', 'dbi', 'mia', 'silhouette', 'score', 'total_sample']]
             
-            i_ec = temp_ec.groupby(['experiment_name', 'som_dim']).mean().drop(columns ='total_sample'
-                                  ).reset_index()
+            i_ec = temp_ec.groupby(['experiment_name', 'som_dim'])['n_clust'].mean().reset_index(name='n_clust')
+            for s in ['dbi', 'mia', 'silhouette', 'score']:
+                i_ec.loc[:,s] = weightScore(temp_ec, s)
+            
+#            i_ec = temp_ec.groupby(['experiment_name', 'som_dim']).mean().drop(columns ='total_sample').reset_index()
             experiment_clusters = experiment_clusters.append(i_ec, sort=True) 
         
     best_clusters = experiment_clusters.nsmallest(columns='score',n=n_best).reset_index(drop=True).reindex(
@@ -176,25 +191,29 @@ def getLabels(experiment, n_best=1):
     
     return XL.sort_index()
 
-def realCentroids(xlabel, experiment, n_best=1):
+def realCentroids(experiment, xlabel=None, n_best=1):
     
     year_start, year_end, drop_0, prepro, bin_X, exp_root = getExpDetails(experiment)
-    
-    centroids = xlabel.groupby('k').mean()
-    centroids['elec_bin'] = [xlabel.loc[xlabel.k==i,'elec_bin'].iloc[0] for i in centroids.index]
-    centroids['cluster_size'] = xlabel.groupby('k')['0'].count()
-    centroids['experiment'] = experiment
-    centroids['n_best'] = n_best
-    
-    ordered_cats = centroids.elec_bin.unique()
-    centroids.elec_bin = centroids.elec_bin.astype('category')
-    centroids.elec_bin = centroids.elec_bin.cat.reorder_categories(ordered_cats, ordered=True)
-    
+
     os.makedirs(os.path.join(data_dir, 'cluster_evaluation', 'best_centroids'), exist_ok = True)
     centpath = os.path.join(data_dir, 'cluster_evaluation', 'best_centroids', 
                             experiment+'BEST'+str(n_best)+'_centroids.csv')
-    centroids.to_csv(centpath, index=True)
-    print('Real centroids computed and recorded.')
+    try:
+        centroids  = pd.read_csv(centpath, index_col='k')
+    
+    except:
+        centroids = xlabel.groupby('k').mean()
+        centroids['elec_bin'] = [xlabel.loc[xlabel.k==i,'elec_bin'].iloc[0] for i in centroids.index]
+        centroids['cluster_size'] = xlabel.groupby('k')['0'].count()
+        centroids['experiment'] = experiment
+        centroids['n_best'] = n_best
+        
+        ordered_cats = centroids.elec_bin.unique()
+        centroids.elec_bin = centroids.elec_bin.astype('category')
+        centroids.elec_bin = centroids.elec_bin.cat.reorder_categories(ordered_cats, ordered=True)
+    
+        centroids.to_csv(centpath, index=True)
+        print('Real centroids computed and recorded.')
     
     return centroids
 

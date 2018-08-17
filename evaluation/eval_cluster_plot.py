@@ -66,6 +66,30 @@ def plotPrettyColours(data, grouping):
     
     return colours
 
+def cufflinksTheme():
+    
+    theme= {'annotations': {'arrowcolor': 'slategray', 'fontcolor': '#666666'},
+            'bargap': 0.01,
+            'colorscale': 'ggplot',
+            'layout': {'legend': {'bgcolor': 'white', 'font': {'color': '#666666'}},
+                       'paper_bgcolor': 'white', 
+                       'plot_bgcolor': '#E5E5E5',
+                       'titlefont': {'color': 'charcoal'},
+                       'xaxis1': {'gridcolor': 'lightivory',
+                                  'showgrid': True,
+                                  'tickfont': {'color': '#666666'},
+                                  'titlefont': {'color': '#666666'},
+                                  'zerolinecolor': 'lightivory'},
+                        'yaxis1': {'gridcolor': 'lightivory',
+                                   'showgrid': True,
+                                   'tickfont': {'color': '#666666'},
+                                   'titlefont': {'color': '#666666'},
+                                   'zerolinecolor': 'lightivory'}}, 
+            'linecolor': 'pearl', 
+            'linewidth': 1.3}
+                       
+    return theme
+
 def plotClusterIndex(index, title, experiments, threshold=1200, groupby='algorithm', ylog=False):
     
     cluster_results = ec.readResults()
@@ -279,7 +303,8 @@ def plotClusterSpecificity(experiment, corr_list, threshold, relative=False):
     fig = tools.make_subplots(rows=n_corr, cols=2, shared_xaxes=False, print_grid=False, 
                               subplot_titles=subplt_titls)
     #Create colour scale
-    colours = cl.scales['8']['qual']['Dark2']
+    colours = cl.scales['12']['qual']['Paired']
+    colours = [colours[i] for i in [1,3,5,7,9,11,0,2,4,6,8,10]] + cl.scales['12']['qual']['Set3']
     slatered=['#232c2e', '#ffffff','#c34513']
     label_cmap, label_cs = colorscale_from_list(slatered, 'label_cmap') 
     
@@ -309,7 +334,13 @@ def plotClusterSpecificity(experiment, corr_list, threshold, relative=False):
         heatmap = go.Heatmap(z = lklhd.T.values, x = lklhd.index, y = lklhd.columns, name = corr,
                              colorscale=colorscl, colorbar=dict(title=weight+' likelihood', len=0.9/n_corr, 
                                                                 y= 1-i/n_corr+0.05/i, yanchor='bottom'))
-        linegraph = lklhd.iplot(kind='line', colors=colours, showlegend=True, asFigure=True)
+        linegraph = {'data': list()}
+        for col in range(len(lklhd.columns)):
+            linegraph['data'].append({'line': {'color': colours[col], 'width':1.5},
+                   'name': lklhd.columns[col],
+                   'type': u'scatter',
+                   'x': lklhd.index.values,
+                   'y':lklhd.iloc[:,col]})
 
         fig.append_trace(heatmap, i, 1)
         for l in linegraph['data']:
