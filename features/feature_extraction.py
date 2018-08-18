@@ -123,17 +123,29 @@ def genFProfiles(experiment, socios, n_best=1, savefig=False):
     
     return F
 
-def genArffFile(experiment, socios, skip_cat=None, weighted=True, n_best=1):
+def genArffFile(experiment, socios, filter_features=None, skip_cat=None, weighted=True, n_best=1):
     
     kf_name = experiment+'_'+socios+'BEST'+ str(n_best)
     kf_dir = os.path.join(data_dir, 'cluster_evaluation','k_features', kf_name)
+    os.makedirs(kf_dir, exist_ok=True)   
+    
+    F = genFProfiles(experiment, socios, n_best)
+    F.drop('ProfileID', axis=1, inplace=True)
+    
+    if filter_features != None:
+        apply_filter = eval(filter_features)
+        for k,v in apply_filter.items():
+            Ftemp = F[F[k]==v]
+            F = Ftemp.drop(k, axis=1)
+            kf_name += '_' + v
+        kf_dir = os.path.join(kf_dir, kf_name)
+   
+    
     if weighted == True:
         kf_path = kf_dir+'.arff'
     elif weighted == False:
         kf_path = kf_dir+'noW.arff'
     
-    F = genFProfiles(experiment, socios, n_best)
-    F.drop('ProfileID', axis=1, inplace=True)
     attributes = [] 
     for c in F.columns:
         if type(skip_cat) is list:

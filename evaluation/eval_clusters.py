@@ -223,7 +223,7 @@ def rebinCentroids(centroids):
     
     monthly_consumption_bins = [1, 50, 150, 400, 600, 1200, 2500, 4000]
     daily_demand_bins = [x /30*1000/230 for x in monthly_consumption_bins]
-    bin_labels = ['{0:.0f}-{1:.0f}'.format(x,y) for x, y in zip(monthly_consumption_bins[:-1], monthly_consumption_bins[1:])]
+    bin_labels = ['{0:.0f}-{1:.0f} mean_amd'.format(x,y) for x, y in zip(monthly_consumption_bins[:-1], monthly_consumption_bins[1:])]
     centroids['elec_bin'] = pd.cut(centroids['AMD'], daily_demand_bins, labels=bin_labels, right=False)
     centroids['elec_bin'] = centroids.elec_bin.where(~centroids.elec_bin.isna(), '0-1')
     centroids['elec_bin'] = centroids.elec_bin.astype('category')
@@ -231,6 +231,25 @@ def rebinCentroids(centroids):
     centroids.elec_bin.cat.reorder_categories(ordered_cats, ordered=True,inplace=True)
 
     return centroids
+
+def renameCentBins(centroids):
+    
+    centroids['dd'] = centroids.iloc[:,0:24].sum(axis=1)
+    new_cats = centroids.groupby('elec_bin')['dd'].mean().reset_index()
+    new_cats['bin_labels'] = pd.Series(['{0:.0f} A mean_dd'.format(x) for x in new_cats['dd']])
+    sorted_cats = new_cats.sort_values('dd')['bin_labels']
+    
+    new_centroids = pd.merge(centroids, new_cats.loc[:,['elec_bin','bin_labels']], how='outer',on='elec_bin')
+    new_centroids.set_axis(range(1,len(new_centroids)+1), inplace=True)
+    new_centroids.drop(columns=['elec_bin','dd'],inplace=True)
+    new_centroids.rename({'bin_labels':'elec_bin'},inplace=True, copy=False, axis=1)
+    new_centroids['elec_bin'] = new_centroids['elec_bin'].astype('category')
+    new_centroids.elec_bin.cat.reorder_categories(sorted_cats, ordered=True,inplace=True)
+    new_centroids.index.name = 'k'
+    new_centroids.sort_values(['elec_bin','k'], inplace=True)
+    
+    return new_centroids
+    
 
 def clusterColNames(data):    
     data.columns = ['Cluster '+str(x) for x in data.columns]

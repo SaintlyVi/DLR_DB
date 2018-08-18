@@ -152,10 +152,12 @@ def plotClusterCentroids(centroids, n_best=1):
     experiment_name = centroids['experiment'].unique()[0]
     
     if len(centroids.elec_bin.unique()) == 1: 
-        centroids = ec.rebinCentroids(centroids)    
+        centroids = ec.rebinCentroids(centroids)
+    elif 'bin' in centroids.elec_bin.unique()[0]:
+        centroids = ec.renameCentBins(centroids)
     
     traces = centroids.iloc[:, 0:24].T
-    n_clust = traces.columns[-1]
+    n_clust = len(traces.columns)
     traces.columns = ['cluster ' + str(k) for k in traces.columns.values]   
     largest = 'cluster '+str(centroids.cluster_size.idxmax())
         
@@ -163,6 +165,8 @@ def plotClusterCentroids(centroids, n_best=1):
     fig = tools.make_subplots(rows=3, cols=1, shared_xaxes=False, specs=[[{'rowspan': 2}],[None],[{}]],
                               subplot_titles=['cluster profiles '+experiment_name+' (n='+str(n_clust)+
                                               ') TOP '+str(n_best),'cluster sizes'], print_grid=False)  
+
+    legend_group = centroids['elec_bin'].reset_index(drop=True)
     i = 0
     for col in traces.columns:
         if col == largest:
@@ -170,7 +174,7 @@ def plotClusterCentroids(centroids, n_best=1):
         else:
             width = 1
         fig.append_trace({'x': traces.index, 'y': traces[col], 'line':{'color':colours[i+1],'width':width}, 
-                          'type': 'scatter', 'legendgroup':centroids['elec_bin'][i+1], 'name': col}, 1, 1)
+                          'type': 'scatter', 'legendgroup':legend_group[i], 'name': col}, 1, 1)
 #        fig.append_trace({'x': col, 'y': cluster_size[i+1], 'type': 'bar', 
 #                          'legendgroup':centroids['elec_bin'][i+1], 'name': col} , 3, 1)
         i+=1

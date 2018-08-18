@@ -15,7 +15,7 @@ from support import data_dir, results_dir, experiment_dir
 mod = pd.DataFrame()
 p = os.path.join(results_dir,'classification_results')
 for file in os.listdir(p): 
-    if 'exp' in file: 
+    if 'output_mod' in file: 
         data = pd.read_csv(os.path.join(p, file))
         mod = mod.append(data)
 mod.sort_values(by=['Key_Dataset','Key_Run','Key_Scheme_options'], inplace=True)
