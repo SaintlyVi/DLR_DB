@@ -419,7 +419,8 @@ def plotKVariance(k, xlabel):
     data = [{
             'y': kxl.loc[:,str(i)], 
             'type':'box',
-            'marker':{'color': colours[k]},
+            'marker':{'size': 4,
+                    'color': colours[k]},
             'name':i,
             'boxpoints':'outliers',
             'boxmean':True
