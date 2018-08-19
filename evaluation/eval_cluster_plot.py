@@ -166,15 +166,16 @@ def plotClusterCentroids(centroids, n_best=1):
                               subplot_titles=['cluster profiles '+experiment_name+' (n='+str(n_clust)+
                                               ') TOP '+str(n_best),'cluster sizes'], print_grid=False)  
 
-    legend_group = centroids['elec_bin'].reset_index(drop=True)
+    legend_group = centroids['elec_bin'].reset_index()
     i = 0
     for col in traces.columns:
         if col == largest:
             width = 3
         else:
             width = 1
-        fig.append_trace({'x': traces.index, 'y': traces[col], 'line':{'color':colours[i+1],'width':width}, 
-                          'type': 'scatter', 'legendgroup':legend_group[i], 'name': col}, 1, 1)
+        fig.append_trace({'x': traces.index, 'y': traces[col], 
+                          'line':{'color':colours[legend_group['k'][i]],'width':width}, 
+                          'type': 'scatter', 'legendgroup':legend_group['elec_bin'][i], 'name': col}, 1, 1)
 #        fig.append_trace({'x': col, 'y': cluster_size[i+1], 'type': 'bar', 
 #                          'legendgroup':centroids['elec_bin'][i+1], 'name': col} , 3, 1)
         i+=1

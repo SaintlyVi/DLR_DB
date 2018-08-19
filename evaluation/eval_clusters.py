@@ -569,12 +569,12 @@ def getMeasures(best_exps, threshold):
     corr_path = os.path.join(data_dir, 'cluster_evaluation', 'k_correlations')
     temp_files = ['yearly', 'weekday', 'monthly']
 
-    context_entropy = dict(zip(best_exps, [dict()]*len(best_exps)))
+    demand_entropy = dict(zip(best_exps, [dict()]*len(best_exps)))
     compare = ['total','peak']
     
     #Generate evaluation measures for each experiment in best experiments list
     for e in best_exps:
-        #total consumption err0r
+        #total consumption error
         consE = consumption_error.loc[(consumption_error.experiment==e)&(consumption_error.compare=='total'),:]
         total_consE[e] = {'mape':consE.mape,'mdape':consE.mdape,'mdlq':consE.mdlq,'mdsyma':consE.mdsyma}     
         #peak consumption error
@@ -593,7 +593,7 @@ def getMeasures(best_exps, threshold):
             te[temp+'_entropy'] = entropy#.reset_index(drop=True)
         temporal_entropy.update({e:te})      
         
-        #context entropy
+        #demand entropy
         co = dict()
         df_temp = pd.read_csv(os.path.join(corr_path, 'demandi_corr.csv'), header=[0]).drop_duplicates(
                 subset=['k','experiment','compare'], keep='last').set_index('k', drop=True)
@@ -602,14 +602,14 @@ def getMeasures(best_exps, threshold):
                                  'compare'], axis=1)
             entropy, maxE = clusterEntropy(likelihood, threshold)
             co[c+'_entropy'] = entropy#.reset_index(drop=True)
-        context_entropy.update({e:co})
+        demand_entropy.update({e:co})
     
-    return total_consE, peak_consE, peak_coincR, temporal_entropy, context_entropy
+    return total_consE, peak_consE, peak_coincR, temporal_entropy, demand_entropy
 
 def saveMeasures(best_exps, threshold):
     
     measures = zip(['total_consE', 'peak_consE', 'peak_coincR', 'temporal_entropy', 
-                    'context_entropy'], getMeasures(best_exps, threshold))
+                    'demand_entropy'], getMeasures(best_exps, threshold))
     mean_measures = list()
 
     for m, m_data in measures:

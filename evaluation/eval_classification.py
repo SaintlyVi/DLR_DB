@@ -15,8 +15,10 @@ from support import data_dir, results_dir, experiment_dir
 mod = pd.DataFrame()
 p = os.path.join(results_dir,'classification_results')
 for file in os.listdir(p): 
-    if 'output_mod' in file: 
+    if 'output_mod3' in file: 
         data = pd.read_csv(os.path.join(p, file))
-        mod = mod.append(data)
+#        print(mod.columns.difference(data.columns))
+        mod = pd.concat([mod, data], axis=0, sort=True)
+#        print(file, len(mod.columns))
 mod.sort_values(by=['Key_Dataset','Key_Run','Key_Scheme_options'], inplace=True)
-mod.to_csv(os.path.join(p, 'classification_output.csv'), index=False)
+mod.to_csv(os.path.join(p, 'classification_output3.csv'), index=False)
