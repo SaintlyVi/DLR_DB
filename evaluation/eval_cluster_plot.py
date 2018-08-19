@@ -437,6 +437,8 @@ def plotKVariance(k, xlabel):
 
     fig = go.Figure(data=data, layout=layout)
     
+    del kxl, data
+    
     return po.iplot(fig)
 
 def plotClusterReliability(xlabel):
@@ -456,6 +458,8 @@ def plotClusterReliability(xlabel):
                 size=cv_out.hh_count**0.5 + 5,
                 color = cv_out['daily_demand'], #set color equal to a variable
                 colorscale='Blackbody',
+                line = dict(width = 0.5,
+                            color = 'rgba(68, 68, 68, 1)'),
                 showscale=True,
                 colorbar=dict(title='daily demand')),
             text=hovertext,
@@ -480,23 +484,54 @@ def plotHouseholdReliability(xlabel, colorvar):
     """
    
     hh_out = ec.householdReliability(xlabel)
-    hovertext = list()
-    for k, h in hh_out.iterrows():
-        hovertext.append('most used cluster: {}<br />frequency: {} days<br />{}'.format(int(h['k']), int(h['k_count']), h['Year']))
-    trace1 = go.Scatter(
-            x=hh_out['entropy'],
-            y=hh_out['daily_demand'],
+#    hovertext = list()
+
+    n_colours = len(hh_out[colorvar].unique())
+    colour_jump = 1//n_colours
+    
+    traces = []
+    i = 0
+    for var in hh_out[colorvar].unique():
+        sub_hh_out = hh_out.loc[hh_out[colorvar]==var]
+        x = sub_hh_out['entropy']
+        y = sub_hh_out['daily_demand']
+        hovertext = list()
+        for k, h in sub_hh_out.iterrows():
+            hovertext.append('most used cluster: {}<br />frequency: {} days<br />{}'.format(int(h['k']), int(h['k_count']), h['Year']))
+
+        traces.append(dict(
+            x=x,
+            y=y,
+            name=var,
             mode='markers',
             marker=dict(
-                width=0,
                 size=hh_out['k_count']**0.3 + 1,
-                color = hh_out[colorvar], #set color equal to a variable
-                colorscale='Blackbody',
-                showscale=True,
-                colorbar=dict(title=colorvar)),
+                color = cm.nipy_spectral(i*colour_jump, 0.5), 
+                line = dict(width = 0.5,
+                            color = 'rgba(48, 48, 48, 1)')),
             text=hovertext,
             hoverinfo='text'
-            )
+        ))
+        i += 1
+    
+#    for k, h in hh_out.iterrows():
+#        hovertext.append('most used cluster: {}<br />frequency: {} days<br />{}'.format(int(h['k']), int(h['k_count']), h['Year']))
+#    trace1 = go.Scatter(
+#            x=hh_out['entropy'],
+#            y=hh_out['daily_demand'],
+#            mode='markers',
+#            marker=dict(
+#                size=hh_out['k_count']**0.3 + 1,
+#                color = hh_out[colorvar], #set color equal to a variable
+#                colorscale = 'Portland',
+#                line = dict(width = 0.5,
+#                            color = 'rgba(48, 48, 48, 1)'),
+#                opacity = 0.5,
+#                showscale=True,
+#                colorbar=dict(title=colorvar)),
+#            text=hovertext,
+#            hoverinfo='text'
+#            )
             
     layout = go.Layout(
             title= 'Household Characterisation: entropy vs daily energy demand (A)',
@@ -505,7 +540,10 @@ def plotHouseholdReliability(xlabel, colorvar):
             hovermode= 'closest'
             )
             
-    fig= go.Figure(data=[trace1], layout=layout)
+#    fig= go.Figure(data=[trace1], layout=layout)
+    fig= go.Figure(data=traces, layout=layout)
+    
+    del hh_out, traces#trace1
        
     return po.iplot(fig)
 
@@ -536,6 +574,8 @@ def plotHouseholdVolatility(F, month, daytype):
     fig['layout'].update(barmode='stack',
                          height=len(sub_plots)*300,
                          title=month + ' ' + daytype + ' cluster count for households')
+    
+    del Xsub
 
     return po.iplot(fig)
 
