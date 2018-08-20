@@ -26,9 +26,16 @@ from matplotlib import colors
 from matplotlib.colors import LinearSegmentedColormap
 
 import evaluation.eval_clusters as ec
-from support import data_dir
+from support import data_dir, image_dir
+
+clustering_evaluation_dir = os.path.join(data_dir, 'cluster_evaluation', 'plots', 'clustering_evaluation')
+cluster_analysis_dir = os.path.join(data_dir, 'cluster_evaluation', 'plots', 'cluster_analysis')
 
 def plotPrettyColours(data, grouping):
+    
+    #make directories for saving plot htmls
+    os.makedirs(clustering_evaluation_dir, exist_ok=True)
+    os.makedirs(cluster_analysis_dir, exist_ok=True)
    
     if grouping == 'experiments':
         colour_seq = ['Reds','Oranges','YlOrBr','YlGn','Greens','BuGn','Blues','RdPu',
@@ -120,7 +127,7 @@ def plotClusterIndex(index, title, experiments, threshold=1200, groupby='algorit
             )
 
     fig = {'data':traces, 'layout':layout }
-    return po.iplot(fig, filename='img/cluster_index_'+index)
+    return po.plot(fig, filename=clustering_evaluation_dir+'/cluster_index_'+index+'.html')
 
 def plotClusterCentroids(centroids, n_best=1):
 
@@ -168,7 +175,7 @@ def plotClusterCentroids(centroids, n_best=1):
     fig['layout']['margin'].update(t=50,r=80,b=100,l=90,pad=10),
     fig['layout'].update(height=700, hovermode = "closest")
     
-    po.iplot(fig, filename='img/cluster_centroids'+experiment_name)
+    po.plot(fig, filename=cluster_analysis_dir+'/cluster_centroids_'+experiment_name+'.html')
     
 def plotClusterLabels(label_data, year, n_clust=None, som_dim=0):
     
@@ -332,7 +339,7 @@ def plotClusterSpecificity(experiment, corr_list, threshold, relative=False):
     #Update layout
     fig['layout'].update(title='Temporal specificity of ' + experiment, height=n_corr*400, hovermode = "closest", showlegend=False) 
 
-    po.iplot(fig, filename='img/cluster_specificity_'+experiment+'_'.join(corr_list))
+    po.plot(fig, filename=clustering_evaluation_dir+'/cluster_specificity_'+experiment+'_'+'_'.join(corr_list)+'.html')
     
 def plotClusterMetrics(metrics_dict, title, metric=None, make_area_plot=False, ylog=False):
 
@@ -387,9 +394,9 @@ def plotClusterMetrics(metrics_dict, title, metric=None, make_area_plot=False, y
             )
 
     fig = {'data':traces, 'layout':layout }
-    return po.iplot(fig, filename='img/cluster_metrics_'+metric)
+    return po.plot(fig, filename=clustering_evaluation_dir+'/cluster_metrics_'+title.replace(" ", "_")+'.html')
 
-def plotKVariance(k, xlabel, centroids):
+def plotKDispersion(k, xlabel, centroids):
     
     colour_in = xlabel[['k','elec_bin']].drop_duplicates().reset_index(drop=True).set_index('k').sort_index()
     rcolour_in = ec.renameBins(colour_in, centroids)
@@ -397,32 +404,87 @@ def plotKVariance(k, xlabel, centroids):
     
     kxl = xlabel[xlabel['k'] == k]
     
-    data = [{
-            'y': kxl.loc[:,str(i)], 
-            'type':'box',
-            'marker':{'size': 4,
-                    'color': colours[k]},
-            'name':i,
-            'boxpoints':False,
-            'boxmean':True
-            } for i in range(0,24)]
+    std_upper = kxl.iloc[:,0:24].describe().loc['mean'] + kxl.iloc[:,0:24].describe().loc['std']
+    std_lower = kxl.iloc[:,0:24].describe().loc['mean'] - kxl.iloc[:,0:24].describe().loc['std']
 
-    layout = {'title':'Hourly variance of all load profiles assigned to cluster '+str(k),
-              'showlegend':False,             
+    trace1 = go.Scatter(
+        y=kxl.iloc[:,0:24].describe().loc['50%'],
+#        fill='tonexty',
+#        fillcolor='rgba'+colours[k][3:].replace(')',', 0.1)'),
+        mode='lines',
+        name='median demand',
+        line=dict(
+                color=colours[k],
+                width = 3,
+                dash = 'dash'),
+        hoverinfo='all'
+        )
+
+    trace2 = go.Scatter(
+        y=kxl.iloc[:,0:24].describe().loc['mean'],
+        fill='tonexty',
+        fillcolor='rgba'+colours[k][3:].replace(')',', 0.1)'),
+        mode='lines',
+        name='mean demand',
+        line=dict(
+            color=colours[k],
+            width = 3),
+        hoverinfo='all'
+            )
+
+    trace3 = go.Scatter(
+        y=std_upper,
+        mode='lines',
+        name='stdev',
+        fill='tonexty',
+        fillcolor='rgba'+colours[k][3:].replace(')',', 0.1)'),
+        legendgroup = 'stdev',
+        line=dict(
+            color=colours[k],
+            width = 1),
+        hoverinfo='all'
+            )
+    
+    trace4 = go.Scatter(
+        showlegend=False,
+        fill='tonexty',
+        fillcolor='rgba'+colours[k][3:].replace(')',', 0.1)'),
+        y=std_lower.where(std_lower>0, 0),
+#        name='stdev_lower',
+        mode='lines',
+        legendgroup = 'stdev',
+        line=dict(
+            color=colours[k],
+            width = 1),
+        hoverinfo='all'
+            )
+
+    trace5 = go.Scatter(
+        y=kxl.iloc[:,0:24].describe().loc['max'],
+        mode='markers',
+        name='max',
+        marker=dict(
+            color=colours[k],
+            size = 5),
+        hoverinfo='all'
+            )
+
+    layout = {'title':'Hourly dispersion of all load profiles assigned to cluster '+str(k),
+              'showlegend':True,             
               'xaxis':dict(title='time of day (hour)',
                            rangemode='tozero'),
               'yaxis':dict(title='hourly demand (A)', 
-                         rangemode='tozero'),
-              'hovermode':'closest'
+                         rangemode='tozero')
           }
 
-    fig = go.Figure(data=data, layout=layout)
+    traces = [trace1, trace2, trace3, trace4, trace5]
+    fig = go.Figure(data=traces, layout=layout)
     
-    del kxl, data
+    del kxl
     
-    return po.plot(fig, filename='img/cluster_variance_k'+str(k))
+    return po.plot(fig, filename=cluster_analysis_dir+'/cluster_dispersion_k'+str(k)+'.html')
 
-def plotClusterConsistency(xlabel):
+def plotClusterConsistency(xlabel, y_axis='daily_demand', colour_var='stdev'):
     """ 
     This function creates a scatter plot of mean household entropy vs mean profile standard deviation for all clusters. The marker size provides an indication of the number of households that use a particular cluster most frequently.
     """   
@@ -430,34 +492,33 @@ def plotClusterConsistency(xlabel):
     cv_out = ec.clusterReliability(xlabel)
     hovertext = list()
     for k, c in cv_out.iterrows():
-        hovertext.append('cluster {}<br />max count for {} households<br />{:.0f}A mean daily demand'.format(k, int(c['hh_count']), c['daily_demand']))
+        hovertext.append('cluster {}<br />max count for {} households<br />{:.0f}A mean daily demand<br />mean standard deviation: {:.2f} '.format(k, int(c['hh_count']), c['daily_demand'], c['stdev']))
     trace1 = go.Scatter(
             x=cv_out['entropy'],
-            y=cv_out['stdev'],
+            y=cv_out[y_axis],
             mode='markers',
             marker=dict(
                 size=cv_out.hh_count**0.5 + 5,
-                color = cv_out['daily_demand'], #set color equal to a variable
+                color = cv_out[colour_var], #set color equal to a variable
                 colorscale='Blackbody',
                 line = dict(width = 0.75,
                             color = 'rgba(68, 68, 68, 1)'),
                 showscale=True,
-                colorbar=dict(title='daily demand')),
+                colorbar=dict(title=colour_var)),
             text=hovertext,
             hoverinfo='text'
         )
             
     layout = go.Layout(
-            title= 'Cluster consistency: entropy vs standard deviation',
+            title= 'Cluster consistency: entropy vs ' +y_axis.replace('_',' '),
             xaxis = dict(title='mean cluster entropy of households assigned to cluster (based on frequency of use)', rangemode='tozero'),
-            yaxis = dict(title='mean standard deviation of profiles assigned to cluster', 
-                         rangemode='tozero'),
+            yaxis = dict(title='mean '+y_axis.replace('_',' ')+' of profiles assigned to cluster'),
             hovermode= 'closest'
             )
             
     fig= go.Figure(data=[trace1], layout=layout)
     
-    return po.plot(fig, filename='img/cluster_consistency')
+    return po.plot(fig, filename=cluster_analysis_dir+'/cluster_consistency_Y_'+y_axis+'.html')
 
 def plotHouseholdVolatility(xlabel, colorvar, centroids, legendgroups = None):
     """ 
@@ -519,7 +580,7 @@ def plotHouseholdVolatility(xlabel, colorvar, centroids, legendgroups = None):
     
     del hh_out, traces#trace1
        
-    return po.plot(fig, filename='img/household_volatility_'+colorvar)
+    return po.plot(fig, filename=cluster_analysis_dir+'/household_volatility_'+colorvar+'.html')
 
 def plotHouseholdReliability(F, month, daytype):
         
