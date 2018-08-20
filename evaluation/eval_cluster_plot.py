@@ -66,30 +66,6 @@ def plotPrettyColours(data, grouping):
     
     return colours
 
-def cufflinksTheme():
-    
-    theme= {'annotations': {'arrowcolor': 'slategray', 'fontcolor': '#666666'},
-            'bargap': 0.01,
-            'colorscale': 'ggplot',
-            'layout': {'legend': {'bgcolor': 'white', 'font': {'color': '#666666'}},
-                       'paper_bgcolor': 'white', 
-                       'plot_bgcolor': '#E5E5E5',
-                       'titlefont': {'color': 'charcoal'},
-                       'xaxis1': {'gridcolor': 'lightivory',
-                                  'showgrid': True,
-                                  'tickfont': {'color': '#666666'},
-                                  'titlefont': {'color': '#666666'},
-                                  'zerolinecolor': 'lightivory'},
-                        'yaxis1': {'gridcolor': 'lightivory',
-                                   'showgrid': True,
-                                   'tickfont': {'color': '#666666'},
-                                   'titlefont': {'color': '#666666'},
-                                   'zerolinecolor': 'lightivory'}}, 
-            'linecolor': 'pearl', 
-            'linewidth': 1.3}
-                       
-    return theme
-
 def plotClusterIndex(index, title, experiments, threshold=1200, groupby='algorithm', ylog=False):
     
     cluster_results = ec.readResults()
@@ -144,7 +120,7 @@ def plotClusterIndex(index, title, experiments, threshold=1200, groupby='algorit
             )
 
     fig = {'data':traces, 'layout':layout }
-    return po.iplot(fig)
+    return po.iplot(fig, filename='img/cluster_index_'+index)
 
 def plotClusterCentroids(centroids, n_best=1):
 
@@ -153,8 +129,8 @@ def plotClusterCentroids(centroids, n_best=1):
     
     if len(centroids.elec_bin.unique()) == 1: 
         centroids = ec.rebinCentroids(centroids)
-    elif 'bin' in centroids.elec_bin.unique()[0]:
-        centroids = ec.renameCentBins(centroids)
+    if 'bin' in centroids.elec_bin.unique()[0]:
+        centroids = ec.renameBins(centroids, centroids)
     
     traces = centroids.iloc[:, 0:24].T
     n_clust = len(traces.columns)
@@ -192,7 +168,7 @@ def plotClusterCentroids(centroids, n_best=1):
     fig['layout']['margin'].update(t=50,r=80,b=100,l=90,pad=10),
     fig['layout'].update(height=700, hovermode = "closest")
     
-    po.iplot(fig)
+    po.iplot(fig, filename='img/cluster_centroids'+experiment_name)
     
 def plotClusterLabels(label_data, year, n_clust=None, som_dim=0):
     
@@ -224,9 +200,9 @@ def display_cmap(cmap): #Display  a colormap cmap
     plt.imshow(np.linspace(0, 100, 256)[None, :],  aspect=25, interpolation='nearest', cmap=cmap) 
     plt.axis('off')
     
-def colormap_to_colorscale(cmap):
+def colormap_to_colorscale(cmap, n):
     #function that transforms a matplotlib colormap to a Plotly colorscale
-    return [ [k*0.1, colors.rgb2hex(cmap(k*0.1))] for k in range(11)]
+    return [ [k*(1/(n-1)), colors.rgb2hex(cmap(k*(1/(n-1))))] for k in range(n)]
 
 def colorscale_from_list(alist, name): 
     # Defines a colormap, and the corresponding Plotly colorscale from the list alist
@@ -235,7 +211,7 @@ def colorscale_from_list(alist, name):
     
     cmap = LinearSegmentedColormap.from_list(name, alist)
 #    display_cmap(cmap)
-    colorscale=colormap_to_colorscale(cmap)
+    colorscale=colormap_to_colorscale(cmap, 11)
     return cmap, colorscale
 
 def normalize(x,a,b): #maps  the interval [a,b]  to [0,1]
@@ -333,7 +309,7 @@ def plotClusterSpecificity(experiment, corr_list, threshold, relative=False):
             weight = ''
 
         #Create colorscales
-        colorscl= asymmetric_colorscale(lklhd, label_cmap, ref_point=ref) #cl.scales['3']['div']['RdYlBu']
+        colorscl= asymmetric_colorscale(lklhd, label_cmap, ref_point=ref)
 
         #Create traces
         heatmap = go.Heatmap(z = lklhd.T.values, x = lklhd.index, y = lklhd.columns, name = corr,
@@ -356,7 +332,7 @@ def plotClusterSpecificity(experiment, corr_list, threshold, relative=False):
     #Update layout
     fig['layout'].update(title='Temporal specificity of ' + experiment, height=n_corr*400, hovermode = "closest", showlegend=False) 
 
-    po.iplot(fig)
+    po.iplot(fig, filename='img/cluster_specificity_'+experiment+'_'.join(corr_list))
     
 def plotClusterMetrics(metrics_dict, title, metric=None, make_area_plot=False, ylog=False):
 
@@ -366,9 +342,8 @@ def plotClusterMetrics(metrics_dict, title, metric=None, make_area_plot=False, y
     else:
         fillme = None
     
-    colours = cl.scales['8']['qual']['Dark2'] #['Red','Green','Orange','Blue','Purple','Brown','Black','Yellow','PuBu','BuGn',]
-#    colours = cl.scales[str(len(metrics_dict.keys()))]['div']['Spectral']
-
+    colours = cl.scales['8']['qual']['Dark2']
+    
     #generate plot data
     traces = []
     s = 0
@@ -412,12 +387,13 @@ def plotClusterMetrics(metrics_dict, title, metric=None, make_area_plot=False, y
             )
 
     fig = {'data':traces, 'layout':layout }
-    return po.iplot(fig)
+    return po.iplot(fig, filename='img/cluster_metrics_'+metric)
 
-def plotKVariance(k, xlabel):
+def plotKVariance(k, xlabel, centroids):
     
     colour_in = xlabel[['k','elec_bin']].drop_duplicates().reset_index(drop=True).set_index('k').sort_index()
-    colours = plotPrettyColours(colour_in, 'elec_bin')
+    rcolour_in = ec.renameBins(colour_in, centroids)
+    colours = plotPrettyColours(rcolour_in, 'elec_bin')
     
     kxl = xlabel[xlabel['k'] == k]
     
@@ -427,21 +403,26 @@ def plotKVariance(k, xlabel):
             'marker':{'size': 4,
                     'color': colours[k]},
             'name':i,
-            'boxpoints':'outliers',
+            'boxpoints':False,
             'boxmean':True
             } for i in range(0,24)]
 
     layout = {'title':'Hourly variance of all load profiles assigned to cluster '+str(k),
-              'showlegend':False
+              'showlegend':False,             
+              'xaxis':dict(title='time of day (hour)',
+                           rangemode='tozero'),
+              'yaxis':dict(title='hourly demand (A)', 
+                         rangemode='tozero'),
+              'hovermode':'closest'
           }
 
     fig = go.Figure(data=data, layout=layout)
     
     del kxl, data
     
-    return po.iplot(fig)
+    return po.plot(fig, filename='img/cluster_variance_k'+str(k))
 
-def plotClusterReliability(xlabel):
+def plotClusterConsistency(xlabel):
     """ 
     This function creates a scatter plot of mean household entropy vs mean profile standard deviation for all clusters. The marker size provides an indication of the number of households that use a particular cluster most frequently.
     """   
@@ -458,7 +439,7 @@ def plotClusterReliability(xlabel):
                 size=cv_out.hh_count**0.5 + 5,
                 color = cv_out['daily_demand'], #set color equal to a variable
                 colorscale='Blackbody',
-                line = dict(width = 0.5,
+                line = dict(width = 0.75,
                             color = 'rgba(68, 68, 68, 1)'),
                 showscale=True,
                 colorbar=dict(title='daily demand')),
@@ -467,32 +448,44 @@ def plotClusterReliability(xlabel):
         )
             
     layout = go.Layout(
-            title= 'Cluster Characterisation: entropy vs standard deviation',
-            xaxis = dict(title='mean cluster entropy of households assigned to cluster (based on frequency of use)'),
-            yaxis = dict(title='mean standard deviation of profiles assigned to cluster'),
+            title= 'Cluster consistency: entropy vs standard deviation',
+            xaxis = dict(title='mean cluster entropy of households assigned to cluster (based on frequency of use)', rangemode='tozero'),
+            yaxis = dict(title='mean standard deviation of profiles assigned to cluster', 
+                         rangemode='tozero'),
             hovermode= 'closest'
             )
             
     fig= go.Figure(data=[trace1], layout=layout)
     
-    return po.iplot(fig)
+    return po.plot(fig, filename='img/cluster_consistency')
 
-def plotHouseholdReliability(xlabel, colorvar):
+def plotHouseholdVolatility(xlabel, colorvar, centroids, legendgroups = None):
     """ 
     This function creates a scatter plot of household entropy vs mean daily demand for all households.
     colorvar displays an additional dimensino and can be one of Year, Municipality, k, stdev
     """
    
     hh_out = ec.householdReliability(xlabel)
-#    hovertext = list()
+    trace_vars = hh_out[colorvar].unique()
+    trace_vars.sort()   
 
-    n_colours = len(hh_out[colorvar].unique())
-    colour_jump = 1//n_colours
+    if colorvar == 'k':
+        colour_in = xlabel[['k','elec_bin']].drop_duplicates().reset_index(
+                drop=True).set_index('k').sort_index()
+        rcolour_in = ec.renameBins(colour_in, centroids)
+        colour_gradient = plotPrettyColours(rcolour_in, 'elec_bin')
+        c1 = dict(zip(colour_gradient.keys(), [colour_gradient[i].replace(')',', 0.8)') for i in colour_gradient.keys()]))
+        colour_dict = dict(zip(c1.keys(), [c1[x].replace('rgb','rgba') for x in c1.keys()]))
+    else:
+        colour_gradient = colormap_to_colorscale(cm.nipy_spectral, len(hh_out[colorvar].unique())+1)
+        colour_dict = dict(zip(trace_vars, ['rgba'+str(colors.to_rgba(colour_gradient[x][1], 0.8))  for x in range(len(colour_gradient))]))
     
     traces = []
     i = 0
-    for var in hh_out[colorvar].unique():
+    for var in trace_vars:
         sub_hh_out = hh_out.loc[hh_out[colorvar]==var]
+        if legendgroups != None:
+            legendgroups = sub_hh_out['elec_bin'].unique()[0]
         x = sub_hh_out['entropy']
         y = sub_hh_out['daily_demand']
         hovertext = list()
@@ -502,62 +495,42 @@ def plotHouseholdReliability(xlabel, colorvar):
         traces.append(dict(
             x=x,
             y=y,
-            name=var,
+            name=str(var),
             mode='markers',
             marker=dict(
-                size=hh_out['k_count']**0.3 + 1,
-                color = cm.nipy_spectral(i*colour_jump, 0.5), 
+                size=sub_hh_out['k_count']**0.4 + 1,
+                color = colour_dict[var], 
                 line = dict(width = 0.5,
                             color = 'rgba(48, 48, 48, 1)')),
+            legendgroup=legendgroups,
             text=hovertext,
             hoverinfo='text'
         ))
         i += 1
     
-#    for k, h in hh_out.iterrows():
-#        hovertext.append('most used cluster: {}<br />frequency: {} days<br />{}'.format(int(h['k']), int(h['k_count']), h['Year']))
-#    trace1 = go.Scatter(
-#            x=hh_out['entropy'],
-#            y=hh_out['daily_demand'],
-#            mode='markers',
-#            marker=dict(
-#                size=hh_out['k_count']**0.3 + 1,
-#                color = hh_out[colorvar], #set color equal to a variable
-#                colorscale = 'Portland',
-#                line = dict(width = 0.5,
-#                            color = 'rgba(48, 48, 48, 1)'),
-#                opacity = 0.5,
-#                showscale=True,
-#                colorbar=dict(title=colorvar)),
-#            text=hovertext,
-#            hoverinfo='text'
-#            )
-            
     layout = go.Layout(
-            title= 'Household Characterisation: entropy vs daily energy demand (A)',
-            xaxis = dict(title='household entropy'),
-            yaxis = dict(title='mean daily demand (A)'),
+            title= 'Household Characterisation: entropy vs daily energy demand (A) - coloured by '+colorvar,
+            xaxis = dict(title='household entropy', rangemode='tozero'),
+            yaxis = dict(title='mean daily demand (A)', rangemode='tozero'),
             hovermode= 'closest'
             )
             
-#    fig= go.Figure(data=[trace1], layout=layout)
     fig= go.Figure(data=traces, layout=layout)
     
     del hh_out, traces#trace1
        
-    return po.iplot(fig)
+    return po.plot(fig, filename='img/household_volatility_'+colorvar)
 
-def plotHouseholdVolatility(F, month, daytype):
+def plotHouseholdReliability(F, month, daytype):
         
     Xsub = F[(F['season']==month)&(F['daytype']==daytype)].groupby(['elec_bin','k','ProfileID'])['DD'].count().reset_index()
     
-    colour_data = Xsub.drop_duplicates(subset=['k','elec_bin']).set_index('k',drop=True)
+    colour_data = Xsub.drop_duplicates(subset=['k','elec_bin']).set_index('k',drop=True)    
+    colours =  plotPrettyColours(colour_data, 'elec_bin') 
     
     sub_plots = Xsub.elec_bin.unique()
     fig = tools.make_subplots(rows=len(sub_plots), cols=1, shared_xaxes=False, 
                               subplot_titles=sub_plots, print_grid=False)  
-    
-    colours =  plotPrettyColours(colour_data, 'elec_bin')  
     
     i = 1
     for s in sub_plots:

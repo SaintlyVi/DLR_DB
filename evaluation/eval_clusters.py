@@ -232,24 +232,26 @@ def rebinCentroids(centroids):
 
     return centroids
 
-def renameCentBins(centroids):
+def mapBins(centroids):
     
     centroids['dd'] = centroids.iloc[:,0:24].sum(axis=1)
     new_cats = centroids.groupby('elec_bin')['dd'].mean().reset_index()
     new_cats['bin_labels'] = pd.Series(['{0:.0f} A mean_dd'.format(x) for x in new_cats['dd']])
-    sorted_cats = new_cats.sort_values('dd')['bin_labels']
+    sorted_cats = new_cats.sort_values('dd')    
+    mapper = dict(zip(sorted_cats['elec_bin'], sorted_cats['bin_labels']))
     
-    new_centroids = pd.merge(centroids, new_cats.loc[:,['elec_bin','bin_labels']], how='outer',on='elec_bin')
-    new_centroids.set_axis(range(1,len(new_centroids)+1), inplace=True)
-    new_centroids.drop(columns=['elec_bin','dd'],inplace=True)
-    new_centroids.rename({'bin_labels':'elec_bin'},inplace=True, copy=False, axis=1)
-    new_centroids['elec_bin'] = new_centroids['elec_bin'].astype('category')
-    new_centroids.elec_bin.cat.reorder_categories(sorted_cats, ordered=True,inplace=True)
-    new_centroids.index.name = 'k'
-    new_centroids.sort_values(['elec_bin','k'], inplace=True)
+    return mapper
+
+def renameBins(data, centroids):
     
-    return new_centroids
+    mapper = mapBins(centroids)
+    data['elec_bin'] = data['elec_bin'].apply(lambda x:mapper[x])
+    data['elec_bin'] = data['elec_bin'].astype('category')
+    data.elec_bin.cat.reorder_categories(mapper.values(), ordered=True,inplace=True)
+    data.index.name = 'k'
+    data.sort_values(['elec_bin','k'], inplace=True)    
     
+    return data   
 
 def clusterColNames(data):    
     data.columns = ['Cluster '+str(x) for x in data.columns]
@@ -665,8 +667,14 @@ def clusterReliability(xlabel):
 
 def householdReliability(xlabel):
     
-    kxl = xlabel.groupby(by='ProfileID', level=0)['k'].value_counts().reset_index(name='k_count')
+    kxl = xlabel.groupby(by='ProfileID', level=0)['k'].value_counts().reset_index(name='k_count')    
     maxkxl = kxl.iloc[kxl.groupby('ProfileID')['k_count'].idxmax()]
+
+    elec_bins = xlabel[['elec_bin','k']].drop_duplicates(subset=['elec_bin','k']).reset_index(drop=True)
+    elec_bins_dict = dict(zip(elec_bins['k'], elec_bins['elec_bin']))
+
+    maxkxl.loc[:,'elec_bin'] = maxkxl.loc[:,'k'].map(elec_bins_dict)
+    
     he = householdEntropy(xlabel)[0].reset_index(name='entropy')
     cv = pd.merge(maxkxl, he, on='ProfileID', sort=True).set_index('ProfileID')
     cv['stdev'] = xlabel.loc[:,'0':'23'].groupby('ProfileID').std().mean(axis=1)
