@@ -658,14 +658,18 @@ def clusterReliability(xlabel):
     kxl = xlabel.groupby(by='ProfileID', level=0)['k'].value_counts().reset_index(name='k_count')
     maxkxl = kxl.iloc[kxl.groupby('ProfileID')['k_count'].idxmax()]
     he = householdEntropy(xlabel)[0].reset_index(name='entropy')
-    cv = pd.merge(maxkxl, he, on='ProfileID', sort=True)
-    cv_out = cv.groupby('k').agg({'k_count':'count', 'entropy':'mean'}).rename(columns={'k_count':'hh_count'})
-    cv_out['stdev'] = xlabel.groupby('k').std().mean(axis=1)
-    cv_out['daily_demand'] = xlabel.groupby('k').mean().sum(axis=1)
+    cr = pd.merge(maxkxl, he, on='ProfileID', sort=True)
+    cr_out = cr.groupby('k').agg({'k_count':'count', 'entropy':'mean'}).rename(columns={'k_count':'hh_count'})
+    cr_out['stdev'] = xlabel.groupby('k').std().mean(axis=1)
+    cr_out['daily_demand'] = xlabel.groupby('k').mean().sum(axis=1)
         
-    return cv_out
+    return cr_out
 
 def householdReliability(xlabel):
+    """
+    This function does not take cognisance of years 
+    - ie clusters are aggregated over the entire duration of observation.
+    """
     
     kxl = xlabel.groupby(by='ProfileID', level=0)['k'].value_counts().reset_index(name='k_count')    
     maxkxl = kxl.iloc[kxl.groupby('ProfileID')['k_count'].idxmax()]
@@ -676,16 +680,16 @@ def householdReliability(xlabel):
     maxkxl.loc[:,'elec_bin'] = maxkxl.loc[:,'k'].map(elec_bins_dict)
     
     he = householdEntropy(xlabel)[0].reset_index(name='entropy')
-    cv = pd.merge(maxkxl, he, on='ProfileID', sort=True).set_index('ProfileID')
-    cv['stdev'] = xlabel.loc[:,'0':'23'].groupby('ProfileID').std().mean(axis=1)
-    cv['daily_demand'] = xlabel.loc[:,'0':'23'].groupby('ProfileID').mean().sum(axis=1)
+    hr = pd.merge(maxkxl, he, on='ProfileID', sort=True).set_index('ProfileID')
+    hr['stdev'] = xlabel.loc[:,'0':'23'].groupby('ProfileID').std().mean(axis=1)
+    hr['daily_demand'] = xlabel.loc[:,'0':'23'].groupby('ProfileID').mean().sum(axis=1)
     
     idload = soc.loadID()
     ids = idload.loc[idload['Unit of measurement']==2,['ProfileID','Year','Municipality']].set_index('ProfileID')
     
-    cv_out = pd.merge(cv, ids, on='ProfileID')
+    hr_out = pd.merge(hr, ids, on='ProfileID')
         
-    return cv_out
+    return hr_out
 
 #def bestLabels(experiment, X, n_best=1):
 #    """
