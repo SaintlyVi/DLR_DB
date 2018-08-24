@@ -257,6 +257,7 @@ def generateSociosSetSingle(year, spec_file, set_id='ProfileID'):
     bins = featurespec['bins']
     labels = featurespec['labels']
     cut = featurespec['cut']
+    replace = featurespec['replace']
     if len(featurespec['geo'])==0:
         geo = None
     else:
@@ -265,7 +266,7 @@ def generateSociosSetSingle(year, spec_file, set_id='ProfileID'):
     #Get data and questions from socio-demographic survey responses
     data = extractSocios(searchlist, year, col_names=searchlist, geo=geo)
     missing_cols = list(set(searchlist) - set(data.columns))
-    data = data.append(pd.DataFrame(columns=missing_cols)) #add columns dropped during feature extraction
+    data = data.append(pd.DataFrame(columns=missing_cols), sort=True) #add columns dropped during feature extraction
     data.fillna(0, inplace=True) #fill na with 0 to allow for further processing
     data['AnswerID'] = data.AnswerID.astype(int)
     data['ProfileID'] = data.ProfileID.astype(int)
@@ -285,22 +286,25 @@ def generateSociosSetSingle(year, spec_file, set_id='ProfileID'):
     #adjust monthly income for inflation baselined to December 2016. 
     #Important that this happens here, after columns have been renamed and before income data is binned
     if 'monthly_income' in features:
-#        cpi_percentage=(0.265,0.288,0.309,0.336,0.359,0.377,0.398,0.42,0.459,0.485,0.492,0.509,
-#                    0.532,0.57,0.636,0.678,0.707,0.784,0.829,0.88,0.92,0.979,1.03)
-#        cpi = dict(zip(list(range(1994,2015)),cpi_percentage))
-#        data['monthly_income'] = data['monthly_income']/cpi[year]
+        cpi_percentage=(0.265,0.288,0.309,0.336,0.359,0.377,0.398,0.42,0.459,0.485,0.492,0.509,
+                    0.532,0.57,0.636,0.678,0.707,0.784,0.829,0.88,0.92,0.979,1.03)
+        cpi = dict(zip(list(range(1994,2015)),cpi_percentage))
+        data['monthly_income'] = data['monthly_income']/cpi[year]
     
         #Cut columns into datatypes that match factors of BN node variables    
         for k, v in bins.items():
             bin_vals = [int(b) for b in v]
             try:
-                data[k] = pd.cut(data[k], bins = bin_vals, labels = labels[k],
-                    right=eval(cut[k]['right']), 
-                               include_lowest=eval(cut[k]['include_lowest']))
+                data[k] = pd.cut(data[k], bins = bin_vals, labels = labels[k], 
+                    right=eval(cut[k]['right']), include_lowest=eval(cut[k]['include_lowest']))
                 data[k].cat.reorder_categories(labels[k], inplace=True)
             except KeyError:
-                data[k] = pd.cut(data[k], bins = bin_vals, labels = labels[k])                                  
-        
+                data[k] = pd.cut(data[k], bins = bin_vals, labels = labels[k])
+
+        for y, z in replace.items():
+            data[y].replace([int(a) for a in z.keys()], z.values(),inplace=True)                                  
+            data[y].where(data[y]!=0, inplace=True)  
+            
     data.set_index(set_id, inplace=True) #set ID column as index
 
     return data

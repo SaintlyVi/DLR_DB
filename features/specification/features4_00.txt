@@ -1,0 +1,86 @@
+{
+"year_range" : ["2000","2014"],
+"features" : ["monthly_income", "water_access", "roof_material", "wall_material", "cb_size", "floor_area", "years_electrified", "geyser","adults","children","part_time","unemployed","pension"],
+"searchlist" : ["earn per month","external","money from small business","watersource", "roof", "wall", "main switch", "floor area","electricity", "geyserNumber", "geyserBroken","males","femals","part time","unemployed","pension"],
+"transform": {
+	"monthly_income" : "x['earn per month'] + x['money from small business'] + x['external']",
+	"water_access" : "x['watersource']",
+	"roof_material" : "x['roof']",
+	"wall_material" : "x['wall']",
+	"cb_size" : "x['main switch']",
+	"floor_area" : "x['floor area']",
+	"years_electrified" : "x['electricity']",
+    "geyser" : "x['geyserNumber'] - x['geyserBroken']",
+    "adults" : "x['number of males: 16-24'] + x['number of females: 16-24'] + x['number of males: 25 - 34'] + x['number of females: 25-34'] + x['number of males: 35-49'] + x['number of females: 35 - 49'] + x['number of males: 50+'] + x['femals']",
+    "children" : "x['number of males: <16'] + x['number of females: <16']",
+	"part_time" : "x['head emploed part time'] + x['spouse employed part time'] + x['persons older than 16 years: employed parttime']",
+	"unemployed" : "x['head unemployed'] + x['spouse unemployed'] + x['persons older than 16 years: employed unemployed']",
+	"pension" : "x['head on pension'] + x['spouse on pension'] + x['persons older than 16 years: pension']"
+	},
+"bins" : {
+    	"monthly_income" : ["0", "1800", "3200", "7800", "11600", "19116", "24500", "65600", "500000"], 
+    	"floor_area" : ["0", "50", "80", "150", "250", "800"], 
+    	"years_electrified" : ["0", "5", "10", "15", "100"],
+    	"cb_size" : ["0", "20", "60", "1500"],
+    	"adults" : ["0", "1", "2", "3", "5", "10","100"],
+    	"children" : ["0", "1", "2", "3", "5", "10","100"],
+    	"part_time" : ["0", "1", "2", "3", "5", "10","100"],
+    	"unemployed":  ["0", "1", "2", "3", "5", "10","100"],
+    	"pension" : ["0", "1", "2", "3", "5","10","100"]
+         },
+"labels" : {
+    	"monthly_income" : ["R0-R1799","R1800-R3199","R3200-R7799","R7800-R11599","R11600-R19115","R19116-R24499","R24500-R65499","+R65500"],
+    	"floor_area" : ["0-50", "50-80", "80-150", "150-250", "250-800"], 
+    	"years_electrified" : ["0-5yrs", "5-10yrs", "10-15yrs", "15+yrs"],
+    	"cb_size" : ["<20","21-60",">61"],
+    	"adults" : ["0", "1", "2", "3-4", "5-10",">10"],
+    	"children" : ["0", "1", "2", "3-4", "5-10",">10"],
+    	"part_time" : ["0", "1", "2", "3-4", "5-10",">10"],
+    	"unemployed" : ["0", "1", "2", "3-4", "5-10",">10"],
+    	"pension" : ["0", "1", "2", "3-4", "5-10",">10"]
+        },
+"cut" : {
+		"monthly_income":{"right":"False", "include_lowest":"True"},
+		"years_electrified":{"right":"False", "include_lowest":"True"},	
+		"adults":{"right":"False", "include_lowest":"True"},
+		"children":{"right":"False", "include_lowest":"True"},	
+		"part_time":{"right":"False", "include_lowest":"True"},
+		"unemployed":{"right":"False", "include_lowest":"True"},
+		"pension":{"right":"False", "include_lowest":"True"}
+	},
+"replace" : {
+    	"water_access": {
+		"1":"nearby river/dam/borehole", 
+		"2":"block/street taps", 
+		"3":"tap in yard", 
+		"4":"tap inside house"
+		},
+	"roof_material": {
+        	"1":"IBR/Corr.Iron/Zinc", 
+        "2":"Thatch/Grass", 
+        	"3":"Wood/Masonite board", 
+		"4":"Brick", 
+		"5":"Blocks", 
+		"6":"Plaster", 
+		"7":"Concrete", 
+		"8":"Tiles", 
+        	"9":"Plastic", 
+        	"10":"Asbestos", 
+        "11":"Daub/Mud/Clay"
+        	},
+	"wall_material": {
+		"1":"IBR/Corr.Iron/Zinc", 
+		"2":"Thatch/Grass", 
+		"3":"Wood/Masonite board", 
+		"4":"Brick", 
+        	"5":"Blocks", 
+        	"6":"Plaster", 
+        "7":"Concrete", 
+        	"8":"Tiles", 
+        	"9":"Plastic", 
+		"10":"Asbestos", 
+		"11":"Daub/Mud/Clay"
+		}
+    	},
+"geo" : "Province"
+}

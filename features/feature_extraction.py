@@ -62,7 +62,7 @@ def genFProfiles(experiment, socios, n_best=1, savefig=False):
                           str(n_best))
     kf_path = kf_dir+'.csv'
     if os.path.exists(kf_path) is True:
-        F = pd.read_csv(kf_path)
+        F = pd.read_csv(kf_path, low_memory=False)
 
     else:
         os.makedirs(kf_dir, exist_ok=True)
@@ -106,22 +106,38 @@ def genFProfiles(experiment, socios, n_best=1, savefig=False):
         columns = F.columns.tolist()
         columns.remove('k')
         F = F[columns + ['k']]
-        F['k'] = F['k'].astype('category')
-        
-        F.to_csv(kf_path, index=False)
-        
+               
         for y in range(year_start, year_end+1):
-            for c in F.columns:
-                F[c] = F[c].astype('category')
+            #for c in F.columns:
+                #F.loc[:,c] = F.loc[:,c].astype('category')
             Y = F[F.year==y]
             Y.drop(columns=['ProfileID','year'], inplace=True)
             Y.to_csv(os.path.join(kf_dir, str(y)+'.csv'), index=False)
+        
+        #remove year as feature
+        F1 = F.drop(columns=['year'])
+        newcol = F1.columns.tolist()
+        newcol.remove('k_count')
+        Fout = F1.groupby(newcol)['k_count'].sum().reset_index()
+        Fout.to_csv(kf_path, index=False)
     
     if savefig is True:
         for c in F.columns:#.drop(['ProfileID']):
             plotF(F, [c], socios)
     
     return F
+
+def describeFProfiles(experiment, socios):
+    F = genFProfiles(experiment, socios)
+    sf = pd.DataFrame()
+    for c in F.columns[1:-2]:
+        sample = pd.melt(F.groupby(c)['k_count'].count().reset_index(), col_level=0, id_vars=['k_count'], value_vars=[c])
+        sf = sf.append(sample)
+        
+    sf.set_index(['variable','value'], inplace=True)
+    sf.columns = ['sample_count (unweighted)']
+        
+    return sf
 
 def genArffFile(experiment, socios, filter_features=None, skip_cat=None, weighted=True, n_best=1):
     
