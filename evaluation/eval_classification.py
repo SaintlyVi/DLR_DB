@@ -22,6 +22,8 @@ def joinResults(searchterm):
             mod = pd.concat([mod, data], axis=0, sort=True)
             print(file)
     mod.sort_values(by=['Key_Dataset','Key_Run','Key_Scheme_options'], inplace=True)
+    mod['Key_Scheme_options'] = mod['Key_Scheme_options'].apply(lambda x:x.replace('\\"',''))
+    
     mod.to_csv(os.path.join(p, 'classification_'+searchterm+'.csv'), index=False)
     
     return print('Results collated and saved.')
@@ -36,7 +38,7 @@ def formatResults(filename='classification_output', cats=['default+CGD', 'K2-P1'
     df.loc[:,'Key_Scheme_options'] = df.Key_Scheme_options.astype('category')
     df.Key_Scheme_options.cat.rename_categories(cats, inplace=True)
     df.rename({'Key_Scheme_options':'Options'}, axis=1, inplace=True)
-       
+
     percent_correct = round(df.pivot_table(index=['Experiment','Features'], columns=['Key_Scheme','Options'], values=['Percent_correct'], aggfunc='mean'), 2).fillna('')
     
-    return percent_correct
+    return df, percent_correct

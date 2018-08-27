@@ -69,7 +69,6 @@ def genFProfiles(experiment, socios, n_best=1, savefig=False):
         print('Extracting and creating feature data...')
         # Get cluster labels
         XL = getLabels(experiment, n_best)
-#        XL['DD'] = XL.iloc[:,list(range(0,24))].sum(axis=1)
         XL = XL.drop(columns=[str(i) for i in range(0,24)], axis=0).reset_index()
     
         # Add temporal features
@@ -83,7 +82,6 @@ def genFProfiles(experiment, socios, n_best=1, savefig=False):
         XL['season'] = XL.month.where(XL.month.isin(winter), 'summer')
         XL['season'] = XL.season.where(XL.season=='summer', 'winter')
         XL['daytype'] = XL.weekday.where(~XL.weekday.isin(work_week), 'weekday')
-#        XL.drop(columns=['date','month','weekday','elec_bin'], inplace=True)
 
         kXL = XL.groupby(['ProfileID','year','season','daytype'])['k'].value_counts().reset_index(name='k_count')
         kXL = kXL[kXL.k_count>1] #keep rows with two or more occurences of k
@@ -127,17 +125,53 @@ def genFProfiles(experiment, socios, n_best=1, savefig=False):
     
     return F
 
-def describeFProfiles(experiment, socios):
-    F = genFProfiles(experiment, socios)
+def describeFProfiles():
+    
+    F = genFProfiles('exp7_kmeans_unit_norm', 'features4')
+    cats = dict(
+    cb_size = ["<20","21-60",">61"],
+    floor_area = ['0-50', '50-80', '80-150', '150-250','250-800'],
+    years_electrified = ["0-5yrs", "5-10yrs", "10-15yrs", "15+yrs"],
+    monthly_income = ["R0-R1799","R1800-R3199","R3200-R7799","R7800-R11599","R11600-R19115",
+                      "R19116-R24499","R24500-R65499","+R65500"]
+    )
+       
+    for c, v in cats.items():
+        F[c] = F[c].astype('category')
+        F[c].cat.reorder_categories(v, ordered=True,inplace=True)
+    
     sf = pd.DataFrame()
     for c in F.columns[1:-2]:
         sample = pd.melt(F.groupby(c)['k_count'].count().reset_index(), col_level=0, id_vars=['k_count'], value_vars=[c])
         sf = sf.append(sample)
-        
-    sf.set_index(['variable','value'], inplace=True)
+    
+    mapper = dict(season='temporal',
+              daytype='temporal', 
+              Province='spatial', 
+              adults = 'occupants',
+              children = 'occupants',
+              pension = 'occupants',
+              unemployed = 'occupants',
+              part_time = 'occupants',
+              monthly_income = 'economic', 
+              geyser = 'appliances',
+              floor_area = 'dwelling',
+              water_access = 'dwelling',
+              wall_material = 'dwelling',
+              roof_material = 'dwelling',
+              cb_size = 'connection',
+              years_electrified = 'connection') 
+    
+    sf['category'] = sf['variable'].apply(lambda x: mapper[x])
+    
+    sf.set_index(['category','variable','value'], inplace=True)
     sf.columns = ['sample_count (unweighted)']
+    sf.sort_index(level=[0,1], ascending=False, sort_remaining=False, inplace=True)
+
+    sf.rename(index={'pension': 'pensioners', 'part_time':'part_time_employed', 
+                     'floor_area':'floor_area (m^2)'}, inplace=True)
         
-    return sf
+    return sf.sort_index(level=[0], ascending=False, sort_remaining=False)
 
 def genArffFile(experiment, socios, filter_features=None, skip_cat=None, weighted=True, n_best=1):
     
@@ -147,6 +181,9 @@ def genArffFile(experiment, socios, filter_features=None, skip_cat=None, weighte
     
     F = genFProfiles(experiment, socios, n_best)
     F.drop('ProfileID', axis=1, inplace=True)
+    
+    for col in ['water_access','wall_material','roof_material']:
+        F[col] = F[col].apply(lambda x: x.replace(' ','_'))
     
     if filter_features != None:
         apply_filter = eval(filter_features)

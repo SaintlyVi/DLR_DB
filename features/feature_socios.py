@@ -287,7 +287,7 @@ def generateSociosSetSingle(year, spec_file, set_id='ProfileID'):
     #Important that this happens here, after columns have been renamed and before income data is binned
     if 'monthly_income' in features:
         cpi_percentage=(0.265,0.288,0.309,0.336,0.359,0.377,0.398,0.42,0.459,0.485,0.492,0.509,
-                    0.532,0.57,0.636,0.678,0.707,0.784,0.829,0.88,0.92,0.979,1.03)
+                    0.532,0.57,0.636,0.678,0.707,0.742, 0.784, 0.829,0.88,0.92,0.979,1.03)
         cpi = dict(zip(list(range(1994,2015)),cpi_percentage))
         data['monthly_income'] = data['monthly_income']/cpi[year]
     
@@ -372,13 +372,15 @@ def genS(spec_files, year_start, year_end, filetype='feather'):
         message = 'Success!'
         if filetype == 'feather':
             feather.write_dataframe(evidence.reset_index(), file_path)
+            print('Success! Saved to data/feature_data/' + root_name + '/' + file_name)
         elif filetype == 'csv':
             evidence.to_csv(file_path)
+            print('Success! Saved to data/feature_data/' + root_name + '/' + file_name)
         else:
-            return('Cannot save to specified file type')
+            status = 0
+            message = 'Cannot save to specified file type'
+            print(message)
     
-        print('Success! Saved to data/feature_data/' + root_name + '/' + file_name)
-            
         l = ['featureExtraction', year_start, year_end, status, message, spec_files, file_name]
         loglines.append(l)            
         logs = pd.DataFrame(loglines, columns = ['process','from year','to year','status','message',

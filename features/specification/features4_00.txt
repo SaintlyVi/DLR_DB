@@ -1,9 +1,9 @@
 {
 "year_range" : ["2000","2014"],
 "features" : ["monthly_income", "water_access", "roof_material", "wall_material", "cb_size", "floor_area", "years_electrified", "geyser","adults","children","part_time","unemployed","pension"],
-"searchlist" : ["earn per month","external","money from small business","watersource", "roof", "wall", "main switch", "floor area","electricity", "geyserNumber", "geyserBroken","males","femals","part time","unemployed","pension"],
+"searchlist" : ["earn per month","external","money from small business","products","watersource", "roof", "wall", "main switch", "floor area","electricity", "geyserNumber", "geyserBroken","males","femals","part time","unemployed","pension"],
 "transform": {
-	"monthly_income" : "x['earn per month'] + x['money from small business'] + x['external']",
+	"monthly_income" : "x['earn per month'] + x['money from small business'] + x['external'] + x['products']",
 	"water_access" : "x['watersource']",
 	"roof_material" : "x['roof']",
 	"wall_material" : "x['wall']",
