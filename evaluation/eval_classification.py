@@ -28,7 +28,7 @@ def joinResults(searchterm):
     
     return print('Results collated and saved.')
     
-def formatResults(filename='classification_output', cats=['default+CGD', 'K2-P1','K2-P2','K2-P3','K2-P4','RHC-P1','RHC-P2','RHC-P3','TabuS-P1','TabuS-P2','TabuS-P3','TabuS-P4', 'BestFirst']):
+def formatResults(filename='classification_output', cats=['default+CGD', 'K2-P1','K2-P2','K2-P3','K2-P4','HC-P1','HC-P2','HC-P3','HC-P4','BestFirst']):
     df = pd.read_csv(os.path.join(results_dir,'classification_results',filename+'.csv'),
                      usecols=['Key_Dataset', 'Key_Fold','Key_Run', 'Key_Scheme',
                               'Key_Scheme_options','Percent_correct'])

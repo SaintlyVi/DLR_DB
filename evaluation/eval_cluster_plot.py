@@ -97,7 +97,7 @@ def plotClusterIndex(index, title, experiments, threshold=1200, groupby='algorit
         n = ' '.join(t)
         hovertext = list()
         for i in x:
-            hovertext.append('{}<br />{}: {:.3f}<br />{} clusters<br />'.format(n, index, y[i], i))
+            hovertext.append('{}<br />{}: {:.2f}<br />{:.0f} clusters<br />'.format(n, index, y[i], i))
 
         traces.append(dict(
             x=x,
@@ -121,7 +121,7 @@ def plotClusterIndex(index, title, experiments, threshold=1200, groupby='algorit
             title= title,
             margin=go.Margin(t=50,r=50,b=50,l=50, pad=10),
             height= 700,
-            xaxis=dict(title = 'clusters (log scale)', type='log'),
+            xaxis=dict(title = 'n clusters (log scale)', type='log'),
             yaxis=yax,
             hovermode = "closest"
             )
