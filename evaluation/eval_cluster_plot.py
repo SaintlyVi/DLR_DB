@@ -388,7 +388,7 @@ def plotClusterMetrics(metrics_dict, title, metric=None, make_area_plot=False, y
             title= 'Comparison of '+title+' for different model runs',
             margin=go.Margin(t=50,r=50,b=50,l=50, pad=10),
             height= 300+len(traces)*15,
-            xaxis=dict(title = 'clusters'),
+            xaxis=dict(title = 'n clusters'),
             yaxis=yax,
             hovermode = "closest"
             )
