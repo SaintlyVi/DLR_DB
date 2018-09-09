@@ -51,7 +51,7 @@ def plotF(F, columns, save_name=None):
     
     return fig
 
-def genFProfiles(experiment, socios, n_best=1, savefig=False):
+def genFProfiles(experiment, socios, n_best=1, keep_years=False, savefig=False):
     """
     generates a socio-demographic feature set
     """
@@ -83,7 +83,13 @@ def genFProfiles(experiment, socios, n_best=1, savefig=False):
         XL['season'] = XL.season.where(XL.season=='summer', 'winter')
         XL['daytype'] = XL.weekday.where(~XL.weekday.isin(work_week), 'weekday')
 
-        kXL = XL.groupby(['ProfileID','year','season','daytype'])['k'].value_counts().reset_index(name='k_count')
+        if keep_years == True:
+            kXL = XL.groupby(['ProfileID','year','season','daytype'])['k'].value_counts(
+                    ).reset_index(name='k_count')
+        else:
+            kXL = XL.groupby(['ProfileID','season','daytype'])['k'].value_counts(
+                    ).reset_index(name='k_count')
+    
         kXL = kXL[kXL.k_count>1] #keep rows with two or more occurences of k
         
         S = genS(socios, year_start, year_end, 'feather').reset_index()  
@@ -104,20 +110,19 @@ def genFProfiles(experiment, socios, n_best=1, savefig=False):
         columns = F.columns.tolist()
         columns.remove('k')
         F = F[columns + ['k']]
-               
-        for y in range(year_start, year_end+1):
-            #for c in F.columns:
-                #F.loc[:,c] = F.loc[:,c].astype('category')
-            Y = F[F.year==y]
-            Y.drop(columns=['ProfileID','year'], inplace=True)
-            Y.to_csv(os.path.join(kf_dir, str(y)+'.csv'), index=False)
         
-        #remove year as feature
-        F1 = F.drop(columns=['year'])
-        newcol = F1.columns.tolist()
-        newcol.remove('k_count')
-        Fout = F1.groupby(newcol)['k_count'].sum().reset_index()
-        Fout.to_csv(kf_path, index=False)
+        if keep_years == True:
+            for y in range(year_start, year_end+1):
+                #for c in F.columns:
+                    #F.loc[:,c] = F.loc[:,c].astype('category')
+                Y = F[F.year==y]
+                Y.drop(columns=['ProfileID','year'], inplace=True)
+                Y.to_csv(os.path.join(kf_dir, str(y)+'.csv'), index=False)
+            print('Saved feature sets for years')
+            
+        else:
+            F.to_csv(kf_path, index=False)
+            print('Saved feature set to', kf_path)
     
     if savefig is True:
         for c in F.columns:#.drop(['ProfileID']):
@@ -125,9 +130,9 @@ def genFProfiles(experiment, socios, n_best=1, savefig=False):
     
     return F
 
-def describeFProfiles():
+def describeFProfiles(experiment):
     
-    F = genFProfiles('exp7_kmeans_unit_norm', 'features4')
+    F = genFProfiles(experiment, 'features4')
     cats = dict(
     cb_size = ["<20","21-60",">61"],
     floor_area = ['0-50', '50-80', '80-150', '150-250','250-800'],
@@ -183,7 +188,7 @@ def genArffFile(experiment, socios, filter_features=None, skip_cat=None, weighte
     F.drop('ProfileID', axis=1, inplace=True)
     
     for col in ['water_access','wall_material','roof_material']:
-        F[col] = F[col].apply(lambda x: x.replace(' ','_'))
+        F[col] = F[col].str.replace(' ','_')
     
     if filter_features != None:
         apply_filter = eval(filter_features)
@@ -220,7 +225,7 @@ def genArffFile(experiment, socios, filter_features=None, skip_cat=None, weighte
                 cats = F[c].astype('category')
                 att += ' {'+",".join(map(str, cats.cat.categories))+'}'
                 attributes.append(att)
-    
+
     F.fillna('?', inplace=True)
             
     with open(kf_path, 'a+') as myfile:

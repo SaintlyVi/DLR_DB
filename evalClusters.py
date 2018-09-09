@@ -22,7 +22,7 @@ args = parser.parse_args()
 
 
 xl = getLabels(args.experiment, args.n_best)
-centroids = realCentroids(xl, args.experiment, args.n_best)
+centroids = realCentroids(args.experiment, xl, args.n_best)
 consumptionError(xl, centroids, compare='total')
 consumptionError(xl, centroids, compare='peak')
 peak_eval = peakCoincidence(xl, centroids)

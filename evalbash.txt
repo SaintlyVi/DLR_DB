@@ -3,5 +3,5 @@
 clear
 echo "Ready to roll."
 
-python evalClusters.py exp7_kmeans_unit_norm 1
+python evalClusters.py exp8_kmeans_unit_norm 1
 

@@ -129,7 +129,7 @@ def plotClusterIndex(index, title, experiments, threshold=1200, groupby='algorit
     fig = {'data':traces, 'layout':layout }
     return po.plot(fig, filename=clustering_evaluation_dir+'/cluster_index_'+index+'.html')
 
-def plotClusterCentroids(centroids, n_best=1):
+def plotClusterCentroids(centroids, groupby='bin', n_best=1):
 
     n_best = centroids['n_best'].unique()[0]
     experiment_name = centroids['experiment'].unique()[0]
@@ -141,7 +141,6 @@ def plotClusterCentroids(centroids, n_best=1):
     
     traces = centroids.iloc[:, 0:24].T
     n_clust = len(traces.columns)
-    traces.columns = ['cluster ' + str(k) for k in traces.columns.values]   
     largest = 'cluster '+str(centroids.cluster_size.idxmax())
         
     colours =  plotPrettyColours(centroids, 'elec_bin')    
@@ -150,23 +149,38 @@ def plotClusterCentroids(centroids, n_best=1):
                                               ') TOP '+str(n_best),'cluster sizes'], print_grid=False)  
 
     legend_group = centroids['elec_bin'].reset_index()
-    i = 0
-    for col in traces.columns:
-        if col == largest:
-            width = 3
-        else:
-            width = 1
-        fig.append_trace({'x': traces.index, 'y': traces[col], 
-                          'line':{'color':colours[legend_group['k'][i]],'width':width}, 
-                          'type': 'scatter', 'legendgroup':legend_group['elec_bin'][i], 'name': col}, 1, 1)
-#        fig.append_trace({'x': col, 'y': cluster_size[i+1], 'type': 'bar', 
-#                          'legendgroup':centroids['elec_bin'][i+1], 'name': col} , 3, 1)
-        i+=1
-    for b in centroids['elec_bin'].unique():
-        t = centroids.cluster_size[centroids.index[centroids.elec_bin==b]]
-        fig.append_trace({'x': t.index.values, 'y': t.values, 'type': 'bar', 'legendgroup':b, 'name': b, 
-                          'marker': dict(color=[colours[k] for k in t.index.values])} , 3, 1)
-#        fig.append_trace({'x': traces.columns, 'y': cluster_size, 'type': 'bar', 'legendgroup':centroids['elec_bin'][i+1], 'name': str(n_clust)+' clusters'} , 3, 1)
+    
+    if groupby == '_bin':
+        i = 0
+        traces.columns = ['cluster ' + str(k) for k in traces.columns.values]   
+        for col in traces.columns:
+            if col == largest:
+                width = 3
+            else:
+                width = 1
+            fig.append_trace({'x': traces.index, 'y': traces[col], 
+                              'line':{'color':colours[legend_group['k'][i]],'width':width}, 
+                              'type': 'scatter', 'legendgroup':legend_group['elec_bin'][i], 'name': col}, 1, 1)
+            i+=1
+        for b in centroids['elec_bin'].unique():
+            t = centroids.cluster_size[centroids.index[centroids.elec_bin==b]]
+            fig.append_trace({'x': t.index.values, 'y': t.values, 'type': 'bar', 'legendgroup':b, 'name': b, 
+                              'marker': dict(color=[colours[k] for k in t.index.values])} , 3, 1)
+
+    else:
+        groupby = ''
+        i = 0
+        for col in traces.columns.sort_values():
+            if col == largest:
+                width = 3
+            else:
+                width = 1
+            fig.append_trace({'x': traces.index, 'y': traces[col], 
+                              'line':{'color':colours[legend_group['k'][i]],'width':width}, 'legendgroup':col,
+                              'type': 'scatter', 'name': 'cluster '+str(col)}, 1, 1)
+            fig.append_trace({'x': [col], 'y': [centroids.loc[col, 'cluster_size']], 'type': 'bar', 'legendgroup':col,
+                              'name': 'cluster '+str(col), 'marker': dict(color=colours[col]), 'showlegend': False} , 3, 1)
+            i+=1
     
     fig['layout']['xaxis1'].update(title='time of day')
     fig['layout']['xaxis2'].update(tickangle=270)
@@ -175,7 +189,7 @@ def plotClusterCentroids(centroids, n_best=1):
     fig['layout']['margin'].update(t=50,r=80,b=100,l=90,pad=10),
     fig['layout'].update(height=700, hovermode = "closest")
     
-    po.plot(fig, filename=cluster_analysis_dir+'/cluster_centroids_'+experiment_name+'.html')
+    po.plot(fig, filename=cluster_analysis_dir+'/cluster_centroids'+groupby+'_'+experiment_name+'.html')
     
 def plotClusterLabels(label_data, year, n_clust=None, som_dim=0):
     
@@ -340,7 +354,8 @@ def plotClusterSpecificity(experiment, corr_list, threshold, relative=False):
     fig['layout'].update(title='Temporal specificity of ' + experiment, height=n_corr*400, hovermode = "closest", showlegend=False) 
 
     po.plot(fig, filename=clustering_evaluation_dir+'/cluster_specificity_'+experiment+'_'+'_'.join(corr_list)+'.html')
-    
+
+
 def plotClusterMetrics(metrics_dict, title, metric=None, make_area_plot=False, ylog=False):
 
     #format plot attributes
@@ -395,8 +410,62 @@ def plotClusterMetrics(metrics_dict, title, metric=None, make_area_plot=False, y
 
     fig = {'data':traces, 'layout':layout }
     return po.plot(fig, filename=clustering_evaluation_dir+'/cluster_metrics_'+title.replace(" ", "_")+'.html')
+    
+def subplotClusterMetrics(metrics_dict, title, metric=None, make_area_plot=False, ylog=False):
 
-def plotKDispersion(k, xlabel, centroids):
+    #format plot attributes
+    if make_area_plot == True:
+        fillme = 'tozeroy'
+    else:
+        fillme = None
+    
+    colours = cl.scales['8']['qual']['Dark2']
+    
+    fig = tools.make_subplots(rows=2, cols=2, shared_xaxes=False, print_grid=False,
+                              subplot_titles= ['mape', 'mdape', 'mdlq', 'mdsyma'])
+
+    #generate plot data
+    s = 0
+    for k,v in metrics_dict.items():
+        t = 0
+        ro = 0
+        for i,j in v.items():
+            co = t%2 + 1
+            ro = int(t/2) + 1
+            trace = go.Line(
+                x= j.index,
+                y= j,
+                name=k + '|' + i,
+                mode='lines',
+                legendgroup=k,
+                marker=dict(size=3),
+                line=dict(color=colours[s]),
+                fill=fillme,
+                connectgaps=True                    
+                )
+            fig.append_trace(trace, ro, co)
+            t += 1
+        s += 1
+
+    #set layout
+    if ylog == True:
+        yax = dict(title = 'metric (log scale)' , type='log')
+    else:
+        yax = dict(title = 'metric')
+
+    fig['layout'].update(
+            title= 'Comparison of '+title+' for different model runs',
+            margin=go.Margin(t=50,r=50,b=50,l=50, pad=10),
+            hovermode = "closest"
+            )
+
+    for i in range(1,5):
+        fig['layout']['yaxis'+str(i)].update(yax)
+        fig['layout']['xaxis'+str(i)].update(title='n clusters')
+
+    return po.plot(fig, filename=clustering_evaluation_dir+'/cluster_metrics_'+title.replace(" ", "_")+'.html')
+
+def plotKDispersion(experiment, k, xlabel, centroids):
     
     colour_in = xlabel[['k','elec_bin']].drop_duplicates().reset_index(drop=True).set_index('k').sort_index()
     rcolour_in = ec.renameBins(colour_in, centroids)
@@ -482,7 +551,7 @@ def plotKDispersion(k, xlabel, centroids):
     
     del kxl
     
-    return po.plot(fig, filename=cluster_analysis_dir+'/cluster_dispersion_k'+str(k)+'.html')
+    return po.plot(fig, filename=cluster_analysis_dir+'/'+experiment+'_cluster_dispersion_k'+str(k)+'.html')
 
 def plotClusterConsistency(xlabel, y_axis='daily_demand', colour_var='stdev'):
     """ 
