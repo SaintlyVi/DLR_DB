@@ -168,7 +168,7 @@ def plot15YearBmDemandSummary(model_dir = dpet_dir):
     
     return offline.iplot({"data":data, "layout":layout}, filename=os.path.join(image_dir,'15year_demand_summary'+'.png'))
 
-def plotBmHourlyProfiles(customer_class, year_list, daytype='Weekday', model_dir=dpet_dir):
+def plotBmHourlyHeatmap(customer_class, year_list, daytype='Weekday', model_dir=dpet_dir):
     """
     This function plots the hourly load profiles for a specified customer class, day type and list of years since electrification. Data is based on the DPET model.
     """
@@ -261,3 +261,46 @@ def plotBmHourlyProfiles(customer_class, year_list, daytype='Weekday', model_dir
                                 })    
                                 
     return offline.iplot(fig, filename='testagain') 
+
+
+def plotBmHourlyProfiles(electrified_min, electrified_max, customer_class, model_dir=dpet_dir, title=''):
+
+    hourlyprofiles = bmHourlyProfiles()
+    hourlyprofiles['season'] = hourlyprofiles['month'].apply(lambda x: 'winter' if x in [6, 7, 8, 9] else 'summer')
+    electrified_range = range(electrified_min+1,electrified_max+1)
+
+    df = hourlyprofiles[(hourlyprofiles['class']==customer_class)&(hourlyprofiles['YearsElectrified'].isin(electrified_range)) ].groupby(['season','daytype','hour'])['Mean [kVA]'].mean().unstack()/0.23 #get mean profile values and % by 0.23 to get from kVA to A                                           
+                          
+    experiment_name = 'benchmark_'+customer_class+'_'+str(electrified_min)+'-'+str(electrified_max)+'yrs_electrified'
+    
+    if title == '':
+        plot_title = experiment_name
+    else:
+        plot_title = title
+   
+    data = []  
+
+   #Create colour scale
+    spectral = cl.scales['11']['div']['Spectral']
+    colours = [spectral[c] for c in [0,2,3]] + [spectral[c] for c in [8,9,10]]
+
+    i = 0
+    for col in df.T.columns:
+        trace = go.Scatter(
+            x = df.T.index.map(lambda x: str(x)+'h00'),
+            y = df.T.iloc[:,i],
+            line = {'color':colours[i],'width':3},
+            mode = 'lines',
+            name = col[0]+': '+col[1]
+        )
+        data.append(trace)
+        i+=1
+    
+    fig = go.Figure(data=data, layout= go.Layout(title=plot_title, font=dict(size=20)))
+    
+    fig['layout']['xaxis'].update(title='time of day', dtick=2, titlefont=dict(size=18), tickfont=dict(size=16))
+    fig['layout']['yaxis'].update(title='hourly electricity demand (A)', titlefont=dict(size=18), tickfont=dict(size=16))
+    fig['layout']['margin'].update(t=50,r=80,b=100,l=90,pad=10),
+#    fig['layout']['title']['font'] = dict(size=20)
+    
+    offline.plot(fig, filename='img/benchmark/bm0/'+experiment_name+'.html')

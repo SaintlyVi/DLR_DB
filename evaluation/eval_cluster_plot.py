@@ -162,7 +162,7 @@ def plotClusterCentroids(centroids, groupby='_bin', n_best=1, title=''):
                 width = 4
             else:
                 width = 2
-            fig.append_trace({'x': traces.index, 'y': traces[col], 
+            fig.append_trace({'x': traces.index+'h00', 'y': traces[col], 
                               'line':{'color':colours[legend_group['k'][i]],'width':width}, 
                               'type': 'scatter', 'legendgroup':legend_group['elec_bin'][i], 
                               'name': col}, 1, 1)
