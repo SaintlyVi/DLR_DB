@@ -129,7 +129,7 @@ def plotClusterIndex(index, title, experiments, threshold=1200, groupby='algorit
     fig = {'data':traces, 'layout':layout }
     return po.plot(fig, filename=clustering_evaluation_dir+'/cluster_index_'+index+'.html')
 
-def plotClusterCentroids(centroids, groupby='_bin', n_best=1):
+def plotClusterCentroids(centroids, groupby='_bin', n_best=1, title=''):
 
     n_best = centroids['n_best'].unique()[0]
     experiment_name = centroids['experiment'].unique()[0]
@@ -142,11 +142,15 @@ def plotClusterCentroids(centroids, groupby='_bin', n_best=1):
     traces = centroids.iloc[:, 0:24].T
     n_clust = len(traces.columns)
     largest = 'cluster '+str(centroids.cluster_size.idxmax())
+    
+    if title == '':
+        plot_title = 'cluster profiles '+experiment_name+' (n='+str(n_clust)+') TOP '+str(n_best)
+    else:
+        plot_title = title
         
     colours =  plotPrettyColours(centroids, 'elec_bin')    
     fig = tools.make_subplots(rows=3, cols=1, shared_xaxes=False, specs=[[{'rowspan': 2}],[None],[{}]],
-                              subplot_titles=['cluster profiles '+experiment_name+' (n='+str(n_clust)+
-                                              ') TOP '+str(n_best),'cluster sizes'], print_grid=False)  
+                              subplot_titles=[plot_title,''], print_grid=False)  
 
     legend_group = centroids['elec_bin'].reset_index()
     
@@ -155,9 +159,9 @@ def plotClusterCentroids(centroids, groupby='_bin', n_best=1):
         traces.columns = ['cluster ' + str(k) for k in traces.columns.values]   
         for col in traces.columns:
             if col == largest:
-                width = 3
+                width = 4
             else:
-                width = 1
+                width = 2
             fig.append_trace({'x': traces.index, 'y': traces[col], 
                               'line':{'color':colours[legend_group['k'][i]],'width':width}, 
                               'type': 'scatter', 'legendgroup':legend_group['elec_bin'][i], 
@@ -178,7 +182,7 @@ def plotClusterCentroids(centroids, groupby='_bin', n_best=1):
         colours = colours*5
         i = 0
         for col in traces.columns.sort_values():
-            fig.append_trace({'x': traces.index, 'y': traces[col], 
+            fig.append_trace({'x': traces.index+'h00', 'y': traces[col], 
                               'line':{'color':colours[i],'width':2},
                               'legendgroup':col, 'type': 'scatter', 'name': 'cluster '+str(col)}, 1, 1)
             fig.append_trace({'x':['cluster '+str(col)],'y':[centroids.loc[col,'cluster_size']],
@@ -187,13 +191,17 @@ def plotClusterCentroids(centroids, groupby='_bin', n_best=1):
                                     'marker': {'color':colours[i]}}, 3, 1)
             i+=1
     
-    fig['layout']['xaxis1'].update(title='time of day', dtick=2)
-    fig['layout']['yaxis1'].update(title='hourly electricity demand (A)')
-    fig['layout']['yaxis2'].update(title='cluster members count')
+    fig['layout']['xaxis1'].update(title='time of day', dtick=2, titlefont=dict(size=18), tickfont=dict(size=16))
+    fig['layout']['xaxis2'].update(tickfont=dict(size=16))
+    fig['layout']['yaxis1'].update(title='hourly electricity demand (A)', titlefont=dict(size=18), tickfont=dict(size=16))
+    fig['layout']['yaxis2'].update(title='cluster size (# members)', titlefont=dict(size=18), tickfont=dict(size=16))
     fig['layout']['margin'].update(t=50,r=80,b=100,l=90,pad=10),
-    fig['layout'].update(height=700, hovermode = "closest")
+    fig['layout'].update(height=700, hovermode = "closest", grid=dict(ygap=0.35, xgap=0.35))
+    fig['layout']['annotations'][0]['font'] = dict(size=20)
+#    for i in fig['layout']['annotations']:
+#        i['font'] = dict(size=20) #set subplot title size
     
-    po.plot(fig, filename=cluster_analysis_dir+'/cluster_centroids'+groupby+'_'+experiment_name+'.html')
+    po.plot(fig, filename=cluster_analysis_dir+'/cluster_centroids'+groupby+'_'+experiment_name+'_'+title+'.html')
     
 def plotClusterLabels(label_data, year, n_clust=None, som_dim=0):
     
