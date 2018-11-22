@@ -129,7 +129,7 @@ def plotClusterIndex(index, title, experiments, threshold=1200, groupby='algorit
     fig = {'data':traces, 'layout':layout }
     return po.plot(fig, filename=clustering_evaluation_dir+'/cluster_index_'+index+'.html')
 
-def plotClusterCentroids(centroids, groupby='bin', n_best=1):
+def plotClusterCentroids(centroids, groupby='_bin', n_best=1):
 
     n_best = centroids['n_best'].unique()[0]
     experiment_name = centroids['experiment'].unique()[0]
@@ -160,32 +160,36 @@ def plotClusterCentroids(centroids, groupby='bin', n_best=1):
                 width = 1
             fig.append_trace({'x': traces.index, 'y': traces[col], 
                               'line':{'color':colours[legend_group['k'][i]],'width':width}, 
-                              'type': 'scatter', 'legendgroup':legend_group['elec_bin'][i], 'name': col}, 1, 1)
+                              'type': 'scatter', 'legendgroup':legend_group['elec_bin'][i], 
+                              'name': col}, 1, 1)
             i+=1
         for b in centroids['elec_bin'].unique():
             t = centroids.cluster_size[centroids.index[centroids.elec_bin==b]]
-            fig.append_trace({'x': t.index.values, 'y': t.values, 'type': 'bar', 'legendgroup':b, 'name': b, 
-                              'marker': dict(color=[colours[k] for k in t.index.values])} , 3, 1)
-
+            fig.append_trace({'x': ['cluster '+str(v) for v in t.index.values],'y':t.values,'type':'bar','name': b,
+                        'legendgroup':b,'marker':dict(color=[colours[k] for k in t.index.values])},3,1)
+        
     else:
         groupby = ''
+            #Create colour scale
+        paired = cl.scales['12']['qual']['Paired']
+        spectral = cl.scales['11']['div']['Spectral'][0:5] + cl.scales['11']['div']['Spectral'][6:]
+        set3 = cl.scales['12']['qual']['Set3'][2:]
+        colours = spectral + [paired[i] for i in [1,3,5,7,9,11,0,2,4,6,8]]  +spectral + set3
+        colours = colours*5
         i = 0
         for col in traces.columns.sort_values():
-            if col == largest:
-                width = 3
-            else:
-                width = 1
             fig.append_trace({'x': traces.index, 'y': traces[col], 
-                              'line':{'color':colours[legend_group['k'][i]],'width':width}, 'legendgroup':col,
-                              'type': 'scatter', 'name': 'cluster '+str(col)}, 1, 1)
-            fig.append_trace({'x': [col], 'y': [centroids.loc[col, 'cluster_size']], 'type': 'bar', 'legendgroup':col,
-                              'name': 'cluster '+str(col), 'marker': dict(color=colours[col]), 'showlegend': False} , 3, 1)
+                              'line':{'color':colours[i],'width':2},
+                              'legendgroup':col, 'type': 'scatter', 'name': 'cluster '+str(col)}, 1, 1)
+            fig.append_trace({'x':['cluster '+str(col)],'y':[centroids.loc[col,'cluster_size']],
+                                    'type':'bar','legendgroup':col,'name':'cluster '+str(col),
+                                    'showlegend': False,
+                                    'marker': {'color':colours[i]}}, 3, 1)
             i+=1
     
-    fig['layout']['xaxis1'].update(title='time of day')
-    fig['layout']['xaxis2'].update(tickangle=270)
-    fig['layout']['yaxis1'].update(title='load profile')
-    fig['layout']['yaxis2'].update(title='profile count')
+    fig['layout']['xaxis1'].update(title='time of day', dtick=2)
+    fig['layout']['yaxis1'].update(title='hourly electricity demand (A)')
+    fig['layout']['yaxis2'].update(title='cluster members count')
     fig['layout']['margin'].update(t=50,r=80,b=100,l=90,pad=10),
     fig['layout'].update(height=700, hovermode = "closest")
     
