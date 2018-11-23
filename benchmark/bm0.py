@@ -296,7 +296,7 @@ def plotBmHourlyProfiles(electrified_min, electrified_max, customer_class, model
         data.append(trace)
         i+=1
     
-    fig = go.Figure(data=data, layout= go.Layout(title=plot_title, font=dict(size=20)))
+    fig = go.Figure(data=data, layout= go.Layout(title=plot_title, height=400, font=dict(size=20)))
     
     fig['layout']['xaxis'].update(title='time of day', dtick=2, titlefont=dict(size=18), tickfont=dict(size=16))
     fig['layout']['yaxis'].update(title='hourly electricity demand (A)', titlefont=dict(size=18), tickfont=dict(size=16))
