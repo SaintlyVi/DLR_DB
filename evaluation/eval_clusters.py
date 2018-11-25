@@ -112,7 +112,7 @@ def selectClusters(cluster_results, n_best, experiment='all' ):
     best_clusters.insert(0, 'experiment', best_clusters['experiment_name'].apply(lambda x: x.split('_', 1)[0][3]))
     best_clusters.insert(1, 'algorithm', best_clusters['experiment_name'].apply(lambda x: x.split('_', 2)[1]))
     prepro = best_clusters['experiment_name'].apply(lambda x: x.split('_', 2)[2] if x.count('_')>1 else None)
-    best_clusters.insert(2, 'pre-processing', prepro)
+    best_clusters.insert(2, 'pre_processing', prepro)
     
     return best_clusters
 
