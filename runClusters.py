@@ -14,7 +14,8 @@ import pandas as pd
 import time
 
 from support import experiment_dir, writeLog, log_dir
-from experiment.algorithms.clusters import som, kmeans, saveLabels
+from experiment.algorithms.clusters import som, kmeans, 
+from experiment.algorithms.cluster_prep import saveLabels
 from features.feature_ts import genX
 
 # Set up argument parser to run from terminal
