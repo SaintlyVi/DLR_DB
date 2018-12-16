@@ -9,7 +9,7 @@ Created on Fri Jul 13 08:37:54 2018
 import pandas as pd
 import numpy as np
 import datetime as dt
-from math import ceil, log
+from math import log
 import feather
 import os
 from glob import glob
@@ -17,8 +17,8 @@ import peakutils
 
 import features.feature_ts as ts
 import features.feature_socios as soc
-from experiment.algorithms.clusters import xBins
-from support import data_dir, results_dir, experiment_dir
+from experiment.algorithms.cluster_prep import xBins
+from support import data_dir, experiment_dir
 
 def getExperiments(exp_root):
     """
