@@ -254,8 +254,8 @@ def renameBins(data, centroids):
 #    data.elec_bin.cat.reorder_categories(mapper.values(), ordered=True,inplace=True)
 #    data.index.name = 'k'
 #    data.sort_values(['elec_bin','k'], inplace=True)  
-    out = pd.merge(data, mapper, on='elec_bin').drop(columns='elec_bin')
-    out.index.name = 'k'
+    out = pd.merge(data.reset_index(), mapper, on='elec_bin',
+                   how='left').set_index('k').drop(columns='elec_bin')
     out.sort_values(['mean_dd','k'], inplace=True)  
     out.rename(columns={'bin_labels':'elec_bin'},inplace=True)
     
