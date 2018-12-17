@@ -225,6 +225,42 @@ def plotClusterLabels(label_data, year, n_clust=None, som_dim=0):
     
     return po.iplot(fig)
 
+def plotClusterMembers(cluster, xlabel, centroids):  
+    
+    profiles = xlabel[xlabel['k']==cluster].loc[:, '0':'23'].sample(n=500).reset_index(drop=True)
+
+    data = []
+    for r in range(0, len(profiles)):
+        data.append(go.Scattergl(
+            x = profiles.columns,
+            y = profiles.iloc[r],
+            mode = 'lines',
+            line = dict(
+                width = 0.2,
+                color = '#AAAAAA')
+            )
+        )
+
+    data.append(go.Scattergl(
+            x = centroids.columns[:24],
+            y = centroids.loc[cluster][:24],
+            mode = 'lines',
+            line = dict(
+                width = 2,
+                color = 'red')
+            )
+        )   
+
+    layout = dict(title='RDLP and member profiles for cluster '+str(cluster), 
+                  xaxis = dict(
+                      title = 'time of day'),
+                  yaxis = dict(
+                      title = 'hourly electricity demand (A)'),
+                  margin=dict(l=40, b=40, t=40),
+                  showlegend=False, width=500, height=350)
+    fig=dict(data=data, layout=layout)
+    po.iplot(fig)
+
 #---------------------------
 # Prepping the colorbar
 #---------------------------
