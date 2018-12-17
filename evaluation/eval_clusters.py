@@ -237,9 +237,9 @@ def rebinCentroids(centroids):
 
 def mapBins(centroids):
     
-    centroids['dd'] = centroids.iloc[:,0:24].sum(axis=1)
+    centroids['dd'] = centroids.iloc[:,0:24].sum(axis=1)*0.23 #convert to kWh
     new_cats = centroids.groupby('elec_bin')['dd'].mean().reset_index()
-    new_cats['bin_labels'] = pd.Series(['{0:.0f} A mean_dd'.format(x) for x in new_cats['dd']])
+    new_cats['bin_labels'] = pd.Series(['{0:.0f} kWh mean_dd'.format(x) for x in new_cats['dd']])
     sorted_cats = new_cats.sort_values('dd')    
     mapper = sorted_cats.rename(columns={'dd':'mean_dd'})
         #dict(zip(sorted_cats['elec_bin'], sorted_cats['bin_labels']))

@@ -65,7 +65,7 @@ def plotPrettyColours(data, grouping):
             gcol=list()
             jump = int(80/v)
             while i < v:
-                gcol.append(cl.to_rgb(cl.interp(cl.scales['9']['seq'][c], 100))[-1-jump*i])
+                gcol.append(cl.to_rgb(cl.interp(cl.scales['8']['seq'][c], 100))[-1-jump*i])
                 i+=1
         my_cols+=gcol
     
