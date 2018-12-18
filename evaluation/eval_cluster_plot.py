@@ -9,6 +9,7 @@ Created on Tue Jul 17 09:31:48 2018
 import pandas as pd
 import numpy as np
 import os
+from math import ceil, floor
 
 import plotly.plotly as py
 import plotly.offline as po
@@ -225,10 +226,14 @@ def plotClusterLabels(label_data, year, n_clust=None, som_dim=0):
     
     return po.iplot(fig)
 
-def plotClusterMembers(cluster, xlabel, centroids):  
+def plotClusterMembers(cluster, xlabel, centroids, member_sample=500, out='plot'):  
     
-    profiles = xlabel[xlabel['k']==cluster].loc[:, '0':'23'].sample(n=500).reset_index(drop=True)
-
+    try:
+        profiles = xlabel[xlabel['k']==cluster].loc[:, '0':'23'].sample(n=member_sample).reset_index(drop=True)
+    except ValueError:
+        profiles = xlabel[xlabel['k']==cluster].loc[:, '0':'23'].reset_index(drop=True)
+        print('Cluster {} is a small cluster with less than {} members!'.format(str(cluster), str(member_sample)))
+        
     data = []
     for r in range(0, len(profiles)):
         data.append(go.Scattergl(
@@ -259,8 +264,42 @@ def plotClusterMembers(cluster, xlabel, centroids):
                   margin=dict(l=40, b=40, t=40),
                   showlegend=False, width=500, height=350)
     fig=dict(data=data, layout=layout)
-    po.iplot(fig)
+    
+    if out == 'plot':
+        po.iplot(fig)
+    elif out == 'fig':
+        return fig
 
+def plotMembersSample(experiment, clusters = None):
+    
+    xlabel = ec.getLabels(experiment)
+    centroids = ec.realCentroids(experiment)
+    if clusters is None:
+        clusters = centroids.index.values
+    
+    r = ceil(len(clusters)/3)
+
+    fig = tools.make_subplots(rows=r, cols=3, shared_xaxes=False,
+                              subplot_titles= ['cluster' + str(i) for i in clusters], 
+                              print_grid=False)  
+    i = 3
+    for c in clusters:
+        t_row = floor(i/3)
+        t_col = i%3 + 1
+        data = plotClusterMembers(c, xlabel, centroids, member_sample=250, out='fig')
+        for d in data['data']:
+            fig.append_trace(d, t_row, t_col)
+        i += 1
+    
+    fig['layout'].update(title='RDLPs and 250 sample member profiles for '+experiment,
+               showlegend=False, 
+               margin=dict(l=40, b=40),
+               width=900, 
+               height=200*r, 
+               hovermode=False)
+    
+    po.iplot(fig)
+    
 #---------------------------
 # Prepping the colorbar
 #---------------------------
