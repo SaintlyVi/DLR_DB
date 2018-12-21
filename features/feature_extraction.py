@@ -51,14 +51,19 @@ def plotF(F, columns, save_name=None):
     
     return fig
 
-def genFProfiles(experiment, socios, n_best=1, keep_years=False, savefig=False):
+def genFProfiles(experiment, spec_files, n_best=1, keep_years=False, savefig=False):
     """
     generates a socio-demographic feature set
     """
     
     year_start, year_end, drop_0, prepro, bin_X, exp_root = getExpDetails(experiment)
+
+    if isinstance(spec_files, list):
+        socios = spec_files
+    else:
+        socios = [spec_files]    
     
-    kf_dir = os.path.join(data_dir, 'cluster_evaluation','k_features', experiment+'_'+socios+'BEST'+
+    kf_dir = os.path.join(data_dir, 'cluster_evaluation','k_features', experiment+'_'+'_'.join(socios)+'BEST'+
                           str(n_best))
     kf_path = kf_dir+'.csv'
     if os.path.exists(kf_path) is True:
