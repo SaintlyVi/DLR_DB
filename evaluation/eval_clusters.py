@@ -65,6 +65,14 @@ def readResults():
     
     return cluster_results
 
+def meanError(metric_vals):
+    if isinstance(metric_vals, float):
+        err = metric_vals   
+    else:
+        err = metric_vals.where(~np.isinf(metric_vals)).mean()
+    
+    return err
+
 def weightScore(cluster, score):
     """ 
     ***adpated from http://pbpython.com/weighted-average.html***
@@ -378,10 +386,6 @@ def peakCoincidence(xlabel, centroids):
     
     return peak_eval
 
-def meanError(metric_vals):    
-    err = metric_vals.where(~np.isinf(metric_vals)).mean()    
-    return err
-
 def demandCorr(xlabel, compare='total'):
 
     mod_xl = xlabel.drop(columns='elec_bin')
@@ -553,12 +557,15 @@ def clusterEntropy(likelihood, threshold):
     except:
         return('This function cannot compute entropy for weighted probabilities yet.')
 
-    likelihood = likelihood.where(likelihood.cluster_size>threshold, np.nan).drop('cluster_size', axis=1) #exclude k with low membership from calculation - scew by appearing more specific than they really are
-    cluster_entropy = likelihood.T.applymap(lambda x : -x*log(x,2)).sum(axis=0)
-    cluster_entropy.where(cluster_entropy!=0, inplace=True)
-    max_entropy = -random_likelihood*log(random_likelihood,2)*len(likelihood)
+    likelihood = likelihood.where(likelihood.cluster_size>threshold, np.nan) #exclude k with low membership from calculation - scew by appearing more specific than they really are
+    cluster_size = likelihood['cluster_size']
+    lklhd = likelihood.drop('cluster_size', axis=1)
+    cluster_entropy = lklhd.T.applymap(lambda x : -x*log(x,2)).sum(axis=0)
+    weighted_cluster_entropy = cluster_entropy * cluster_size / cluster_size.sum()
+#    cluster_entropy.where(cluster_entropy!=0, inplace=True) #No need to remove 0 entropy clusters
+    max_entropy = -random_likelihood*log(random_likelihood,2)*len(lklhd)
     
-    return cluster_entropy, max_entropy    
+    return weighted_cluster_entropy, max_entropy    
 
 def getMeasures(best_exps, threshold):
     
@@ -567,32 +574,49 @@ def getMeasures(best_exps, threshold):
     #Set parameters for reading evaluation data from files
     total_consE = dict()
     peak_consE = dict()
-    cepath = os.path.join(eval_dir, 'consumption_error.csv')
-    consumption_error = pd.read_csv(cepath, usecols=['k','experiment','compare','mape','mdape','mdlq','mdsyma']).drop_duplicates(subset=['k','experiment','compare'], keep='last').set_index('k', drop=True)
-    consumption_error.rename({'experiment':'experiment_name'}, axis=1)
-    
     peak_coincR = dict()
-    pcrpath = os.path.join(eval_dir, 'peak_coincidence.csv')
-    peak_eval = pd.read_csv(pcrpath).drop_duplicates(subset=['k','experiment'], keep='last').set_index('k', drop=True)
-    
-    temporal_entropy = dict(zip(best_exps, [dict()]*len(best_exps)))   
-    corr_path = os.path.join(data_dir, 'cluster_evaluation', 'k_correlations')
-    temp_files = ['yearly', 'weekday', 'monthly']
-
+    good_clusters = dict()
+    temporal_entropy = dict(zip(best_exps, [dict()]*len(best_exps))) 
     demand_entropy = dict(zip(best_exps, [dict()]*len(best_exps)))
-    compare = ['total','peak']
+
+    cepath = os.path.join(eval_dir, 'consumption_error.csv')
+    pcrpath = os.path.join(eval_dir, 'peak_coincidence.csv')
+    corr_path = os.path.join(data_dir, 'cluster_evaluation', 'k_correlations')
+
+    dmnd_temp = pd.read_csv(os.path.join(corr_path, 'demandq_corr.csv'), header=[0]
+                           ).drop_duplicates(subset=['k','experiment','compare'], keep='last').set_index('k', drop=True) #use demand quantiles rather than intervals --> scewed towards low consumption profiles that occur much more frequently
+    dmnd_temp['experiment'] = [x[:-5] for x in dmnd_temp['experiment']]
+    
+    consumption_error = pd.read_csv(cepath, 
+                                    usecols=['k', 'experiment', 'compare', 'mape', 'mdape', 'mdlq', 'mdsyma']
+                                   ).drop_duplicates(subset=['k','experiment','compare'], keep='last').set_index('k', drop=True) 
+    consumption_error = pd.merge(consumption_error.reset_index(),
+                                 dmnd_temp[['experiment','compare','cluster_size']].reset_index(), 
+                                 on=['k','experiment','compare'],
+                                 how='inner').set_index('k')
+
+    peak_eval = pd.read_csv(pcrpath).drop_duplicates(subset=['k','experiment'], keep='last').set_index('k', drop=True)    
+    peak_eval = pd.merge(peak_eval.reset_index(), 
+                         dmnd_temp[['experiment','cluster_size']].reset_index(),
+                         on=['k','experiment'], 
+                         how='inner').set_index('k')
+    peak_eval.drop_duplicates(inplace=True)
+    
+    temp_files = ['yearly', 'weekday', 'monthly']
+    demand = ['total','peak']
     
     #Generate evaluation measures for each experiment in best experiments list
     for e in best_exps:
-        #total consumption error
-        consE = consumption_error.loc[(consumption_error.experiment==e)&(consumption_error.compare=='total'),:]
-        total_consE[e] = {'mape':consE.mape,'mdape':consE.mdape,'mdlq':consE.mdlq,'mdsyma':consE.mdsyma}     
-        #peak consumption error
-        consE = consumption_error.loc[(consumption_error.experiment==e)&(consumption_error.compare=='peak'),:]
-        peak_consE[e] = {'mape':consE.mape,'mdape':consE.mdape,'mdlq':consE.mdlq,'mdsyma':consE.mdsyma}
-        #peak coincidence ratio
-        peak_coincR[e] = {'coincidence_ratio': peak_eval.loc[peak_eval['experiment']==e,'coincidence_ratio']}
 
+        #demand entropy
+        co = dict()
+        for d in demand:
+            likelihood = dmnd_temp[(dmnd_temp.experiment == e)&(dmnd_temp.compare==d)].drop(['experiment',
+                                 'compare'], axis=1)
+            entropy, maxE = clusterEntropy(likelihood, threshold)
+            co[d+'_entropy'] = entropy#.reset_index(drop=True)
+        demand_entropy.update({e:co})
+        
         #temporal entropy
         te = dict()
         for temp in temp_files:
@@ -602,24 +626,32 @@ def getMeasures(best_exps, threshold):
             entropy, maxE = clusterEntropy(likelihood, threshold)
             te[temp+'_entropy'] = entropy#.reset_index(drop=True)
         temporal_entropy.update({e:te})      
+
+        #total consumption error
+        consE = consumption_error.where(consumption_error.cluster_size>threshold, np.nan).loc[
+            (consumption_error.experiment==e)&(consumption_error.compare=='total'),:]
+        consE_w = consE.iloc[:,:4].mul(consE.cluster_size.T, axis=0).div(consE.cluster_size.sum()) #weighted by cluster size
+        total_consE[e] = {'mape':consE_w.mape,'mdape':consE_w.mdape,'mdlq':consE_w.mdlq,'mdsyma':consE_w.mdsyma} 
         
-        #demand entropy
-        co = dict()
-        df_temp = pd.read_csv(os.path.join(corr_path, 'demandi_corr.csv'), header=[0]).drop_duplicates(
-                subset=['k','experiment','compare'], keep='last').set_index('k', drop=True)
-        for c in compare:
-            likelihood = df_temp[(df_temp.experiment == e+'BEST1')&(df_temp.compare==c)].drop(['experiment',
-                                 'compare'], axis=1)
-            entropy, maxE = clusterEntropy(likelihood, threshold)
-            co[c+'_entropy'] = entropy#.reset_index(drop=True)
-        demand_entropy.update({e:co})
-    
-    return total_consE, peak_consE, peak_coincR, temporal_entropy, demand_entropy
+        #peak consumption error
+        
+        consE = consumption_error.where(consumption_error.cluster_size>threshold, np.nan).loc[
+            (consumption_error.experiment==e)&(consumption_error.compare=='peak'),:]
+        consE_w = consE.iloc[:,:4].mul(consE.cluster_size.T, axis=0).div(consE.cluster_size.sum()) #weighted by cluster size
+        peak_consE[e] = {'mape':consE_w.mape,'mdape':consE_w.mdape,'mdlq':consE_w.mdlq,'mdsyma':consE_w.mdsyma}
+        
+        #peak coincidence ratio
+        peaks = peak_eval.where(peak_eval.cluster_size>threshold, np.nan)[peak_eval['experiment']==e]
+        peak_coincR[e] = {'coincidence_ratio': peaks['coincidence_ratio']*peaks.cluster_size / peaks.cluster_size.sum()} #weight     
+        #good clusters with more members than set by threshold value
+        good_clusters[e] = {'threshold_ratio': peaks['cluster_size'].notna().sum()/len(peaks)}
+        
+    return total_consE, peak_consE, peak_coincR, temporal_entropy, demand_entropy, good_clusters
 
 def saveMeasures(best_exps, threshold):
     
     measures = zip(['total_consE', 'peak_consE', 'peak_coincR', 'temporal_entropy', 
-                    'demand_entropy'], getMeasures(best_exps, threshold))
+                    'demand_entropy','good_clusters'], getMeasures(best_exps, threshold))
     mean_measures = list()
 
     for m, m_data in measures:

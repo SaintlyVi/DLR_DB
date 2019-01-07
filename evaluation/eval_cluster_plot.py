@@ -130,7 +130,7 @@ def plotClusterIndex(index, title, experiments, threshold=1200, groupby='algorit
     fig = {'data':traces, 'layout':layout }
     return po.plot(fig, filename=clustering_evaluation_dir+'/cluster_index_'+index+'.html')
 
-def plotClusterCentroids(centroids, groupby='_bin', n_best=1, title=''):
+def plotClusterCentroids(centroids, groupby='_bin', n_best=1, title='', threshold=None):
 
     n_best = centroids['n_best'].unique()[0]
     experiment_name = centroids['experiment'].unique()[0]
@@ -139,6 +139,9 @@ def plotClusterCentroids(centroids, groupby='_bin', n_best=1, title=''):
         centroids = ec.rebinCentroids(centroids)
     if 'bin' in centroids.elec_bin.unique()[0]:
         centroids = ec.renameBins(centroids, centroids)
+    
+    if isinstance(threshold, int):
+        centroids = centroids[centroids.cluster_size>threshold]
     
     traces = centroids.iloc[:, 0:24].T
     n_clust = len(traces.columns)
@@ -428,9 +431,10 @@ def plotClusterSpecificity(experiment, corr_list, threshold, relative=False):
             linegraph['data'].append({'line': {'color': colours[col], 'width':1.5},
                    'name': lklhd.columns[col],
                    'type': u'scatter',
+                   'mode': 'lines',
                    'x': lklhd.index.values,
                    'y':lklhd.iloc[:,col]})
-
+            
         fig.append_trace(heatmap, i, 1)
         for l in linegraph['data']:
             fig.append_trace(l, i, 2)       
@@ -438,7 +442,7 @@ def plotClusterSpecificity(experiment, corr_list, threshold, relative=False):
         i += 1
 
     #Update layout
-    fig['layout'].update(title='Temporal specificity of ' + experiment, height=n_corr*400, hovermode = "closest", showlegend=False) 
+    fig['layout'].update(title='Temporal homogeneity of ' + experiment, height=n_corr*400, hovermode = "closest", showlegend=False) 
 
     po.plot(fig, filename=clustering_evaluation_dir+'/cluster_specificity_'+experiment+'_'+'_'.join(corr_list)+'.html')
 
@@ -487,7 +491,7 @@ def plotClusterMetrics(metrics_dict, title, metric=None, make_area_plot=False, y
     else:
         yax = dict(title = 'metric')
     layout = go.Layout(
-            title= 'Comparison of '+title+' for different model runs',
+            title= 'Comparison of '+title+' for different experiments',
             margin=go.Margin(t=50,r=50,b=50,l=50, pad=10),
             height= 300+len(traces)*15,
             xaxis=dict(title = 'n clusters'),
@@ -541,7 +545,7 @@ def subplotClusterMetrics(metrics_dict, title, metric=None, make_area_plot=False
         yax = dict(title = 'metric')
 
     fig['layout'].update(
-            title= 'Comparison of '+title+' for different model runs',
+            title= 'Comparison of '+title+' for different experiments',
             margin=go.Margin(t=50,r=50,b=50,l=50, pad=10),
             hovermode = "closest"
             )
