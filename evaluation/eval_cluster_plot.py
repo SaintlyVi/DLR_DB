@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 import os
 from math import ceil, floor
+import webbrowser
 
 import plotly.plotly as py
 import plotly.offline as po
@@ -273,35 +274,64 @@ def plotClusterMembers(cluster, xlabel, centroids, member_sample=500, out='plot'
     elif out == 'fig':
         return fig
 
-def plotMembersSample(experiment, clusters = None):
+def plotMembersSample(experiment, clusters = None, largest=None):
+    """
+    This function plots a sample of cluster representative daily load profiles (RDLPs) 
+    and a random selection of 250 member profiles.
     
-    xlabel = ec.getLabels(experiment)
+    Parameters:
+    
+    experiment - experiment name
+    clusters   - list of cluster indexes; if none, selects all (optional)
+    largest    - integer; selects largest number of clusters (optional)
+    """
+
     centroids = ec.realCentroids(experiment)
+    
     if clusters is None:
         clusters = centroids.index.values
+        cluststr = ''
+    else:
+        cluststr = '_clusters_{}-{}'.format(clusters[0], clusters[-1])
     
-    r = ceil(len(clusters)/3)
+    if isinstance(largest, int):
+        clusters = centroids.nlargest(largest, 'cluster_size').sort_index().index.values
+        largstr = '_{}_largest'.format(largest)
+    else:
+        largstr = ''
+    
+    dirpath = os.path.join(data_dir, 'cluster_evaluation', 'plots', experiment)
+    os.makedirs(dirpath, exist_ok=True)
+    filepath = dirpath+'/RDLPandMembers'+cluststr+largstr+'.html'
+     
+    if os.path.exists(filepath):
+        webbrowser.open(filepath) #launch in browswer if file exists
+        
+    else:
+        xlabel = ec.getLabels(experiment)
 
-    fig = tools.make_subplots(rows=r, cols=3, shared_xaxes=False,
-                              subplot_titles= ['cluster' + str(i) for i in clusters], 
-                              print_grid=False)  
-    i = 3
-    for c in clusters:
-        t_row = floor(i/3)
-        t_col = i%3 + 1
-        data = plotClusterMembers(c, xlabel, centroids, member_sample=250, out='fig')
-        for d in data['data']:
-            fig.append_trace(d, t_row, t_col)
-        i += 1
-    
-    fig['layout'].update(title='RDLPs and 250 sample member profiles for '+experiment,
-               showlegend=False, 
-               margin=dict(l=40, b=40),
-               width=900, 
-               height=200*r, 
-               hovermode=False)
-    
-    po.iplot(fig)
+        r = ceil(len(clusters)/3)
+
+        fig = tools.make_subplots(rows=r, cols=3, shared_xaxes=False,
+                                  subplot_titles= ['cluster' + str(i) for i in clusters], 
+                                  print_grid=False)  
+        i = 3
+        for c in clusters:
+            t_row = floor(i/3)
+            t_col = i%3 + 1
+            data = plotClusterMembers(c, xlabel, centroids, member_sample=250, out='fig')
+            for d in data['data']:
+                fig.append_trace(d, t_row, t_col)
+            i += 1
+
+        fig['layout'].update(title='RDLPs and 250 sample member profiles for '+experiment,
+                   showlegend=False, 
+                   margin=dict(l=40, b=40),
+                   width=900, 
+                   height=200*r, 
+                   hovermode=False)
+
+        po.plot(fig, filename=filepath)
     
 #---------------------------
 # Prepping the colorbar
