@@ -18,16 +18,22 @@ import peakutils
 import features.feature_ts as ts
 import features.feature_socios as soc
 from experiment.algorithms.cluster_prep import xBins
-from support import data_dir, experiment_dir
+from support import data_dir, experiment_dir, results_dir
 
-def getExperiments(exp_root):
+def getExperiments():#exp_root):
     """
     Retrieve experiments with root name exp_root from the results directory. 
     Returns list of unique experiments with root exp_root.
     """
     
-    exps = glob(os.path.join(data_dir,'cluster_results',exp_root + '*.csv'))
-    experiments = list(pd.Series([('_').join(x.split('/')[-1].split('_')[:-1]) for x in exps]).drop_duplicates(keep='last'))
+#    exps = glob(os.path.join(data_dir,'cluster_results',exp_root + '*.csv'))
+#    experiments = list(pd.Series([('_').join(x.split('/')[-1].split('_')[:-1]) for x in exps]).drop_duplicates(keep='last'))
+#    experiments.sort()
+    
+    exp_file = os.path.join(results_dir,'cluster_results.csv')
+    data = pd.read_csv(exp_file, header=0, usecols=['experiment_name'])
+    experiments = list(data['experiment_name'].drop_duplicates(keep='last'))
+    experiments.remove('test')
     experiments.sort()
     
     return experiments
