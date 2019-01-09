@@ -289,29 +289,31 @@ def consumptionError(xlabel, centroids, compare='total'):
     median symmetric accuracy
     """
     
-    cent = centroids.iloc[:,0:24]
+    rdlp = centroids.iloc[:,0:24]
     
     if compare == 'total':
         X_dd = pd.concat([xlabel.iloc[:,list(range(0,24))].sum(axis=1), xlabel.iloc[:,-2]], axis=1, keys=['DD','k'])
-        cent_dd = cent.sum(axis=1).rename_axis('k',0).reset_index(name='DD')
+        rdlp_dd = rdlp.sum(axis=1).rename_axis('k',0).reset_index(name='DD')
     elif compare == 'peak':
         X_dd = pd.concat([xlabel.iloc[:,list(range(0,24))].max(axis=1), xlabel.iloc[:,-2]], axis=1, keys=['DD','k'])
-        cent_dd = cent.max(axis=1).rename_axis('k',0).reset_index(name='DD')
+        rdlp_dd = rdlp.max(axis=1).rename_axis('k',0).reset_index(name='DD')
 
     X_dd['ae'] = 0
     X_dd['logq'] = 0
-    for y in cent_dd.itertuples(): 
+    for y in rdlp_dd.itertuples(): 
         X_dd.loc[X_dd.k==y[1],'ae'] = [abs(x-y[2]) for x in X_dd.loc[X_dd.k==y[1],'DD']]
         try:
-            X_dd.loc[X_dd.k==y[1],'logq'] = [log(y[2]/x) for x in X_dd.loc[X_dd.k==y[1],'DD']]
-        except:
+            X_dd.loc[X_dd.k==y[1],'logq'] = X_dd.loc[X_dd.k==y[1], 'DD'].apply(lambda x : log(y[2]/x) if x!=0 else 0)
+            #X_dd.loc[X_dd.k==y[1],'logq'] = [log(y[2]/x) for x in X_dd.loc[X_dd.k==y[1],'DD']] - depricated in favor of above
+        except ZeroDivisionError:
+            #TODO: fix this. Drop zeros and then evaluate
             print('Zero values. Could not compute log(Q) for cluster', str(y[1]))
             X_dd.loc[X_dd.k==y[1],'logq'] = np.inf
 
-    X_dd['ape'] = X_dd.ae/X_dd.DD
+    X_dd['ape'] = X_dd.ae/X_dd.DD.replace(0, np.NaN) #metric is undefined for 0 values;
     X_dd['alogq'] = X_dd['logq'].map(lambda x: abs(x))
             
-    mape = X_dd.groupby('k')['ape'].mean()*100
+    mape = X_dd.replace(0, np.NaN).groupby('k')['ape'].mean()*100
     mdape = X_dd.groupby('k')['ape'].agg(np.median)*100
     mdlq = X_dd.groupby('k')['logq'].agg(np.median)
     mdsyma = np.expm1(X_dd.groupby('k')['alogq'].agg(np.median))*100
