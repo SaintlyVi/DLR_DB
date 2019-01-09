@@ -556,7 +556,7 @@ def saveCorr(xlabel, experiment, corr='all', n_best=1):
     print('Successfully saved correlation measures for ', experiment)
     return
 
-def clusterEntropy(likelihood, threshold):
+def clusterEntropy(likelihood, threshold, weighted):
     
     try:
         random_likelihood = 1/len(likelihood)
@@ -567,13 +567,16 @@ def clusterEntropy(likelihood, threshold):
     cluster_size = likelihood['cluster_size']
     lklhd = likelihood.drop('cluster_size', axis=1)
     cluster_entropy = lklhd.T.applymap(lambda x : -x*log(x,2)).sum(axis=0)
-    weighted_cluster_entropy = cluster_entropy * cluster_size / cluster_size.sum()
+    if weighted is True:
+        weighted_cluster_entropy = cluster_entropy * cluster_size / cluster_size.sum()
+    if weighted is False:
+        weighted_cluster_entropy = cluster_entropy
 #    cluster_entropy.where(cluster_entropy!=0, inplace=True) #No need to remove 0 entropy clusters
     max_entropy = -random_likelihood*log(random_likelihood,2)*len(lklhd)
     
     return weighted_cluster_entropy, max_entropy    
 
-def getMeasures(best_exps, threshold):
+def getMeasures(best_exps, threshold, weighted):
     
     eval_dir = os.path.join(data_dir,'cluster_evaluation')
 
@@ -619,7 +622,7 @@ def getMeasures(best_exps, threshold):
         for d in demand:
             likelihood = dmnd_temp[(dmnd_temp.experiment == e)&(dmnd_temp.compare==d)].drop(['experiment',
                                  'compare'], axis=1)
-            entropy, maxE = clusterEntropy(likelihood, threshold)
+            entropy, maxE = clusterEntropy(likelihood, threshold, weighted)
             co[d+'_entropy'] = entropy#.reset_index(drop=True)
         demand_entropy.update({e:co})
         
@@ -629,35 +632,45 @@ def getMeasures(best_exps, threshold):
             df = pd.read_csv(os.path.join(corr_path, temp+'_corr.csv'), header=[0]).drop_duplicates(
                     subset=['k','experiment'], keep='last').set_index('k', drop=True) 
             likelihood = df[df.experiment == e+'BEST1'].drop('experiment', axis=1)
-            entropy, maxE = clusterEntropy(likelihood, threshold)
+            entropy, maxE = clusterEntropy(likelihood, threshold, weighted)
             te[temp+'_entropy'] = entropy#.reset_index(drop=True)
         temporal_entropy.update({e:te})      
 
         #total consumption error
         consE = consumption_error.where(consumption_error.cluster_size>threshold, np.nan).loc[
             (consumption_error.experiment==e)&(consumption_error.compare=='total'),:]
-        consE_w = consE.iloc[:,:4].mul(consE.cluster_size.T, axis=0).div(consE.cluster_size.sum()) #weighted by cluster size
+        if weighted is True:
+            consE_w = consE.iloc[:,:4].mul(consE.cluster_size.T, axis=0).div(consE.cluster_size.sum()) #weighted by cluster size
+        if weighted is False:
+            consE_w = consE.iloc[:,:4]
         total_consE[e] = {'mape':consE_w.mape,'mdape':consE_w.mdape,'mdlq':consE_w.mdlq,'mdsyma':consE_w.mdsyma} 
         
         #peak consumption error
-        
         consE = consumption_error.where(consumption_error.cluster_size>threshold, np.nan).loc[
             (consumption_error.experiment==e)&(consumption_error.compare=='peak'),:]
-        consE_w = consE.iloc[:,:4].mul(consE.cluster_size.T, axis=0).div(consE.cluster_size.sum()) #weighted by cluster size
+        if weighted is True:
+            consE_w = consE.iloc[:,:4].mul(consE.cluster_size.T, axis=0).div(consE.cluster_size.sum()) #weighted by cluster size
+        if weighted is False:
+            consE_w = consE.iloc[:,:4]
         peak_consE[e] = {'mape':consE_w.mape,'mdape':consE_w.mdape,'mdlq':consE_w.mdlq,'mdsyma':consE_w.mdsyma}
         
         #peak coincidence ratio
         peaks = peak_eval.where(peak_eval.cluster_size>threshold, np.nan)[peak_eval['experiment']==e]
-        peak_coincR[e] = {'coincidence_ratio': peaks['coincidence_ratio']*peaks.cluster_size / peaks.cluster_size.sum()} #weight     
+        if weighted is True:
+            peak_coincR[e] = {'coincidence_ratio': peaks['coincidence_ratio'
+                                                        ]/peaks.cluster_size * peaks.cluster_size.sum()} #weighted by inverse
+        if weighted is False:
+            peak_coincR[e] = {'coincidence_ratio': peaks['coincidence_ratio']}
+            
         #good clusters with more members than set by threshold value
         good_clusters[e] = {'threshold_ratio': peaks['cluster_size'].notna().sum()/len(peaks)}
         
     return total_consE, peak_consE, peak_coincR, temporal_entropy, demand_entropy, good_clusters
 
-def saveMeasures(best_exps, threshold):
+def saveMeasures(best_exps, threshold, weighted=True):
     
     measures = zip(['total_consE', 'peak_consE', 'peak_coincR', 'temporal_entropy', 
-                    'demand_entropy','good_clusters'], getMeasures(best_exps, threshold))
+                    'demand_entropy','good_clusters'], getMeasures(best_exps, threshold, weighted))
     mean_measures = list()
 
     for m, m_data in measures:

@@ -517,9 +517,9 @@ def plotClusterMetrics(metrics_dict, title, metric=None, make_area_plot=False, y
 
     #set layout
     if ylog == True:
-        yax = dict(title = 'metric (log scale)' , type='log')
+        yax = dict(title = 'score (log scale)' , type='log')
     else:
-        yax = dict(title = 'metric')
+        yax = dict(title = 'score')
     layout = go.Layout(
             title= 'Comparison of '+title+' for different experiments',
             margin=go.Margin(t=50,r=50,b=50,l=50, pad=10),
@@ -570,9 +570,9 @@ def subplotClusterMetrics(metrics_dict, title, metric=None, make_area_plot=False
 
     #set layout
     if ylog == True:
-        yax = dict(title = 'metric (log scale)' , type='log')
+        yax = dict(title = 'score (log scale)' , type='log')
     else:
-        yax = dict(title = 'metric')
+        yax = dict(title = 'score')
 
     fig['layout'].update(
             title= 'Comparison of '+title+' for different experiments',
