@@ -304,13 +304,13 @@ def consumptionError(xlabel, centroids, compare='total'):
         X_dd.loc[X_dd.k==y[1],'ae'] = [abs(x-y[2]) for x in X_dd.loc[X_dd.k==y[1],'DD']]
         try:
             #Accommodate zero profiles...
-            X_dd.loc[X_dd.k==y[1],'logq'] = X_dd.loc[X_dd.k==y[1], 'DD'].apply(lambda x : log(y[2]/x) if x!=0 else np.NaN)
-            #X_dd.loc[X_dd.k==y[1],'logq'] = [log(y[2]/x) for x in X_dd.loc[X_dd.k==y[1],'DD']]
+            #X_dd.loc[X_dd.k==y[1],'logq'] = X_dd.loc[X_dd.k==y[1], 'DD'].apply(lambda x : log(y[2]/x) if x!=0 else np.NaN)
+            X_dd.loc[X_dd.k==y[1],'logq'] = [log(y[2]/x) for x in X_dd.loc[X_dd.k==y[1],'DD']]
         except ZeroDivisionError:
             print('Zero values. Could not compute log(Q) for cluster', str(y[1]))
             X_dd.loc[X_dd.k==y[1],'logq'] = np.inf
 
-    X_dd['ape'] = X_dd.ae/X_dd.DD.replace(0, np.NaN) #metric is undefined for 0 values;
+    X_dd['ape'] = X_dd.ae/X_dd.DD#.replace(0, np.NaN) #metric is undefined for 0 values;
     X_dd['alogq'] = X_dd['logq'].map(lambda x: abs(x))
             
     mape = X_dd.groupby('k')['ape'].mean()*100
