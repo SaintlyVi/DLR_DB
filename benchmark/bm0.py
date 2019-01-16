@@ -271,7 +271,7 @@ def plotBmHourlyProfiles(electrified_min, electrified_max, customer_class, model
 
     df = hourlyprofiles[(hourlyprofiles['class']==customer_class)&(hourlyprofiles['YearsElectrified'].isin(electrified_range)) ].groupby(['season','daytype','hour'])['Mean [kVA]'].mean().unstack()/0.23 #get mean profile values and % by 0.23 to get from kVA to A                                           
                           
-    experiment_name = 'benchmark_'+customer_class+'_'+str(electrified_min)+'-'+str(electrified_max)+'yrs_electrified'
+    experiment_name = customer_class+'_'+str(electrified_min)+'-'+str(electrified_max)+'yrs_electrified'
     
     if title == '':
         plot_title = experiment_name
@@ -303,4 +303,4 @@ def plotBmHourlyProfiles(electrified_min, electrified_max, customer_class, model
     fig['layout']['margin'].update(t=50,r=80,b=100,l=90,pad=10),
 #    fig['layout']['title']['font'] = dict(size=20)
     
-    offline.plot(fig, filename='img/benchmark/bm0/'+experiment_name+'.html')
+    offline.plot(fig, filename='data/benchmark_model/plots/'+experiment_name+'.html')
