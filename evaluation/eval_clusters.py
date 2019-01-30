@@ -134,6 +134,8 @@ def selectClusters(cluster_results, n_best, experiment='all' ):
         best_clusters.algorithm=='som', best_clusters['batch_fit_time']/best_clusters['n_clust'], axis=0)
     best_clusters['batch_fit_time'] = best_clusters['batch_fit_time'].where(
         best_clusters.algorithm!='som', best_clusters['batch_fit_time']/(best_clusters['som_dim']**2), axis=0)
+    best_clusters.rename(columns={'batch_fit_time':'mean cluster fit time','n_clust':'clusters',
+                                  'som_dim':'SOM dimensions','pre_processing':'preprocessing'}, inplace=True)
     
     return best_clusters
 
