@@ -62,7 +62,7 @@ def getExpDetails(experiment_name):
 
 def readResults():
     cluster_results = pd.read_csv('results/cluster_results.csv')
-    cluster_results.drop_duplicates(subset=['dbi','mia','experiment_name','elec_bin'],keep='last',inplace=True)
+    cluster_results.drop_duplicates(subset=['batch_fit_time','dbi','mia','experiment_name','elec_bin'],keep='last',inplace=True)
     cluster_results = cluster_results[cluster_results.experiment_name != 'test']
     cluster_results['score'] = cluster_results.dbi * cluster_results.mia / cluster_results.silhouette
     cluster_results['clusters'] = cluster_results.loc[:, 'n_clust'].where(
@@ -106,14 +106,15 @@ def selectClusters(cluster_results, n_best, experiment='all' ):
     for e in exc.experiment_name.unique():    
         if int(e[3]) < 4:    
             i_ec = exc.loc[exc.experiment_name == e].groupby(['experiment_name', 'som_dim', 'n_clust'
-                          ]).mean().reset_index() 
+                          ]).mean().reset_index()
             experiment_clusters = experiment_clusters.append(i_ec, sort=True)
             
         elif int(e[3]) >= 4:
             temp_ec = exc.loc[exc.loc[exc.experiment_name == e].groupby(['experiment_name', 'som_dim', 
-                              'elec_bin'])['score'].idxmin(), ['experiment_name', 'som_dim', 'n_clust', 'elec_bin', 'dbi', 'mia', 'silhouette', 'score', 'total_sample']]
+                              'elec_bin'])['score'].idxmin(), ['experiment_name', 'som_dim', 'n_clust', 'elec_bin', 'dbi', 'mia',
+                                                               'silhouette', 'score', 'total_sample','batch_fit_time']]
             
-            i_ec = temp_ec.groupby(['experiment_name', 'som_dim'])['n_clust'].mean().reset_index(name='n_clust')
+            i_ec = temp_ec.groupby(['experiment_name', 'som_dim']).agg({'n_clust':'sum','batch_fit_time':'sum'}).reset_index()
             for s in ['dbi', 'mia', 'silhouette', 'score']:
                 i_ec.loc[:,s] = weightScore(temp_ec, s)
             
@@ -121,12 +122,18 @@ def selectClusters(cluster_results, n_best, experiment='all' ):
             experiment_clusters = experiment_clusters.append(i_ec, sort=True) 
         
     best_clusters = experiment_clusters.nsmallest(columns='score',n=n_best).reset_index(drop=True).reindex(
-                        ['som_dim','n_clust','dbi','mia','silhouette','score','experiment_name'],axis=1)
+                        ['som_dim','n_clust','dbi','mia','silhouette','score','batch_fit_time','experiment_name'],axis=1)
 
     best_clusters.insert(0, 'experiment', best_clusters['experiment_name'].apply(lambda x: x.split('_', 1)[0][3]))
     best_clusters.insert(1, 'algorithm', best_clusters['experiment_name'].apply(lambda x: x.split('_', 2)[1]))
     prepro = best_clusters['experiment_name'].apply(lambda x: x.split('_', 2)[2] if x.count('_')>1 else None)
     best_clusters.insert(2, 'pre_processing', prepro)
+    
+    #calculate batch fit time per cluster created
+    best_clusters['batch_fit_time'] = best_clusters['batch_fit_time'].where(
+        best_clusters.algorithm=='som', best_clusters['batch_fit_time']/best_clusters['n_clust'], axis=0)
+    best_clusters['batch_fit_time'] = best_clusters['batch_fit_time'].where(
+        best_clusters.algorithm!='som', best_clusters['batch_fit_time']/(best_clusters['som_dim']**2), axis=0)
     
     return best_clusters
 
@@ -660,7 +667,7 @@ def getMeasures(best_exps, threshold, weighted):
         peaks = peak_eval.where(peak_eval.cluster_size>threshold, np.nan)[peak_eval['experiment']==e]
         if weighted is True:
             peak_coincR[e] = {'coincidence_ratio': peaks['coincidence_ratio'
-                                                        ]/peaks.cluster_size * peaks.cluster_size.sum()} #weighted by inverse
+                                                        ]*peaks.cluster_size / peaks.cluster_size.sum()} #weighted
         if weighted is False:
             peak_coincR[e] = {'coincidence_ratio': peaks['coincidence_ratio']}
             
@@ -678,7 +685,10 @@ def saveMeasures(best_exps, threshold, weighted=True):
     for m, m_data in measures:
         for k,v in m_data.items():
             for i,j in v.items():
-                me = meanError(j)
+                if m == 'peak_coincR':
+                    me = np.sum(j)
+                else:
+                    me = meanError(j)
                 mean_measures.append([m, k, i, me])   
             
     evaluation_table = pd.DataFrame(mean_measures, columns=['measure','experiment','metric','value'])
