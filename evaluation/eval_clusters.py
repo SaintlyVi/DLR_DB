@@ -64,6 +64,7 @@ def readResults():
     cluster_results = pd.read_csv('results/cluster_results.csv')
     cluster_results.drop_duplicates(subset=['batch_fit_time','dbi','mia','experiment_name','elec_bin'],keep='last',inplace=True)
     cluster_results = cluster_results[cluster_results.experiment_name != 'test']
+    cluster_results['silhouette'] = cluster_results['silhouette'].where(cluster_results['silhouette']>=0, np.nan)
     cluster_results['score'] = cluster_results.dbi * cluster_results.mia / cluster_results.silhouette
     cluster_results['clusters'] = cluster_results.loc[:, 'n_clust'].where(
             cluster_results['n_clust'] > 0,
@@ -100,13 +101,13 @@ def selectClusters(cluster_results, n_best, experiment='all' ):
     else:
         exc = cluster_results.loc[(cluster_results.experiment_name == experiment) &
                                   (cluster_results.score>0), :]
-
+       
     experiment_clusters = pd.DataFrame()
     
     for e in exc.experiment_name.unique():    
         if int(e[3]) < 4:    
-            i_ec = exc.loc[exc.experiment_name == e].groupby(['experiment_name', 'som_dim', 'n_clust'
-                          ]).mean().reset_index()
+            i_ec = exc.loc[exc.experiment_name == e].drop_duplicates(subset=['experiment_name', 'som_dim', 'n_clust'], 
+                                                                     keep='last').reset_index()
             experiment_clusters = experiment_clusters.append(i_ec, sort=True)
             
         elif int(e[3]) >= 4:
@@ -117,10 +118,11 @@ def selectClusters(cluster_results, n_best, experiment='all' ):
             i_ec = temp_ec.groupby(['experiment_name', 'som_dim']).agg({'n_clust':'sum','batch_fit_time':'sum'}).reset_index()
             for s in ['dbi', 'mia', 'silhouette', 'score']:
                 i_ec.loc[:,s] = weightScore(temp_ec, s)
-            
-#            i_ec = temp_ec.groupby(['experiment_name', 'som_dim']).mean().drop(columns ='total_sample').reset_index()
+                
             experiment_clusters = experiment_clusters.append(i_ec, sort=True) 
-        
+    
+    experiment_clusters['score'] = np.log(experiment_clusters['score']) #take log of weighted experiment CI score
+    
     best_clusters = experiment_clusters.nsmallest(columns='score',n=n_best).reset_index(drop=True).reindex(
                         ['som_dim','n_clust','dbi','mia','silhouette','score','batch_fit_time','experiment_name'],axis=1)
 
@@ -130,12 +132,13 @@ def selectClusters(cluster_results, n_best, experiment='all' ):
     best_clusters.insert(2, 'pre_processing', prepro)
     
     #calculate batch fit time per cluster created
-    best_clusters['batch_fit_time'] = best_clusters['batch_fit_time'].where(
-        best_clusters.algorithm=='som', best_clusters['batch_fit_time']/best_clusters['n_clust'], axis=0)
-    best_clusters['batch_fit_time'] = best_clusters['batch_fit_time'].where(
-        best_clusters.algorithm!='som', best_clusters['batch_fit_time']/(best_clusters['som_dim']**2), axis=0)
-    best_clusters.rename(columns={'batch_fit_time':'mean cluster fit time','n_clust':'clusters',
-                                  'som_dim':'SOM dimensions','pre_processing':'preprocessing'}, inplace=True)
+#    best_clusters['batch_fit_time'] = best_clusters['batch_fit_time'].where(
+#        best_clusters.algorithm=='som', best_clusters['batch_fit_time']/best_clusters['n_clust'], axis=0)
+#    best_clusters['batch_fit_time'] = best_clusters['batch_fit_time'].where(
+#        best_clusters.algorithm!='som', best_clusters['batch_fit_time']/(best_clusters['som_dim']**2), axis=0)
+
+    best_clusters.rename(columns={'batch_fit_time':'Run time','n_clust':'Clusters',
+                                  'som_dim':'SOM dim','pre_processing':'preprocessing'}, inplace=True)
     
     return best_clusters
 

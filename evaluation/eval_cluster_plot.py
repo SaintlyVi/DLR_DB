@@ -75,7 +75,7 @@ def plotPrettyColours(data, grouping):
     
     return colours
 
-def plotClusterIndex(index, title, experiments, threshold=1200, groupby='algorithm', ylog=False):
+def plotClusterIndex(index, title, experiments, threshold=0, groupby='algorithm', ylog=False):
     
     cluster_results = ec.readResults()
     cluster_results = cluster_results[cluster_results.total_sample>threshold]
@@ -116,14 +116,14 @@ def plotClusterIndex(index, title, experiments, threshold=1200, groupby='algorit
 
     #set layout
     if ylog == True:
-        yax = dict(title = index+' (log scale)' , type='log')
+        yax = dict(title = index+' (log)' , type='log', titlefont=dict(size=18), tickfont=dict(size=16))
     else:
-        yax = dict(title = index)
+        yax = dict(title = index, titlefont=dict(size=18), tickfont=dict(size=16))
     layout = go.Layout(
-            title= title,
-            margin=go.Margin(t=50,r=50,b=50,l=50, pad=10),
+            title= title, titlefont=dict(size=24),
+            margin=go.Margin(t=50,r=50,b=50,l=50, pad=0),
             height= 700,
-            xaxis=dict(title = 'n clusters (log scale)', type='log'),
+            xaxis=dict(title = 'n clusters (log)', type='log', titlefont=dict(size=18), tickfont=dict(size=16)),
             yaxis=yax,
             hovermode = "closest"
             )
